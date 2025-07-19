@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "skein-scheme"
+name = "twine-scheme"
 version = "0.1.0"

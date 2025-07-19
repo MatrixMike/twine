@@ -1,5 +1,5 @@
 [package]
-name = "skein-scheme"
+name = "twine-scheme"
 version = "0.1.0"
 edition = "2024"
 

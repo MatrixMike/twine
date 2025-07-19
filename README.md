@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🧶 skein</h1>
+  <h1>🧶 twine</h1>
   <p>
     <strong>
       Scheme interpreter

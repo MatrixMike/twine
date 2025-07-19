@@ -1,4 +1,4 @@
-# Skein Scheme Interpreter - Technical Design Document
+# Twine Scheme Interpreter - Technical Design Document
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@
 
 ## System Overview
 
-Skein is a purely functional Scheme interpreter written in Rust that emphasizes immutability, asynchronous I/O, and parallel execution. The system is built around three core principles:
+Twine is a purely functional Scheme interpreter written in Rust that emphasizes immutability, asynchronous I/O, and parallel execution. The system is built around three core principles:
 
 1. **Complete Immutability**: All data structures are immutable after creation
 2. **Fiber-based Concurrency**: Lightweight tasks executed on a thread pool using `smol` async runtime
@@ -56,7 +56,7 @@ Skein is a purely functional Scheme interpreter written in Rust that emphasizes 
 ### Module Structure
 
 ```
-skein/
+twine/
 ├── src/
 │   ├── main.rs              # Entry point and CLI
 │   ├── lib.rs               # Library root
@@ -364,7 +364,7 @@ Implemented through async recursion and proper future handling:
 async fn eval_application(exprs: Vec<Expr>, env: Environment) -> Result<Value, Error> {
     let func = eval(exprs[0].clone(), env.clone()).await?;
     let args = eval_args(&exprs[1..], env.clone()).await?;
-    
+
     match func {
         Value::Procedure(proc) => {
             match proc.as_ref() {
@@ -392,7 +392,7 @@ All I/O operations are implemented as async functions using `smol`:
 ```rust
 pub mod io {
     use smol::io::{AsyncWriteExt, AsyncBufReadExt};
-    
+
     pub async fn display(value: &Value) -> Result<(), Error> {
         let output = format_value(value);
         let mut stdout = smol::io::stdout();
@@ -402,7 +402,7 @@ pub mod io {
             .map_err(|e| Error::IoError(e.to_string()))?;
         Ok(())
     }
-    
+
     pub async fn read_line() -> Result<String, Error> {
         let stdin = smol::io::stdin();
         let mut reader = smol::io::BufReader::new(stdin);
@@ -419,7 +419,7 @@ pub mod io {
 ```rust
 pub fn create_builtin_procedures() -> HashMap<String, Value> {
     let mut procs = HashMap::new();
-    
+
     // Async display procedure
     procs.insert("display".to_string(), Value::Procedure(Arc::new(
         Procedure::AsyncBuiltin {
@@ -433,7 +433,7 @@ pub fn create_builtin_procedures() -> HashMap<String, Value> {
             }),
         }
     )));
-    
+
     procs
 }
 ```
@@ -448,18 +448,18 @@ pub enum Error {
     // Parsing errors
     SyntaxError { message: String, line: usize, column: usize },
     ParseError(String),
-    
+
     // Runtime errors
     TypeError(String),
     ArityError(String),
     UnboundVariable(String),
-    
+
     // I/O errors
     IoError(String),
-    
+
     // Fiber errors
     FiberError(String),
-    
+
     // System errors
     SystemError(String),
 }
@@ -514,7 +514,7 @@ sequenceDiagram
     participant Evaluator
     participant FiberExecutor
     participant SmolRuntime
-    
+
     User->>REPL: Input expression
     REPL->>Parser: tokenize & parse
     Parser->>REPL: AST
@@ -536,11 +536,11 @@ sequenceDiagram
     participant Thread1
     participant Thread2
     participant Thread3
-    
+
     Main->>FiberExecutor: spawn_fiber(expr1)
     Main->>FiberExecutor: spawn_fiber(expr2)
     Main->>FiberExecutor: spawn_fiber(expr3)
-    
+
     par Parallel Execution
         FiberExecutor->>Thread1: execute fiber1
         and
@@ -548,11 +548,11 @@ sequenceDiagram
         and
         FiberExecutor->>Thread3: execute fiber3
     end
-    
+
     Thread1->>FiberExecutor: result1
     Thread2->>FiberExecutor: result2
     Thread3->>FiberExecutor: result3
-    
+
     FiberExecutor->>Main: collect results
 ```
 
@@ -564,7 +564,7 @@ sequenceDiagram
     participant Environment
     participant Procedure
     participant NewFiber
-    
+
     Evaluator->>Environment: lookup function
     Environment->>Evaluator: lambda procedure
     Evaluator->>Procedure: get closure environment
@@ -610,21 +610,21 @@ clap = "4.0"
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[smol_potat::test]
     async fn test_basic_arithmetic() {
         let result = eval_string("(+ 1 2 3)").await.unwrap();
         assert_eq!(result, Value::Number(6.0));
     }
-    
+
     #[smol_potat::test]
     async fn test_parallel_execution() {
         let results = eval_parallel(vec![
             "(+ 1 1)",
-            "(* 2 2)", 
+            "(* 2 2)",
             "(- 5 2)"
         ]).await.unwrap();
-        
+
         assert_eq!(results, vec![
             Value::Number(2.0),
             Value::Number(4.0),
@@ -706,4 +706,4 @@ impl ResourceLimits {
 - **Memory Pooling**: Custom memory allocators for performance
 - **JIT Compilation**: Just-in-time compilation for hot code paths
 
-This design document provides the foundation for implementing the Skein Scheme interpreter with the specified requirements for immutability, async I/O, and parallel fiber execution using the `smol` runtime.
+This design document provides the foundation for implementing the Twine Scheme interpreter with the specified requirements for immutability, async I/O, and parallel fiber execution using the `smol` runtime.

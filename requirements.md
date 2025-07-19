@@ -1,8 +1,8 @@
-# Requirements for Skein Scheme Interpreter
+# Requirements for Twine Scheme Interpreter
 
 ## Overview
 
-This document captures the functional and non-functional requirements for the Skein Scheme interpreter using the EARS (Easy Approach to Requirements Syntax) format. The interpreter SHALL implement a subset of the R7RS-small Scheme specification to provide a purely functional programming environment with **immutable data structures only** as a core design principle.
+This document captures the functional and non-functional requirements for the Twine Scheme interpreter using the EARS (Easy Approach to Requirements Syntax) format. The interpreter SHALL implement a subset of the R7RS-small Scheme specification to provide a purely functional programming environment with **immutable data structures only** as a core design principle.
 
 ## Key Design Principles
 
