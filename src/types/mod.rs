@@ -1,11 +1,18 @@
 //! Core data types for the Twine Scheme interpreter
 //!
-//! This module implements the fundamental Value type system with strict immutability.
+//! This module implements the fundamental type system with strict immutability.
 //! All data structures are immutable after creation, supporting thread-safe sharing
 //! and the functional programming paradigm.
 
 use std::str::FromStr;
 use std::sync::Arc;
+
+// Re-export all public types
+pub use procedures::Procedure;
+pub use value::Value;
+
+pub mod procedures;
+pub mod value;
 
 /// Immutable number type for Scheme numeric values
 ///
@@ -56,7 +63,7 @@ impl SchemeNumber {
         self.0 == f64::NEG_INFINITY
     }
 
-    /// Constants for special values
+    // Common numeric constants
     pub const INFINITY: SchemeNumber = SchemeNumber(f64::INFINITY);
     pub const NEG_INFINITY: SchemeNumber = SchemeNumber(f64::NEG_INFINITY);
     pub const NAN: SchemeNumber = SchemeNumber(f64::NAN);
@@ -65,40 +72,35 @@ impl SchemeNumber {
 }
 
 impl FromStr for SchemeNumber {
-    type Err = crate::Error;
+    type Err = std::num::ParseFloatError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Trim whitespace first
         let trimmed = s.trim();
 
-        // Handle special values
+        // Handle special cases first
         match trimmed {
-            "+inf.0" | "+infinity" => return Ok(SchemeNumber::INFINITY),
-            "-inf.0" | "-infinity" => return Ok(SchemeNumber::NEG_INFINITY),
+            "+inf.0" | "+inf" | "inf" => return Ok(SchemeNumber::INFINITY),
+            "-inf.0" | "-inf" => return Ok(SchemeNumber::NEG_INFINITY),
             "+nan.0" | "nan" => return Ok(SchemeNumber::NAN),
             _ => {}
         }
 
-        // Parse regular numbers
-        match trimmed.parse::<f64>() {
-            Ok(value) => Ok(SchemeNumber::new(value)),
-            Err(_) => Err(crate::Error::ParseError(format!(
-                "Invalid number format: '{}'",
-                s
-            ))),
-        }
+        // Parse as regular float
+        let value = trimmed.parse::<f64>()?;
+        Ok(SchemeNumber::new(value))
     }
 }
 
 impl std::fmt::Display for SchemeNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_nan() {
-            write!(f, "+nan.0")
-        } else if self.is_positive_infinity() {
+        if self.is_positive_infinity() {
             write!(f, "+inf.0")
         } else if self.is_negative_infinity() {
             write!(f, "-inf.0")
+        } else if self.is_nan() {
+            write!(f, "+nan.0")
         } else if self.is_integer() {
-            // Display integers without decimal point
             write!(f, "{}", self.0 as i64)
         } else {
             write!(f, "{}", self.0)
@@ -126,7 +128,7 @@ impl From<i64> for SchemeNumber {
 
 impl From<SchemeNumber> for f64 {
     fn from(num: SchemeNumber) -> Self {
-        num.0
+        num.value()
     }
 }
 
@@ -326,215 +328,10 @@ impl FromIterator<Value> for SchemeList {
     }
 }
 
-/// The core value type for all Scheme data
-///
-/// Represents all possible values in the Scheme language. This implementation
-/// follows strict immutability - once created, values cannot be modified.
-/// String data is shared using Arc<str> for memory efficiency.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    /// Numeric values using SchemeNumber wrapper
-    ///
-    /// Note: This is a simplified numeric tower. A full Scheme implementation
-    /// would support exact/inexact numbers, rationals, and complex numbers.
-    Number(SchemeNumber),
-
-    /// Boolean values (true/false)
-    Boolean(bool),
-
-    /// Immutable string values
-    ///
-    /// Using SchemeString provides proper abstraction and efficient sharing
-    /// of string data across multiple Value instances.
-    String(SchemeString),
-
-    /// Symbol values (identifiers)
-    ///
-    /// Symbols are like strings but represent identifiers in Scheme.
-    /// Using SchemeSymbol provides proper abstraction for identifier handling.
-    Symbol(SchemeSymbol),
-
-    /// List values (compound data)
-    ///
-    /// Represents Scheme lists using SchemeList wrapper around Vec<Value>.
-    /// Lists are the fundamental compound data structure in Scheme.
-    List(SchemeList),
-
-    /// The nil/null value
-    ///
-    /// Represents both the empty list '() and null/undefined values.
-    /// This dual nature is common in Lisp-family languages.
-    Nil,
-}
-
-impl Value {
-    /// Create a new number value from f64
-    pub fn number(n: f64) -> Self {
-        Value::Number(SchemeNumber::new(n))
-    }
-
-    /// Create a new number value from SchemeNumber
-    pub fn scheme_number(n: SchemeNumber) -> Self {
-        Value::Number(n)
-    }
-
-    /// Create a new boolean value
-    pub fn boolean(b: bool) -> Self {
-        Value::Boolean(b)
-    }
-
-    /// Create a new string value from a string slice
-    pub fn string(s: &str) -> Self {
-        Value::String(SchemeString::new(s))
-    }
-
-    /// Create a new string value from an owned String
-    pub fn string_from_owned(s: String) -> Self {
-        Value::String(SchemeString::from_string(s))
-    }
-
-    /// Create a new symbol value from a string slice
-    pub fn symbol(s: &str) -> Self {
-        Value::Symbol(SchemeSymbol::new(s))
-    }
-
-    /// Create a new symbol value from an owned String
-    pub fn symbol_from_owned(s: String) -> Self {
-        Value::Symbol(SchemeSymbol::from_string(s))
-    }
-
-    /// Create a new list value from a vector of values
-    pub fn list(values: Vec<Value>) -> Self {
-        Value::List(SchemeList::from_vec(values))
-    }
-
-    /// Create a new list value from a SchemeList
-    pub fn scheme_list(list: SchemeList) -> Self {
-        Value::List(list)
-    }
-
-    /// Create an empty list value
-    pub fn empty_list() -> Self {
-        Value::List(SchemeList::new())
-    }
-
-    /// Create the nil value
-    pub fn nil() -> Self {
-        Value::Nil
-    }
-
-    /// Check if this value is nil
-    pub fn is_nil(&self) -> bool {
-        matches!(self, Value::Nil)
-    }
-
-    /// Check if this value is a number
-    pub fn is_number(&self) -> bool {
-        matches!(self, Value::Number(_))
-    }
-
-    /// Check if this value is a boolean
-    pub fn is_boolean(&self) -> bool {
-        matches!(self, Value::Boolean(_))
-    }
-
-    /// Check if this value is a string
-    pub fn is_string(&self) -> bool {
-        matches!(self, Value::String(_))
-    }
-
-    /// Check if this value is a symbol
-    pub fn is_symbol(&self) -> bool {
-        matches!(self, Value::Symbol(_))
-    }
-
-    /// Check if this value is a list
-    pub fn is_list(&self) -> bool {
-        matches!(self, Value::List(_))
-    }
-
-    /// Get the numeric value if this is a number
-    pub fn as_number(&self) -> Option<f64> {
-        match self {
-            Value::Number(n) => Some(n.value()),
-            _ => None,
-        }
-    }
-
-    /// Get the SchemeNumber if this is a number
-    pub fn as_scheme_number(&self) -> Option<SchemeNumber> {
-        match self {
-            Value::Number(n) => Some(*n),
-            _ => None,
-        }
-    }
-
-    /// Get the boolean value if this is a boolean
-    pub fn as_boolean(&self) -> Option<bool> {
-        match self {
-            Value::Boolean(b) => Some(*b),
-            _ => None,
-        }
-    }
-
-    /// Get the string value if this is a string
-    pub fn as_string(&self) -> Option<&str> {
-        match self {
-            Value::String(s) => Some(s.as_str()),
-            _ => None,
-        }
-    }
-
-    /// Get the symbol value if this is a symbol
-    pub fn as_symbol(&self) -> Option<&str> {
-        match self {
-            Value::Symbol(s) => Some(s.as_str()),
-            _ => None,
-        }
-    }
-
-    /// Get the list value if this is a list
-    pub fn as_list(&self) -> Option<&SchemeList> {
-        match self {
-            Value::List(l) => Some(l),
-            _ => None,
-        }
-    }
-
-    /// Get a string representation of the value's type
-    pub fn type_name(&self) -> &'static str {
-        match self {
-            Value::Number(_) => "number",
-            Value::Boolean(_) => "boolean",
-            Value::String(_) => "string",
-            Value::Symbol(_) => "symbol",
-            Value::List(_) => "list",
-            Value::Nil => "nil",
-        }
-    }
-}
-
-/// Display implementation for Value
-///
-/// This provides a string representation suitable for output to users.
-/// It follows Scheme conventions for displaying values.
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::Number(n) => write!(f, "{}", n),
-            Value::Boolean(true) => write!(f, "#t"),
-            Value::Boolean(false) => write!(f, "#f"),
-            Value::String(s) => write!(f, "\"{}\"", s.as_str().replace('"', "\\\"")),
-            Value::Symbol(s) => write!(f, "{}", s),
-            Value::List(l) => write!(f, "{}", l),
-            Value::Nil => write!(f, "()"),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn test_number_parsing() {
@@ -582,13 +379,13 @@ mod tests {
                 .is_negative_infinity()
         );
         assert!(
-            "+infinity"
+            "+inf"
                 .parse::<SchemeNumber>()
                 .unwrap()
                 .is_positive_infinity()
         );
         assert!(
-            "-infinity"
+            "-inf"
                 .parse::<SchemeNumber>()
                 .unwrap()
                 .is_negative_infinity()
@@ -693,253 +490,6 @@ mod tests {
         assert!(SchemeNumber::ZERO.is_integer());
         assert!(SchemeNumber::ZERO.is_finite());
         assert_eq!(SchemeNumber::ZERO.value(), 0.0);
-    }
-
-    #[test]
-    fn test_value_creation() {
-        // Test number creation
-        let num = Value::number(42.0);
-        assert!(matches!(num, Value::Number(_)));
-        assert_eq!(num.as_number(), Some(42.0));
-
-        // Test boolean creation
-        let bool_true = Value::boolean(true);
-        let bool_false = Value::boolean(false);
-        assert!(matches!(bool_true, Value::Boolean(true)));
-        assert!(matches!(bool_false, Value::Boolean(false)));
-
-        // Test string creation
-        let string = Value::string("hello");
-        assert!(matches!(string, Value::String(_)));
-        assert_eq!(string.as_string(), Some("hello"));
-
-        // Test symbol creation
-        let symbol = Value::symbol("foo");
-        assert!(matches!(symbol, Value::Symbol(_)));
-        assert_eq!(symbol.as_symbol(), Some("foo"));
-
-        // Test list creation
-        let empty_list = Value::empty_list();
-        assert!(matches!(empty_list, Value::List(_)));
-        assert_eq!(empty_list.as_list().unwrap().len(), 0);
-
-        let list = Value::list(vec![Value::number(1.0), Value::string("test")]);
-        assert!(matches!(list, Value::List(_)));
-        assert_eq!(list.as_list().unwrap().len(), 2);
-
-        // Test nil creation
-        let nil = Value::nil();
-        assert!(matches!(nil, Value::Nil));
-    }
-
-    #[test]
-    fn test_value_debug_output() {
-        let values = vec![
-            Value::number(3.14),
-            Value::boolean(true),
-            Value::string("test"),
-            Value::symbol("var"),
-            Value::list(vec![Value::number(1.0), Value::number(2.0)]),
-            Value::nil(),
-        ];
-
-        for value in values {
-            let debug_str = format!("{:?}", value);
-            assert!(!debug_str.is_empty());
-            // Each variant should appear in its debug representation
-            match value {
-                Value::Number(_) => assert!(debug_str.contains("Number")),
-                Value::Boolean(_) => assert!(debug_str.contains("Boolean")),
-                Value::String(_) => assert!(debug_str.contains("String")),
-                Value::Symbol(_) => assert!(debug_str.contains("Symbol")),
-                Value::List(_) => assert!(debug_str.contains("List")),
-                Value::Nil => assert!(debug_str.contains("Nil")),
-            }
-        }
-    }
-
-    #[test]
-    fn test_value_equality() {
-        // Numbers
-        assert_eq!(Value::number(42.0), Value::number(42.0));
-        assert_ne!(Value::number(42.0), Value::number(43.0));
-
-        // Booleans
-        assert_eq!(Value::boolean(true), Value::boolean(true));
-        assert_eq!(Value::boolean(false), Value::boolean(false));
-        assert_ne!(Value::boolean(true), Value::boolean(false));
-
-        // Strings
-        assert_eq!(Value::string("hello"), Value::string("hello"));
-        assert_ne!(Value::string("hello"), Value::string("world"));
-
-        // Symbols
-        assert_eq!(Value::symbol("foo"), Value::symbol("foo"));
-        assert_ne!(Value::symbol("foo"), Value::symbol("bar"));
-
-        // Nil
-        assert_eq!(Value::nil(), Value::nil());
-
-        // Cross-type inequality
-        assert_ne!(Value::number(0.0), Value::boolean(false));
-        assert_ne!(Value::string("42"), Value::number(42.0));
-        assert_ne!(Value::symbol("nil"), Value::nil());
-    }
-
-    #[test]
-    fn test_value_cloning() {
-        let original = Value::string("shared data");
-        let cloned = original.clone();
-
-        assert_eq!(original, cloned);
-
-        // Verify that string data is actually shared (same Arc)
-        if let (Value::String(s1), Value::String(s2)) = (&original, &cloned) {
-            assert!(Arc::ptr_eq(&s1.0, &s2.0));
-        } else {
-            panic!("Expected string values");
-        }
-    }
-
-    #[test]
-    fn test_type_checking_methods() {
-        let number = Value::number(42.0);
-        assert!(number.is_number());
-        assert!(!number.is_boolean());
-        assert!(!number.is_string());
-        assert!(!number.is_symbol());
-        assert!(!number.is_nil());
-
-        let boolean = Value::boolean(true);
-        assert!(!boolean.is_number());
-        assert!(boolean.is_boolean());
-        assert!(!boolean.is_string());
-        assert!(!boolean.is_symbol());
-        assert!(!boolean.is_nil());
-
-        let string = Value::string("test");
-        assert!(!string.is_number());
-        assert!(!string.is_boolean());
-        assert!(string.is_string());
-        assert!(!string.is_symbol());
-        assert!(!string.is_nil());
-
-        let symbol = Value::symbol("var");
-        assert!(!symbol.is_number());
-        assert!(!symbol.is_boolean());
-        assert!(!symbol.is_string());
-        assert!(symbol.is_symbol());
-        assert!(!symbol.is_nil());
-
-        let nil = Value::nil();
-        assert!(!nil.is_number());
-        assert!(!nil.is_boolean());
-        assert!(!nil.is_string());
-        assert!(!nil.is_symbol());
-        assert!(nil.is_nil());
-    }
-
-    #[test]
-    fn test_value_extraction_methods() {
-        // Test successful extractions
-        assert_eq!(Value::number(42.0).as_number(), Some(42.0));
-        assert_eq!(Value::boolean(true).as_boolean(), Some(true));
-        assert_eq!(Value::string("hello").as_string(), Some("hello"));
-        assert_eq!(Value::symbol("foo").as_symbol(), Some("foo"));
-
-        // Test failed extractions (wrong type)
-        assert_eq!(Value::number(42.0).as_boolean(), None);
-        assert_eq!(Value::boolean(true).as_string(), None);
-        assert_eq!(Value::string("hello").as_symbol(), None);
-        assert_eq!(Value::symbol("foo").as_number(), None);
-        assert_eq!(Value::nil().as_number(), None);
-    }
-
-    #[test]
-    fn test_type_name_method() {
-        assert_eq!(Value::number(42.0).type_name(), "number");
-        assert_eq!(Value::boolean(true).type_name(), "boolean");
-        assert_eq!(Value::string("test").type_name(), "string");
-        assert_eq!(Value::symbol("var").type_name(), "symbol");
-        assert_eq!(Value::nil().type_name(), "nil");
-    }
-
-    #[test]
-    fn test_display_formatting() {
-        // Numbers
-        assert_eq!(Value::number(42.0).to_string(), "42");
-        assert_eq!(Value::number(3.14).to_string(), "3.14");
-        assert_eq!(Value::number(-1.0).to_string(), "-1");
-
-        // Special number values
-        assert_eq!(
-            Value::scheme_number(SchemeNumber::INFINITY).to_string(),
-            "+inf.0"
-        );
-        assert_eq!(
-            Value::scheme_number(SchemeNumber::NEG_INFINITY).to_string(),
-            "-inf.0"
-        );
-        assert_eq!(
-            Value::scheme_number(SchemeNumber::NAN).to_string(),
-            "+nan.0"
-        );
-
-        // Booleans
-        assert_eq!(Value::boolean(true).to_string(), "#t");
-        assert_eq!(Value::boolean(false).to_string(), "#f");
-
-        // Strings (should be quoted and escaped)
-        assert_eq!(Value::string("hello").to_string(), "\"hello\"");
-        assert_eq!(
-            Value::string("say \"hi\"").to_string(),
-            "\"say \\\"hi\\\"\""
-        );
-
-        // Symbols (no quotes)
-        assert_eq!(Value::symbol("variable").to_string(), "variable");
-        assert_eq!(Value::symbol("+").to_string(), "+");
-
-        // Nil
-        assert_eq!(Value::nil().to_string(), "()");
-    }
-
-    #[test]
-    fn test_string_creation_variants() {
-        // Test creation from &str
-        let from_str = Value::string("hello");
-
-        // Test creation from owned String
-        let owned_string = String::from("hello");
-        let from_owned = Value::string_from_owned(owned_string);
-
-        assert_eq!(from_str, from_owned);
-    }
-
-    #[test]
-    fn test_symbol_creation_variants() {
-        // Test creation from &str
-        let from_str = Value::symbol("foo");
-
-        // Test creation from owned String
-        let owned_string = String::from("foo");
-        let from_owned = Value::symbol_from_owned(owned_string);
-
-        assert_eq!(from_str, from_owned);
-    }
-
-    #[test]
-    fn test_memory_efficiency() {
-        // Test that string data is shared efficiently
-        let s1 = Value::string("shared");
-        let s2 = Value::string("shared");
-
-        // While they are equal...
-        assert_eq!(s1, s2);
-
-        // ...they don't necessarily share the same Arc instance
-        // (this would require string interning for true efficiency)
-        // This test documents current behavior
     }
 
     #[test]
@@ -1244,6 +794,270 @@ mod tests {
         // Test into_vec on empty list
         let vec = empty.into_vec();
         assert!(vec.is_empty());
+    }
+
+    #[test]
+    fn test_value_creation() {
+        // Test number creation
+        let num = Value::number(42.0);
+        assert!(matches!(num, Value::Number(_)));
+        assert_eq!(num.as_number(), Some(42.0));
+
+        // Test boolean creation
+        let bool_true = Value::boolean(true);
+        let bool_false = Value::boolean(false);
+        assert!(matches!(bool_true, Value::Boolean(true)));
+        assert!(matches!(bool_false, Value::Boolean(false)));
+
+        // Test string creation
+        let string = Value::string("hello");
+        assert!(matches!(string, Value::String(_)));
+        assert_eq!(string.as_string(), Some("hello"));
+
+        // Test symbol creation
+        let symbol = Value::symbol("foo");
+        assert!(matches!(symbol, Value::Symbol(_)));
+        assert_eq!(symbol.as_symbol(), Some("foo"));
+
+        // Test list creation
+        let empty_list = Value::empty_list();
+        assert!(matches!(empty_list, Value::List(_)));
+        assert_eq!(empty_list.as_list().unwrap().len(), 0);
+
+        let list = Value::list(vec![Value::number(1.0), Value::string("test")]);
+        assert!(matches!(list, Value::List(_)));
+        assert_eq!(list.as_list().unwrap().len(), 2);
+
+        // Test nil creation
+        let nil = Value::nil();
+        assert!(matches!(nil, Value::Nil));
+    }
+
+    #[test]
+    fn test_value_debug_output() {
+        let values = vec![
+            Value::number(3.14),
+            Value::boolean(true),
+            Value::string("test"),
+            Value::symbol("var"),
+            Value::list(vec![Value::number(1.0), Value::number(2.0)]),
+            Value::nil(),
+        ];
+
+        for value in values {
+            let debug_str = format!("{:?}", value);
+            assert!(!debug_str.is_empty());
+            // Each variant should appear in its debug representation
+            match value {
+                Value::Number(_) => assert!(debug_str.contains("Number")),
+                Value::Boolean(_) => assert!(debug_str.contains("Boolean")),
+                Value::String(_) => assert!(debug_str.contains("String")),
+                Value::Symbol(_) => assert!(debug_str.contains("Symbol")),
+                Value::List(_) => assert!(debug_str.contains("List")),
+                Value::Nil => assert!(debug_str.contains("Nil")),
+            }
+        }
+    }
+
+    #[test]
+    fn test_value_equality() {
+        // Numbers
+        assert_eq!(Value::number(42.0), Value::number(42.0));
+        assert_ne!(Value::number(42.0), Value::number(43.0));
+
+        // Booleans
+        assert_eq!(Value::boolean(true), Value::boolean(true));
+        assert_eq!(Value::boolean(false), Value::boolean(false));
+        assert_ne!(Value::boolean(true), Value::boolean(false));
+
+        // Strings
+        assert_eq!(Value::string("hello"), Value::string("hello"));
+        assert_ne!(Value::string("hello"), Value::string("world"));
+
+        // Symbols
+        assert_eq!(Value::symbol("foo"), Value::symbol("foo"));
+        assert_ne!(Value::symbol("foo"), Value::symbol("bar"));
+
+        // Nil
+        assert_eq!(Value::nil(), Value::nil());
+
+        // Cross-type inequality
+        assert_ne!(Value::number(0.0), Value::boolean(false));
+        assert_ne!(Value::string("42"), Value::number(42.0));
+        assert_ne!(Value::symbol("nil"), Value::nil());
+    }
+
+    #[test]
+    fn test_value_cloning() {
+        let original = Value::string("shared data");
+        let cloned = original.clone();
+
+        assert_eq!(original, cloned);
+
+        // Verify that string data is actually shared (same Arc)
+        if let (Value::String(s1), Value::String(s2)) = (&original, &cloned) {
+            assert!(Arc::ptr_eq(&s1.0, &s2.0));
+        } else {
+            panic!("Expected string values");
+        }
+    }
+
+    #[test]
+    fn test_type_checking_methods() {
+        let number = Value::number(42.0);
+        assert!(number.is_number());
+        assert!(!number.is_boolean());
+        assert!(!number.is_string());
+        assert!(!number.is_symbol());
+        assert!(!number.is_list());
+        assert!(!number.is_nil());
+
+        let boolean = Value::boolean(true);
+        assert!(!boolean.is_number());
+        assert!(boolean.is_boolean());
+        assert!(!boolean.is_string());
+        assert!(!boolean.is_symbol());
+        assert!(!boolean.is_list());
+        assert!(!boolean.is_nil());
+
+        let string = Value::string("test");
+        assert!(!string.is_number());
+        assert!(!string.is_boolean());
+        assert!(string.is_string());
+        assert!(!string.is_symbol());
+        assert!(!string.is_list());
+        assert!(!string.is_nil());
+
+        let symbol = Value::symbol("var");
+        assert!(!symbol.is_number());
+        assert!(!symbol.is_boolean());
+        assert!(!symbol.is_string());
+        assert!(symbol.is_symbol());
+        assert!(!symbol.is_list());
+        assert!(!symbol.is_nil());
+
+        let list = Value::empty_list();
+        assert!(!list.is_number());
+        assert!(!list.is_boolean());
+        assert!(!list.is_string());
+        assert!(!list.is_symbol());
+        assert!(list.is_list());
+        assert!(!list.is_nil());
+
+        let nil = Value::nil();
+        assert!(!nil.is_number());
+        assert!(!nil.is_boolean());
+        assert!(!nil.is_string());
+        assert!(!nil.is_symbol());
+        assert!(!nil.is_list());
+        assert!(nil.is_nil());
+    }
+
+    #[test]
+    fn test_value_extraction_methods() {
+        // Test successful extractions
+        assert_eq!(Value::number(42.0).as_number(), Some(42.0));
+        assert_eq!(Value::boolean(true).as_boolean(), Some(true));
+        assert_eq!(Value::string("hello").as_string(), Some("hello"));
+        assert_eq!(Value::symbol("foo").as_symbol(), Some("foo"));
+
+        // Test failed extractions (wrong type)
+        assert_eq!(Value::number(42.0).as_boolean(), None);
+        assert_eq!(Value::boolean(true).as_string(), None);
+        assert_eq!(Value::string("hello").as_symbol(), None);
+        assert_eq!(Value::symbol("foo").as_number(), None);
+        assert_eq!(Value::nil().as_number(), None);
+    }
+
+    #[test]
+    fn test_type_name_method() {
+        assert_eq!(Value::number(42.0).type_name(), "number");
+        assert_eq!(Value::boolean(true).type_name(), "boolean");
+        assert_eq!(Value::string("test").type_name(), "string");
+        assert_eq!(Value::symbol("var").type_name(), "symbol");
+        assert_eq!(Value::empty_list().type_name(), "list");
+        assert_eq!(Value::nil().type_name(), "nil");
+    }
+
+    #[test]
+    fn test_display_formatting() {
+        // Numbers
+        assert_eq!(Value::number(42.0).to_string(), "42");
+        assert_eq!(Value::number(3.14).to_string(), "3.14");
+        assert_eq!(Value::number(-1.0).to_string(), "-1");
+
+        // Special number values
+        assert_eq!(
+            Value::scheme_number(SchemeNumber::INFINITY).to_string(),
+            "+inf.0"
+        );
+        assert_eq!(
+            Value::scheme_number(SchemeNumber::NEG_INFINITY).to_string(),
+            "-inf.0"
+        );
+        assert_eq!(
+            Value::scheme_number(SchemeNumber::NAN).to_string(),
+            "+nan.0"
+        );
+
+        // Booleans
+        assert_eq!(Value::boolean(true).to_string(), "#t");
+        assert_eq!(Value::boolean(false).to_string(), "#f");
+
+        // Strings (should be quoted and escaped)
+        assert_eq!(Value::string("hello").to_string(), "\"hello\"");
+        assert_eq!(
+            Value::string("say \"hi\"").to_string(),
+            "\"say \\\"hi\\\"\""
+        );
+
+        // Symbols (no quotes)
+        assert_eq!(Value::symbol("variable").to_string(), "variable");
+        assert_eq!(Value::symbol("+").to_string(), "+");
+
+        // Lists
+        assert_eq!(Value::empty_list().to_string(), "()");
+
+        // Nil
+        assert_eq!(Value::nil().to_string(), "()");
+    }
+
+    #[test]
+    fn test_string_creation_variants() {
+        // Test creation from &str
+        let from_str = Value::string("hello");
+
+        // Test creation from owned String
+        let owned_string = String::from("hello");
+        let from_owned = Value::string_from_owned(owned_string);
+
+        assert_eq!(from_str, from_owned);
+    }
+
+    #[test]
+    fn test_symbol_creation_variants() {
+        // Test creation from &str
+        let from_str = Value::symbol("foo");
+
+        // Test creation from owned String
+        let owned_string = String::from("foo");
+        let from_owned = Value::symbol_from_owned(owned_string);
+
+        assert_eq!(from_str, from_owned);
+    }
+
+    #[test]
+    fn test_memory_efficiency() {
+        // Test that string data is shared efficiently
+        let s1 = Value::string("shared");
+        let s2 = Value::string("shared");
+
+        // While they are equal...
+        assert_eq!(s1, s2);
+
+        // ...they don't necessarily share the same Arc instance
+        // (this would require string interning for true efficiency)
+        // This test documents current behavior
     }
 
     // Comprehensive value system tests for T1.2.5
