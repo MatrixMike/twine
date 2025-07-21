@@ -3,6 +3,8 @@
 //! A minimalist Scheme interpreter written in Rust that implements a functional
 //! subset of R7RS-small Scheme with fiber-based concurrency and strict immutability.
 
+pub mod types;
+
 use thiserror::Error;
 
 /// Error types for the Twine interpreter
