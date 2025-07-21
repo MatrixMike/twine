@@ -1,7 +1,14 @@
 //! Type system for Scheme values
 //!
 //! This module provides the core data types used throughout the Twine Scheme
-//! interpreter. All types are designed to be immutable and efficiently shareable.
+//! interpreter. All types are designed to be immutable and thread-safe for
+//! efficient sharing across the multi-threaded fiber runtime.
+//!
+//! ## Performance Optimizations
+//!
+//! - **Symbols**: Use `SmolStr` for stack allocation of short identifiers (≤23 bytes)
+//! - **Strings/Lists**: Use `Arc` for efficient sharing across threads
+//! - **Numbers**: Use primitive `f64` with `Copy` semantics
 
 pub mod list;
 pub mod number;
@@ -16,6 +23,9 @@ pub use number::Number;
 pub use string::String;
 pub use symbol::Symbol;
 pub use value::Value;
+
+// Re-export SmolStr for convenience when working with symbols
+pub use smol_str::SmolStr;
 
 #[cfg(test)]
 mod tests {

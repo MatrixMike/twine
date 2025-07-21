@@ -3,7 +3,7 @@
 //! This module implements the List type that represents immutable list values
 //! in Scheme. Lists are the fundamental compound data structure in Scheme.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 // Forward declaration to avoid circular dependency
 // The actual Value enum is defined in value.rs
@@ -12,21 +12,21 @@ type Value = crate::types::Value;
 
 /// Immutable list type for Scheme
 ///
-/// Wraps a reference-counted vector to enable efficient sharing while
-/// maintaining immutability guarantees required by Scheme semantics.
-/// Lists are the primary compound data structure in Scheme.
+/// Wraps a thread-safe reference-counted vector to enable efficient sharing
+/// across multiple threads while maintaining immutability guarantees required
+/// by Scheme semantics. Lists are the primary compound data structure in Scheme.
 #[derive(Debug, Clone, PartialEq)]
-pub struct List(Rc<Vec<Value>>);
+pub struct List(Arc<Vec<Value>>);
 
 impl List {
     /// Create a new empty list
     pub fn new() -> Self {
-        List(Rc::new(Vec::new()))
+        List(Arc::new(Vec::new()))
     }
 
     /// Create a new list from a vector of values
     pub fn from_vec(values: Vec<crate::types::Value>) -> Self {
-        List(Rc::new(values))
+        List(Arc::new(values))
     }
 
     /// Create a new list from an iterator of values
@@ -34,7 +34,7 @@ impl List {
     where
         I: IntoIterator<Item = Value>,
     {
-        List(Rc::new(iter.into_iter().collect()))
+        List(Arc::new(iter.into_iter().collect()))
     }
 
     /// Get the length of the list
@@ -59,9 +59,9 @@ impl List {
 
     /// Convert the list into a vector (cloning the underlying data)
     pub fn into_vec(self) -> Vec<Value> {
-        match Rc::try_unwrap(self.0) {
+        match Arc::try_unwrap(self.0) {
             Ok(vec) => vec,
-            Err(rc) => (*rc).clone(),
+            Err(arc) => (*arc).clone(),
         }
     }
 
@@ -211,7 +211,7 @@ mod tests {
         assert_eq!(original.len(), cloned.len());
 
         // Should share the same underlying data
-        assert!(Rc::ptr_eq(&original.0, &cloned.0));
+        assert!(Arc::ptr_eq(&original.0, &cloned.0));
     }
 
     #[test]
@@ -268,10 +268,10 @@ mod tests {
         let cloned = original.clone();
 
         // Should share the same underlying memory
-        assert!(Rc::ptr_eq(&original.0, &cloned.0));
+        assert!(Arc::ptr_eq(&original.0, &cloned.0));
 
         // Reference count should be 2
-        assert_eq!(Rc::strong_count(&original.0), 2);
+        assert_eq!(Arc::strong_count(&original.0), 2);
     }
 
     #[test]

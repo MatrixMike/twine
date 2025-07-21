@@ -34,7 +34,7 @@ pub enum Value {
 
     /// List values (compound data)
     ///
-    /// Represents Scheme lists using SchemeList wrapper around Vec<Value>.
+    /// Represents Scheme lists using List wrapper around `Vec<Value>`.
     /// Lists are the fundamental compound data structure in Scheme.
     List(List),
 
@@ -451,5 +451,263 @@ mod tests {
             Value::nil(),
         ]);
         assert_eq!(format!("{}", mixed), "(42 \"hello\" world #t ())");
+    }
+
+    #[test]
+    fn test_value_thread_safety() {
+        use std::sync::Arc;
+        use std::thread;
+
+        // Create various Value types to test
+        let values = vec![
+            Value::number(42.0),
+            Value::boolean(true),
+            Value::string("hello world"),
+            Value::symbol("test-symbol"),
+            Value::list(vec![
+                Value::number(1.0),
+                Value::string("nested"),
+                Value::symbol("data"),
+            ]),
+            Value::nil(),
+        ];
+
+        // Wrap in Arc for sharing across threads
+        let shared_values = Arc::new(values);
+        let mut handles = vec![];
+
+        // Spawn multiple threads that access the shared values
+        for thread_id in 0..4 {
+            let values_clone = Arc::clone(&shared_values);
+            let handle = thread::spawn(move || {
+                let values = &*values_clone;
+
+                // Test reading from all value types
+                assert_eq!(values[0].as_number(), Some(42.0));
+                assert_eq!(values[1].as_boolean(), Some(true));
+                assert_eq!(values[2].as_string(), Some("hello world"));
+                assert_eq!(values[3].as_symbol(), Some("test-symbol"));
+                assert!(values[4].is_list());
+                assert!(values[5].is_nil());
+
+                // Test cloning values across threads
+                let cloned_values: Vec<Value> = values.iter().cloned().collect();
+                assert_eq!(cloned_values.len(), 6);
+
+                // Test that cloned values work correctly
+                assert_eq!(cloned_values[0], values[0]);
+                assert_eq!(cloned_values[1], values[1]);
+                assert_eq!(cloned_values[2], values[2]);
+
+                thread_id
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete successfully
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn test_value_concurrent_access() {
+        use std::sync::Arc;
+        use std::thread;
+
+        // Test concurrent access to the same Value instances
+        let shared_number = Arc::new(Value::number(3.14159));
+        let shared_string = Arc::new(Value::string("shared across threads"));
+        let shared_list = Arc::new(Value::list(vec![
+            Value::number(1.0),
+            Value::number(2.0),
+            Value::number(3.0),
+        ]));
+
+        let mut handles = vec![];
+
+        for i in 0..8 {
+            let num_clone = Arc::clone(&shared_number);
+            let str_clone = Arc::clone(&shared_string);
+            let list_clone = Arc::clone(&shared_list);
+
+            let handle = thread::spawn(move || {
+                // Multiple threads accessing the same Value instances
+                assert_eq!(num_clone.as_number(), Some(3.14159));
+                assert_eq!(str_clone.as_string(), Some("shared across threads"));
+
+                if let Some(list) = list_clone.as_list() {
+                    assert_eq!(list.len(), 3);
+                    assert_eq!(list.get(0), Some(&Value::number(1.0)));
+                    assert_eq!(list.get(1), Some(&Value::number(2.0)));
+                    assert_eq!(list.get(2), Some(&Value::number(3.0)));
+                }
+
+                // Test display formatting from multiple threads
+                assert_eq!(std::format!("{}", *num_clone), "3.14159");
+                assert_eq!(std::format!("{}", *str_clone), "\"shared across threads\"");
+                assert_eq!(std::format!("{}", *list_clone), "(1 2 3)");
+
+                i
+            });
+            handles.push(handle);
+        }
+
+        // Ensure all threads complete successfully
+        for (i, handle) in handles.into_iter().enumerate() {
+            assert_eq!(handle.join().unwrap(), i);
+        }
+    }
+
+    #[test]
+    fn test_value_immutability_across_threads() {
+        use std::sync::Arc;
+        use std::thread;
+
+        // Create a complex nested structure
+        let original = Value::list(vec![
+            Value::string("immutable"),
+            Value::symbol("data"),
+            Value::list(vec![
+                Value::number(42.0),
+                Value::boolean(true),
+                Value::nil(),
+            ]),
+        ]);
+
+        let shared_value = Arc::new(original.clone());
+        let mut handles = vec![];
+
+        // Multiple threads will clone and verify the same structure
+        for _ in 0..6 {
+            let value_clone = Arc::clone(&shared_value);
+            let expected = original.clone();
+
+            let handle = thread::spawn(move || {
+                // Clone the value in this thread
+                let thread_copy = value_clone.as_ref().clone();
+
+                // Verify it matches the original
+                assert_eq!(thread_copy, expected);
+                assert_eq!(thread_copy, *value_clone);
+
+                // Verify the structure is intact
+                if let Some(list) = thread_copy.as_list() {
+                    assert_eq!(list.len(), 3);
+                    assert_eq!(list.get(0), Some(&Value::string("immutable")));
+                    assert_eq!(list.get(1), Some(&Value::symbol("data")));
+
+                    if let Some(inner_list) = list.get(2).and_then(|v| v.as_list()) {
+                        assert_eq!(inner_list.len(), 3);
+                        assert_eq!(inner_list.get(0), Some(&Value::number(42.0)));
+                        assert_eq!(inner_list.get(1), Some(&Value::boolean(true)));
+                        assert_eq!(inner_list.get(2), Some(&Value::nil()));
+                    }
+                }
+
+                // Values should format consistently across threads
+                std::format!("{}", thread_copy)
+            });
+            handles.push(handle);
+        }
+
+        // Collect all formatted strings and verify they're identical
+        let formatted_results: Vec<std::string::String> =
+            handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+        let expected_format = std::format!("{}", original);
+        for result in formatted_results {
+            assert_eq!(result, expected_format);
+        }
+    }
+
+    #[test]
+    fn test_value_send_sync_traits() {
+        // Compile-time verification that Value implements Send + Sync
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+
+        assert_send::<Value>();
+        assert_sync::<Value>();
+
+        // Test that we can move Values between threads
+        let value = Value::list(vec![
+            Value::number(1.0),
+            Value::string("movable"),
+            Value::symbol("value"),
+        ]);
+
+        let handle = std::thread::spawn(move || {
+            // Value moved into this thread
+            assert_eq!(value.type_name(), "list");
+            if let Some(list) = value.as_list() {
+                assert_eq!(list.len(), 3);
+            }
+            value
+        });
+
+        // Get the value back from the thread
+        let returned_value = handle.join().unwrap();
+        assert!(returned_value.is_list());
+    }
+
+    #[test]
+    fn test_component_types_thread_safety() {
+        use std::sync::Arc;
+        use std::thread;
+
+        // Test that individual component types are thread-safe
+        let number = Number::new(42.0);
+        let string = String::new("thread-safe string");
+        let symbol = Symbol::new("thread-safe-symbol");
+        let list = List::from_vec(vec![Value::number(1.0), Value::string("test")]);
+
+        // Compile-time verification that components implement Send + Sync
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Number>();
+        assert_send_sync::<String>();
+        assert_send_sync::<Symbol>();
+        assert_send_sync::<List>();
+
+        // Runtime verification - share components across threads
+        let shared_components = Arc::new((number, string, symbol, list));
+        let mut handles = vec![];
+
+        for i in 0..4 {
+            let components = Arc::clone(&shared_components);
+            let handle = thread::spawn(move || {
+                let (num, str_val, sym, list_val) = &*components;
+
+                // Test Number
+                assert_eq!(num.value(), 42.0);
+                assert!(num.is_finite());
+
+                // Test String
+                assert_eq!(str_val.as_str(), "thread-safe string");
+                assert_eq!(str_val.len(), 18);
+
+                // Test Symbol
+                assert_eq!(sym.as_str(), "thread-safe-symbol");
+                assert!(!sym.is_heap_allocated()); // Should be stack-allocated
+
+                // Test List
+                assert_eq!(list_val.len(), 2);
+                assert_eq!(list_val.get(0), Some(&Value::number(1.0)));
+
+                // Test that components can be cloned in threads
+                let _num_clone = *num; // Number is Copy
+                let _str_clone = str_val.clone();
+                let _sym_clone = sym.clone();
+                let _list_clone = list_val.clone();
+
+                i
+            });
+            handles.push(handle);
+        }
+
+        // Verify all threads complete successfully
+        for (expected_id, handle) in handles.into_iter().enumerate() {
+            assert_eq!(handle.join().unwrap(), expected_id);
+        }
     }
 }

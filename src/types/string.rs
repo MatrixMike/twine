@@ -3,24 +3,25 @@
 //! This module implements the String type that represents immutable string values
 //! in Scheme. Provides efficient string handling with proper abstraction.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// Immutable string type for Scheme
 ///
-/// Wraps a reference-counted string to enable efficient sharing while
-/// maintaining immutability guarantees required by Scheme semantics.
+/// Wraps a thread-safe reference-counted string to enable efficient sharing
+/// across multiple threads while maintaining immutability guarantees required
+/// by Scheme semantics.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct String(Rc<std::string::String>);
+pub struct String(Arc<std::string::String>);
 
 impl String {
     /// Create a new String from a string slice
     pub fn new(s: &str) -> Self {
-        String(Rc::new(s.to_string()))
+        String(Arc::new(s.to_string()))
     }
 
     /// Create a new String from an owned String
     pub fn from_string(s: std::string::String) -> Self {
-        String(Rc::new(s))
+        String(Arc::new(s))
     }
 
     /// Get a string slice view of the contents
@@ -122,7 +123,7 @@ mod tests {
         assert_eq!(s1.as_str(), s2.as_str());
 
         // Both should reference the same underlying data
-        assert!(Rc::ptr_eq(&s1.0, &s2.0));
+        assert!(Arc::ptr_eq(&s1.0, &s2.0));
     }
 
     #[test]
@@ -161,9 +162,9 @@ mod tests {
         let cloned = original.clone();
 
         // Should share the same underlying memory
-        assert!(Rc::ptr_eq(&original.0, &cloned.0));
+        assert!(Arc::ptr_eq(&original.0, &cloned.0));
 
         // Reference count should be 2
-        assert_eq!(Rc::strong_count(&original.0), 2);
+        assert_eq!(Arc::strong_count(&original.0), 2);
     }
 }

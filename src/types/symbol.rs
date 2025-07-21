@@ -3,30 +3,30 @@
 //! This module implements the Symbol type that represents identifiers and
 //! symbol values in Scheme. Symbols are like strings but represent identifiers.
 
-use std::rc::Rc;
+use smol_str::SmolStr;
 
 /// Symbol type for Scheme identifiers
 ///
-/// Wraps a reference-counted string to enable efficient sharing while
-/// maintaining immutability guarantees. Symbols are used for identifiers,
-/// variable names, and symbolic data in Scheme.
+/// Wraps SmolStr to enable efficient storage and sharing of symbol names.
+/// Most symbols (≤23 bytes) are stack-allocated with O(1) clone operations.
+/// Symbols are used for identifiers, variable names, and symbolic data in Scheme.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Symbol(Rc<std::string::String>);
+pub struct Symbol(SmolStr);
 
 impl Symbol {
     /// Create a new Symbol from a string slice
     pub fn new(s: &str) -> Self {
-        Symbol(Rc::new(s.to_string()))
+        Symbol(SmolStr::new(s))
     }
 
     /// Create a new Symbol from an owned String
     pub fn from_string(s: std::string::String) -> Self {
-        Symbol(Rc::new(s))
+        Symbol(SmolStr::from(s))
     }
 
     /// Get a string slice view of the symbol name
     pub fn as_str(&self) -> &str {
-        &self.0
+        self.0.as_str()
     }
 
     /// Get the length of the symbol name in bytes
@@ -37,6 +37,12 @@ impl Symbol {
     /// Check if the symbol name is empty
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    /// Check if this symbol is heap-allocated
+    /// Returns true for symbols longer than 23 bytes
+    pub fn is_heap_allocated(&self) -> bool {
+        self.0.is_heap_allocated()
     }
 }
 
@@ -55,6 +61,18 @@ impl From<&str> for Symbol {
 impl From<std::string::String> for Symbol {
     fn from(s: std::string::String) -> Self {
         Symbol::from_string(s)
+    }
+}
+
+impl From<SmolStr> for Symbol {
+    fn from(s: SmolStr) -> Self {
+        Symbol(s)
+    }
+}
+
+impl From<Symbol> for SmolStr {
+    fn from(s: Symbol) -> Self {
+        s.0
     }
 }
 
@@ -127,8 +145,8 @@ mod tests {
         assert_eq!(s1, s2);
         assert_eq!(s1.as_str(), s2.as_str());
 
-        // Both should reference the same underlying data
-        assert!(Rc::ptr_eq(&s1.0, &s2.0));
+        // Clone should be very efficient with SmolStr
+        assert_eq!(s1.len(), s2.len());
     }
 
     #[test]
@@ -141,6 +159,16 @@ mod tests {
         let owned = std::string::String::from("world");
         let s2: Symbol = owned.into();
         assert_eq!(s2.as_str(), "world");
+
+        // From SmolStr
+        let smol = SmolStr::new("test");
+        let s3: Symbol = smol.into();
+        assert_eq!(s3.as_str(), "test");
+
+        // To SmolStr
+        let s4 = Symbol::new("convert");
+        let smol2: SmolStr = s4.into();
+        assert_eq!(smol2.as_str(), "convert");
     }
 
     #[test]
@@ -157,21 +185,34 @@ mod tests {
         let scheme_chars = Symbol::new("<=>");
         assert_eq!(scheme_chars.as_str(), "<=>");
 
-        // Very long symbol
+        // Very long symbol (should be heap-allocated)
         let long_symbol = Symbol::new(&"a".repeat(1000));
         assert_eq!(long_symbol.len(), 1000);
+        assert!(long_symbol.is_heap_allocated());
     }
 
     #[test]
-    fn test_memory_efficiency() {
-        let original = Symbol::new("shared-symbol");
-        let cloned = original.clone();
+    fn test_stack_vs_heap_allocation() {
+        // Short symbols should be stack-allocated
+        let short = Symbol::new("short");
+        assert!(!short.is_heap_allocated());
 
-        // Should share the same underlying memory
-        assert!(Rc::ptr_eq(&original.0, &cloned.0));
+        // Medium symbols (≤23 bytes) should still be stack-allocated
+        let medium = Symbol::new("medium-length-symbol");
+        assert_eq!(medium.len(), 20);
+        assert!(!medium.is_heap_allocated());
 
-        // Reference count should be 2
-        assert_eq!(Rc::strong_count(&original.0), 2);
+        // Exactly 23 bytes should be stack-allocated
+        let exactly23 = Symbol::new("exactly-twenty-three-b");
+        assert_eq!(exactly23.len(), 22); // Actually 22, let me fix this
+        let exactly23 = Symbol::new("exactly-twenty-three-by");
+        assert_eq!(exactly23.len(), 23);
+        assert!(!exactly23.is_heap_allocated());
+
+        // Longer than 23 bytes should be heap-allocated
+        let long = Symbol::new("this-symbol-is-definitely-longer-than-twenty-three-bytes");
+        assert!(long.len() > 23);
+        assert!(long.is_heap_allocated());
     }
 
     #[test]
@@ -179,17 +220,95 @@ mod tests {
         // Test common Scheme identifier patterns
         let predicate = Symbol::new("number?");
         assert_eq!(predicate.as_str(), "number?");
+        assert!(!predicate.is_heap_allocated());
 
         let mutator = Symbol::new("set-car!");
         assert_eq!(mutator.as_str(), "set-car!");
+        assert!(!mutator.is_heap_allocated());
 
         let converter = Symbol::new("string->list");
         assert_eq!(converter.as_str(), "string->list");
+        assert!(!converter.is_heap_allocated());
 
         let arithmetic = Symbol::new("+");
         assert_eq!(arithmetic.as_str(), "+");
+        assert!(!arithmetic.is_heap_allocated());
 
         let comparison = Symbol::new("<=");
         assert_eq!(comparison.as_str(), "<=");
+        assert!(!comparison.is_heap_allocated());
+    }
+
+    #[test]
+    fn test_symbol_performance_characteristics() {
+        // Test that common Scheme symbols are efficiently stored
+        let common_symbols = [
+            "+", "-", "*", "/", "=", "<", ">", "<=", ">=", "car", "cdr", "cons", "list", "append",
+            "length", "null?", "pair?", "number?", "string?", "symbol?", "if", "cond", "let",
+            "define", "lambda", "quote", "set!", "begin", "and", "or", "not",
+        ];
+
+        for symbol_str in &common_symbols {
+            let symbol = Symbol::new(symbol_str);
+            assert_eq!(symbol.as_str(), *symbol_str);
+            // All common symbols should be stack-allocated
+            assert!(
+                !symbol.is_heap_allocated(),
+                "Symbol '{}' should be stack-allocated",
+                symbol_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_thread_safe_sharing() {
+        use std::sync::Arc;
+        use std::thread;
+
+        // Test that symbols can be shared across threads
+        let short_symbol = Symbol::new("short");
+        let long_symbol = Symbol::new(
+            &"very-long-symbol-that-exceeds-twenty-three-bytes-and-should-be-heap-allocated",
+        );
+
+        // Verify allocation types
+        assert!(!short_symbol.is_heap_allocated());
+        assert!(long_symbol.is_heap_allocated());
+
+        // Test thread-safe sharing
+        let symbols = Arc::new((short_symbol, long_symbol));
+        let mut handles = vec![];
+
+        for i in 0..4 {
+            let symbols_clone = Arc::clone(&symbols);
+            let handle = thread::spawn(move || {
+                let (short, long) = &*symbols_clone;
+
+                // Both types should be accessible from different threads
+                assert_eq!(short.as_str(), "short");
+                assert_eq!(
+                    long.as_str(),
+                    "very-long-symbol-that-exceeds-twenty-three-bytes-and-should-be-heap-allocated"
+                );
+
+                // Clone operations should work in threads
+                let short_clone = short.clone();
+                let long_clone = long.clone();
+
+                assert_eq!(short_clone.as_str(), "short");
+                assert_eq!(
+                    long_clone.as_str(),
+                    "very-long-symbol-that-exceeds-twenty-three-bytes-and-should-be-heap-allocated"
+                );
+
+                i
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
     }
 }
