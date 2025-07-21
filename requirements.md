@@ -6,17 +6,17 @@ This document captures the functional and non-functional requirements for the Tw
 
 ## Key Design Principles
 
-### Principle 1: Immutability
-**PRIORITY: HIGH** - The interpreter SHALL enforce complete immutability of all data structures. No mutable operations SHALL be supported. This is a fundamental design constraint that affects all aspects of the system. Note that while data structures are immutable, the language supports side effects such as I/O operations that do not mutate existing data.
-
-### Principle 2: Asynchronous IO
+### Principle 1: Asynchronous IO
 **PRIORITY: HIGH** - All IO operations SHALL be asynchronous in the context of the entire runtime through fiber yielding. The interpreter SHALL make IO operations appear synchronous to Scheme code while internally yielding fiber execution to the scheduler. No async/await syntax SHALL be exposed to Scheme programmers.
 
-### Principle 3: Fiber Scheduler and Async Task System
+### Principle 2: Fiber Scheduler and Async Task System
 **PRIORITY: HIGH** - The interpreter SHALL use a fiber scheduler to manage execution of all code within fibers, with automatic I/O yielding that appears synchronous to Scheme code. The interpreter SHALL provide a two-layer system: low-level fiber management via `spawn-fiber`, and high-level async tasks via the `async` builtin that creates hierarchical parent-child relationships. The `async` builtin SHALL spawn tasks that execute immediately and return task handles, while `task-wait` SHALL provide task synchronization. Multiple fibers SHALL execute concurrently across CPU cores via a thread pool without a Global Interpreter Lock (GIL).
 
-### Principle 4: Simplicity and Minimalism
+### Principle 3: Simplicity and Minimalism
 **PRIORITY: HIGH** - The interpreter SHALL prioritize simple implementation and minimal syntax. Only the essential subset of R7RS-small SHALL be implemented to maintain code clarity, reduce complexity, and ensure maintainability.
+
+### Principle 4: Immutability
+**PRIORITY: HIGH** - The interpreter SHALL enforce complete immutability of all data structures. No mutable operations SHALL be supported. This is a fundamental design constraint that affects all aspects of the system. Note that while data structures are immutable, the language supports side effects such as I/O operations that do not mutate existing data.
 
 ## User Stories
 
