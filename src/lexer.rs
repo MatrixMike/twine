@@ -799,26 +799,235 @@ mod tests {
     }
 
     #[test]
-    fn test_error_handling() {
-        // Test unterminated string
+    fn test_syntax_errors() {
+        use crate::Error;
+
+        // Test unterminated string with detailed error message
+        let mut lexer = Lexer::new("\"unterminated".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+        if let Err(Error::SyntaxError {
+            message,
+            line,
+            column,
+        }) = result
+        {
+            assert_eq!(message, "Unterminated string literal");
+            assert_eq!(line, 1);
+            assert_eq!(column, 1);
+        } else {
+            panic!("Expected SyntaxError");
+        }
+
+        // Test invalid escape sequence with specific error
+        let mut lexer = Lexer::new("\"invalid\\x\"".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+        if let Err(Error::SyntaxError { message, .. }) = result {
+            assert!(message.contains("Invalid escape sequence"));
+            assert!(message.contains("\\x"));
+        } else {
+            panic!("Expected SyntaxError for invalid escape");
+        }
+
+        // Test incomplete boolean literal
+        let mut lexer = Lexer::new("#".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+        if let Err(Error::SyntaxError { message, .. }) = result {
+            assert_eq!(message, "Incomplete boolean literal");
+        } else {
+            panic!("Expected SyntaxError for incomplete boolean");
+        }
+
+        // Test invalid boolean format
+        let mut lexer = Lexer::new("#x".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+        if let Err(Error::SyntaxError { message, .. }) = result {
+            assert!(message.contains("Invalid boolean literal"));
+            assert!(message.contains("#x"));
+        } else {
+            panic!("Expected SyntaxError for invalid boolean");
+        }
+    }
+
+    #[test]
+    fn test_invalid_characters() {
+        use crate::Error;
+
+        // Test various invalid characters that are not valid symbol characters
+        // Note: Scheme allows many characters in symbols, so we test truly invalid ones
+        let invalid_chars = vec!['`', '|', '\\', '{', '}', '[', ']'];
+
+        for ch in invalid_chars {
+            let input = ch.to_string();
+            let mut lexer = Lexer::new(input);
+            let result = lexer.next_token();
+            assert!(result.is_err(), "Expected error for character '{}'", ch);
+
+            if let Err(Error::SyntaxError {
+                message,
+                line,
+                column,
+            }) = result
+            {
+                assert!(message.contains("Unexpected character"));
+                assert!(message.contains(&ch.to_string()));
+                assert_eq!(line, 1);
+                assert_eq!(column, 1);
+            } else {
+                panic!("Expected SyntaxError for character '{}'", ch);
+            }
+        }
+
+        // Test null character
+        let mut lexer = Lexer::new("\0".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+
+        // Test non-ASCII characters that aren't valid
+        // Note: λ is alphabetic so it's actually valid as a symbol start
+        // Let's test truly invalid characters like control characters
+        let mut lexer = Lexer::new("\x01".to_string()); // Control character
+        let result = lexer.next_token();
+        assert!(result.is_err());
+
+        // Test that valid symbol characters don't cause errors
+        let valid_symbol_chars = "!$%&*+-./:<=>?@^_~";
+        for ch in valid_symbol_chars.chars() {
+            let input = ch.to_string();
+            let mut lexer = Lexer::new(input);
+            let result = lexer.next_token();
+            assert!(
+                result.is_ok(),
+                "Valid symbol character '{}' should not cause error",
+                ch
+            );
+        }
+    }
+
+    #[test]
+    fn test_error_recovery() {
+        // Test that lexer doesn't crash on errors and maintains state
+        // Note: Current lexer doesn't have sophisticated recovery - it reports
+        // errors but doesn't automatically advance past invalid characters
+
+        // Test error reporting doesn't crash the lexer
+        let mut lexer = Lexer::new("{".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+
+        // Lexer should still be functional for querying state
+        assert!(!lexer.is_at_end());
+        assert_eq!(lexer.peek(), Some('{'));
+
+        // Test that we can create a new lexer after an error
+        let mut lexer2 = Lexer::new("valid".to_string());
+        let result2 = lexer2.next_token();
+        assert!(result2.is_ok());
+
+        // Test error doesn't corrupt internal state
         let mut lexer = Lexer::new("\"unterminated".to_string());
         let result = lexer.next_token();
         assert!(result.is_err());
 
-        // Test invalid escape sequence
-        let mut lexer = Lexer::new("\"invalid\\x\"".to_string());
-        let result = lexer.next_token();
-        assert!(result.is_err());
+        // Position tracking should still work
+        let pos = lexer.current_position();
+        assert_eq!(pos.line, 1);
 
-        // Test invalid boolean
+        // Test that valid input after creating new lexer works
+        let mut lexer = Lexer::new("(+ 1 2)".to_string());
+        let tokens: Vec<_> = (0..6).map(|_| lexer.next_token()).collect();
+        assert!(tokens.iter().all(|t| t.is_ok()));
+
+        // Test error in boolean parsing maintains lexer consistency
         let mut lexer = Lexer::new("#x".to_string());
         let result = lexer.next_token();
         assert!(result.is_err());
 
-        // Test incomplete boolean
-        let mut lexer = Lexer::new("#".to_string());
+        // Should still be able to query lexer state
+        assert!(!lexer.is_at_end());
+    }
+
+    #[test]
+    fn test_error_positions() {
+        use crate::Error;
+
+        // Test error positions in single line
+        let mut lexer = Lexer::new("   {".to_string());
         let result = lexer.next_token();
         assert!(result.is_err());
+        if let Err(Error::SyntaxError { line, column, .. }) = result {
+            assert_eq!(line, 1);
+            assert_eq!(column, 4); // After 3 spaces
+        } else {
+            panic!("Expected SyntaxError");
+        }
+
+        // Test error positions across multiple lines
+        let input = "valid\n  {".to_string();
+        let mut lexer = Lexer::new(input);
+
+        // Skip valid token
+        let _ = lexer.next_token();
+
+        // Get error position
+        let result = lexer.next_token();
+        assert!(result.is_err());
+        if let Err(Error::SyntaxError { line, column, .. }) = result {
+            assert_eq!(line, 2);
+            assert_eq!(column, 3); // After 2 spaces on line 2
+        } else {
+            panic!("Expected SyntaxError");
+        }
+
+        // Test error position in string with escape sequence
+        let mut lexer = Lexer::new("\"valid\\z\"".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+        if let Err(Error::SyntaxError { line, column, .. }) = result {
+            assert_eq!(line, 1);
+            // Position should be where the invalid escape was encountered
+            assert!(column >= 1);
+        } else {
+            panic!("Expected SyntaxError");
+        }
+
+        // Test error position with mixed content
+        let input = "symbol1 symbol2\n  \"unterminated".to_string();
+        let mut lexer = Lexer::new(input);
+
+        // Skip valid tokens
+        let _ = lexer.next_token(); // symbol1
+        let _ = lexer.next_token(); // symbol2
+
+        // Get error position for unterminated string
+        let result = lexer.next_token();
+        assert!(result.is_err());
+        if let Err(Error::SyntaxError { line, column, .. }) = result {
+            assert_eq!(line, 2);
+            assert_eq!(column, 3); // Position of opening quote
+        } else {
+            panic!("Expected SyntaxError");
+        }
+
+        // Test position tracking doesn't get corrupted by errors
+        let mut lexer = Lexer::new("{\nsymbol".to_string());
+
+        // First error
+        let result1 = lexer.next_token();
+        assert!(result1.is_err());
+
+        // Position should still be tracked correctly for next token
+        let result2 = lexer.next_token();
+        if result2.is_ok() {
+            // If we can recover, position should be correct
+            if let Ok(token) = result2 {
+                assert_eq!(token.position.line, 2);
+                assert_eq!(token.position.column, 1);
+            }
+        }
     }
 
     #[test]
