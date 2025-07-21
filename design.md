@@ -223,8 +223,9 @@ pub struct Fiber {
     id: FiberId,
     state: FiberState,
     continuation: Pin<Box<dyn Future<Output = Result<Value, Error>> + Send>>,
-    parent: Option<FiberId>,
+    parent: Option<FiberId>, // Only used when fiber is associated with a task; fibers are independent by default
 }
+```
 
 pub enum FiberState {
     Ready,
@@ -249,7 +250,7 @@ pub struct FiberScheduler {
 
 impl FiberScheduler {
     pub fn new(thread_count: usize) -> Self { /* ... */ }
-    pub fn spawn_fiber(&mut self, thunk: Value, parent: Option<FiberId>) -> FiberId { /* ... */ }
+    pub fn spawn_fiber(&mut self, thunk: Value, parent: Option<FiberId>) -> FiberId { /* ... */ } // parent only set for task-associated fibers
     pub fn yield_for_io(&mut self, fiber_id: FiberId, io_op: impl Future<Output = ()> + Send + 'static) { /* ... */ }
     pub fn yield_current(&mut self) { /* ... */ }
     pub fn resume_fiber(&mut self, fiber_id: FiberId) { /* ... */ }
@@ -259,7 +260,7 @@ impl FiberScheduler {
 
 #### Async Task System
 
-Built on top of fibers, tasks provide hierarchical execution with parent-child relationships:
+Built on top of fibers, tasks provide hierarchical execution with parent-child relationships. Note that the hierarchy exists at the task level - fibers themselves are independent by default and only become connected when running tasks:
 
 ```rust
 pub struct Task {
@@ -285,11 +286,13 @@ impl TaskHandle {
 **Key Features**:
 - **Main Fiber**: All execution starts in a single main fiber
 - **Transparent I/O**: I/O operations automatically yield without explicit syntax
-- **Fiber Hierarchy**: Parent-child relationships for resource management  
+- **Task Hierarchy**: Parent-child relationships for resource management  
 - **Task Abstraction**: High-level async tasks for Scheme programmers
 - **Automatic Cleanup**: Child tasks terminated when parent completes
 - **Synchronous Semantics**: All operations appear synchronous to Scheme code
 - **True Parallelism**: Thread pool enables multi-core execution without GIL
+
+**Important Distinction**: Fibers are independent execution units by default. The hierarchy and parent-child relationships exist at the **task level**, not the fiber level. Fibers only become connected when they are associated with tasks that have hierarchical relationships.
 
 ## Concurrency Model
 
