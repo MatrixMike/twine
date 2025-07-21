@@ -3,7 +3,8 @@
 //! This module implements the main Value enum that represents all possible
 //! Scheme values, along with construction and extraction methods.
 
-use super::{List, Number, String, Symbol};
+use super::{ArcString, List, Number, Symbol};
+use smol_str::SmolStr;
 
 /// The core value type for all Scheme data
 ///
@@ -22,9 +23,9 @@ pub enum Value {
 
     /// Immutable string values
     ///
-    /// Using String provides proper abstraction and efficient sharing
+    /// Using ArcString provides proper abstraction and efficient sharing
     /// of string data across multiple Value instances.
-    String(String),
+    String(ArcString),
 
     /// Symbol values (identifiers)
     ///
@@ -63,12 +64,12 @@ impl Value {
 
     /// Create a new string value from a string slice
     pub fn string(s: &str) -> Self {
-        Value::String(String::new(s))
+        Value::String(ArcString::new(s))
     }
 
     /// Create a new string value from an owned String
-    pub fn string_from_owned(s: std::string::String) -> Self {
-        Value::String(String::from_string(s))
+    pub fn string_from_owned(s: String) -> Self {
+        Value::String(ArcString::from_string(s))
     }
 
     /// Create a new symbol value from a string slice
@@ -77,8 +78,13 @@ impl Value {
     }
 
     /// Create a new symbol value from an owned String
-    pub fn symbol_from_owned(s: std::string::String) -> Self {
+    pub fn symbol_from_owned(s: String) -> Self {
         Value::Symbol(Symbol::from_string(s))
+    }
+
+    /// Create a new symbol value from a SmolStr for maximum efficiency
+    pub fn symbol_from_smol_str(s: SmolStr) -> Self {
+        Value::Symbol(Symbol::from_smol_str(s))
     }
 
     /// Create a new list value from a vector of values
@@ -343,12 +349,14 @@ mod tests {
         assert_eq!(num1, num2);
 
         let str1 = Value::string("hello");
-        let str2 = Value::string_from_owned(std::string::String::from("hello"));
+        let str2 = Value::string_from_owned(String::from("hello"));
         assert_eq!(str1, str2);
 
         let sym1 = Value::symbol("var");
-        let sym2 = Value::symbol_from_owned(std::string::String::from("var"));
+        let sym2 = Value::symbol_from_owned(String::from("var"));
+        let sym3 = Value::symbol_from_smol_str(SmolStr::new("var"));
         assert_eq!(sym1, sym2);
+        assert_eq!(sym1, sym3);
     }
 
     #[test]
@@ -612,7 +620,7 @@ mod tests {
         }
 
         // Collect all formatted strings and verify they're identical
-        let formatted_results: Vec<std::string::String> =
+        let formatted_results: Vec<String> =
             handles.into_iter().map(|h| h.join().unwrap()).collect();
 
         let expected_format = std::format!("{}", original);
@@ -658,7 +666,7 @@ mod tests {
 
         // Test that individual component types are thread-safe
         let number = Number::new(42.0);
-        let string = String::new("thread-safe string");
+        let string = ArcString::new("thread-safe string");
         let symbol = Symbol::new("thread-safe-symbol");
         let list = List::from_vec(vec![Value::number(1.0), Value::string("test")]);
 

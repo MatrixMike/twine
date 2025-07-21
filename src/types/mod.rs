@@ -20,7 +20,7 @@ pub mod value;
 // Re-export core types for convenience
 pub use list::List;
 pub use number::Number;
-pub use string::String;
+pub use string::ArcString;
 pub use symbol::Symbol;
 pub use value::Value;
 
@@ -35,7 +35,7 @@ mod tests {
     fn test_module_organization() {
         // Test that all types are properly re-exported
         let _num: Number = Number::new(42.0);
-        let _string: String = String::new("test");
+        let _string: ArcString = ArcString::new("test");
         let _symbol: Symbol = Symbol::new("test");
         let _list: List = List::new();
         let _value: Value = Value::nil();
@@ -57,8 +57,8 @@ mod tests {
             "twine_scheme::types::number::Number"
         );
         assert_eq!(
-            std::any::type_name::<String>(),
-            "twine_scheme::types::string::String"
+            std::any::type_name::<ArcString>(),
+            "twine_scheme::types::string::ArcString"
         );
         assert_eq!(
             std::any::type_name::<Symbol>(),

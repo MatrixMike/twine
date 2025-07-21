@@ -2,6 +2,12 @@
 //!
 //! This module implements the Symbol type that represents identifiers and
 //! symbol values in Scheme. Symbols are like strings but represent identifiers.
+//!
+//! ## Performance Features
+//! - **SmolStr optimization**: Stack allocation for symbols ≤23 bytes
+//! - **Zero-copy construction**: Direct SmolStr → Symbol conversion
+//! - **Efficient cloning**: O(1) clone operations for most symbols
+//! - **Thread-safe sharing**: Works seamlessly across fiber boundaries
 
 use smol_str::SmolStr;
 
@@ -10,6 +16,11 @@ use smol_str::SmolStr;
 /// Wraps SmolStr to enable efficient storage and sharing of symbol names.
 /// Most symbols (≤23 bytes) are stack-allocated with O(1) clone operations.
 /// Symbols are used for identifiers, variable names, and symbolic data in Scheme.
+///
+/// ## Construction Methods
+/// - `new(s: &str)` - Create from string slice
+/// - `from_string(s: String)` - Create from owned String
+/// - `from_smol_str(s: SmolStr)` - Zero-copy from SmolStr (most efficient)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol(SmolStr);
 
@@ -20,8 +31,13 @@ impl Symbol {
     }
 
     /// Create a new Symbol from an owned String
-    pub fn from_string(s: std::string::String) -> Self {
+    pub fn from_string(s: String) -> Self {
         Symbol(SmolStr::from(s))
+    }
+
+    /// Create a new Symbol from a SmolStr for maximum efficiency
+    pub fn from_smol_str(s: SmolStr) -> Self {
+        Symbol(s)
     }
 
     /// Get a string slice view of the symbol name
@@ -58,8 +74,8 @@ impl From<&str> for Symbol {
     }
 }
 
-impl From<std::string::String> for Symbol {
-    fn from(s: std::string::String) -> Self {
+impl From<String> for Symbol {
+    fn from(s: String) -> Self {
         Symbol::from_string(s)
     }
 }
@@ -89,7 +105,7 @@ mod tests {
         assert!(!s1.is_empty());
 
         // Test creation from owned String
-        let owned = std::string::String::from("function-name");
+        let owned = String::from("function-name");
         let s2 = Symbol::from_string(owned);
         assert_eq!(s2.as_str(), "function-name");
         assert_eq!(s2.len(), 13);
@@ -121,7 +137,7 @@ mod tests {
         assert_ne!(s1, s3);
 
         // Test equality with different creation methods
-        let s4 = Symbol::from_string(std::string::String::from("symbol"));
+        let s4 = Symbol::from_string(String::from("symbol"));
         assert_eq!(s1, s4);
     }
 
@@ -156,19 +172,24 @@ mod tests {
         assert_eq!(s1.as_str(), "hello");
 
         // From owned String
-        let owned = std::string::String::from("world");
+        let owned = String::from("world");
         let s2: Symbol = owned.into();
         assert_eq!(s2.as_str(), "world");
 
-        // From SmolStr
+        // From SmolStr (using trait)
         let smol = SmolStr::new("test");
         let s3: Symbol = smol.into();
         assert_eq!(s3.as_str(), "test");
 
+        // From SmolStr (using constructor method)
+        let smol2 = SmolStr::new("direct");
+        let s4 = Symbol::from_smol_str(smol2);
+        assert_eq!(s4.as_str(), "direct");
+
         // To SmolStr
-        let s4 = Symbol::new("convert");
-        let smol2: SmolStr = s4.into();
-        assert_eq!(smol2.as_str(), "convert");
+        let s5 = Symbol::new("convert");
+        let smol3: SmolStr = s5.into();
+        assert_eq!(smol3.as_str(), "convert");
     }
 
     #[test]
@@ -258,6 +279,97 @@ mod tests {
                 symbol_str
             );
         }
+    }
+
+    #[test]
+    fn test_smol_str_constructor_efficiency() {
+        // Test that from_smol_str is efficient and direct
+        let original_smol = SmolStr::new("efficient");
+        let symbol = Symbol::from_smol_str(original_smol.clone());
+
+        assert_eq!(symbol.as_str(), "efficient");
+        assert!(!symbol.is_heap_allocated()); // Should be stack allocated
+
+        // Test with heap-allocated SmolStr
+        let long_smol = SmolStr::new(&"a".repeat(50));
+        let long_symbol = Symbol::from_smol_str(long_smol);
+
+        assert_eq!(long_symbol.len(), 50);
+        assert!(long_symbol.is_heap_allocated());
+
+        // Test zero-copy conversion
+        let source = SmolStr::new("zero-copy");
+        let symbol1 = Symbol::from_smol_str(source.clone());
+        let symbol2 = Symbol::from_smol_str(source);
+
+        assert_eq!(symbol1, symbol2);
+    }
+
+    #[test]
+    fn test_comprehensive_smol_str_efficiency() {
+        // Demonstrate all the efficiency benefits of SmolStr in Symbol creation
+
+        // 1. Zero-copy construction from existing SmolStr
+        let existing_smol = SmolStr::new("identifier");
+        let symbol_trait = Symbol::from(existing_smol.clone()); // Using From trait
+        let symbol_method = Symbol::from_smol_str(existing_smol); // Using constructor
+
+        assert_eq!(symbol_trait.as_str(), "identifier");
+        assert_eq!(symbol_method.as_str(), "identifier");
+        assert_eq!(symbol_trait, symbol_method);
+
+        // 2. Performance comparison: different construction methods
+        let long_string = "a".repeat(30);
+        let test_cases = vec![
+            ("short", false),             // Stack allocated
+            ("medium-length-var", false), // Still stack allocated
+            (long_string.as_str(), true), // Heap allocated
+        ];
+
+        for (text, should_be_heap) in test_cases {
+            // Method 1: From &str (most common)
+            let sym1 = Symbol::new(text);
+
+            // Method 2: From String (when you have owned String)
+            let sym2 = Symbol::from_string(String::from(text));
+
+            // Method 3: From SmolStr (most efficient when you have SmolStr)
+            let smol = SmolStr::new(text);
+            let sym3 = Symbol::from_smol_str(smol);
+
+            // All should be equal regardless of construction method
+            assert_eq!(sym1, sym2);
+            assert_eq!(sym2, sym3);
+            assert_eq!(sym1.is_heap_allocated(), should_be_heap);
+            assert_eq!(sym2.is_heap_allocated(), should_be_heap);
+            assert_eq!(sym3.is_heap_allocated(), should_be_heap);
+        }
+
+        // 3. Demonstrate typical Scheme symbol efficiency
+        let scheme_symbols = vec![
+            "+", "-", "*", "/", "=", "<", ">", "<=", ">=", "car", "cdr", "cons", "list", "null?",
+            "pair?", "if", "cond", "let", "define", "lambda", "quote",
+        ];
+
+        for symbol_text in scheme_symbols {
+            let smol = SmolStr::new(symbol_text);
+            let symbol = Symbol::from_smol_str(smol);
+
+            // All common Scheme symbols should be stack-allocated
+            assert!(
+                !symbol.is_heap_allocated(),
+                "Symbol '{}' should be stack-allocated for efficiency",
+                symbol_text
+            );
+        }
+
+        // 4. Roundtrip efficiency: Symbol → SmolStr → Symbol
+        let original = Symbol::new("roundtrip-test");
+        let as_smol: SmolStr = original.clone().into();
+        let back_to_symbol = Symbol::from_smol_str(as_smol);
+
+        assert_eq!(original, back_to_symbol);
+        assert!(!back_to_symbol.is_heap_allocated());
     }
 
     #[test]

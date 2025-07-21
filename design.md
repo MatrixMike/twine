@@ -147,13 +147,13 @@ pub enum Token {
     LeftParen,
     RightParen,
     Quote,
-    
+
     // Literals
     Number(f64),
     String(String),
     Symbol(String),
     Boolean(bool),
-    
+
     // Control
     EOF,
 }
@@ -198,25 +198,34 @@ pub struct Parser {
 
 ### Value System (`types/`)
 
-**Purpose**: Immutable data type representation
+**Purpose**: Modular immutable data type representation with performance optimizations
+
+**Module Organization**:
+- `mod.rs` - Main module with re-exports and overview
+- `value.rs` - Core Value enum and methods
+- `number.rs` - Number wrapper type
+- `string.rs` - String wrapper with Arc sharing
+- `symbol.rs` - Symbol wrapper with SmolStr optimization
+- `list.rs` - List wrapper type
+- `procedure.rs` - Procedure types (future implementation)
 
 ```rust
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    // Primitive types
-    Number(f64),
-    Boolean(bool),
-    String(Arc<str>),         // Immutable shared strings
-    Symbol(Arc<str>),         // Interned symbols
-    
+    // Primitive types using wrapper types
+    Number(Number),           // Wraps f64 with Copy semantics
+    Boolean(bool),            // Direct boolean values
+    String(ArcString),        // Wraps Arc<String> for efficient sharing
+    Symbol(Symbol),           // Wraps SmolStr for efficiency
+
     // Compound types
-    List(Arc<[Value]>),       // Immutable arrays
-    Procedure(Arc<Procedure>), // Functions (builtin/lambda)
-    
+    List(List),               // Wraps Vec<Value> with sharing
+    Procedure(Procedure),     // Functions (builtin/lambda)
+
     // Concurrency types
     TaskHandle(TaskId),       // High-level task reference
     FiberHandle(FiberId),     // Low-level fiber reference
-    
+
     // Special
     Nil,                      // Empty list/null value
 }
@@ -233,13 +242,27 @@ pub enum Procedure {
         closure: Environment,
     },
 }
+
+// Wrapper types for abstraction and optimization
+pub struct Number(f64);      // Copy semantics, stack allocation
+pub struct ArcString(Arc<String>);  // Reference counting for thread-safe sharing
+pub struct Symbol(SmolStr);  // Stack allocation ≤23 bytes, heap otherwise
+pub struct List(Vec<Value>); // Owned vector (sharing planned)
 ```
 
 **Key Features**:
+- **Modular Design**: Each type in separate module for clarity
+- **Performance Optimized**: SmolStr for symbols, Arc for strings
 - **Complete Immutability**: No mutation operations supported
-- **Reference Counting**: `Arc<T>` for efficient sharing
-- **Thread Safety**: Immutable data shared safely across threads
-- **Memory Efficiency**: Structural sharing for large values
+- **Thread Safety**: All types implement Send + Sync
+- **Memory Efficiency**: SmolStr stack allocation, Arc sharing
+
+**Performance Optimizations**:
+- **Symbols**: Use `SmolStr` - stack allocation for identifiers ≤23 bytes
+- **Zero-copy Symbol creation**: Direct SmolStr → Symbol conversion via `from_smol_str()`
+- **Strings**: Use `Arc<String>` for efficient sharing across threads  
+- **Numbers**: Use primitive `f64` with `Copy` semantics
+- **Lists**: Use `Vec<Value>` with planned structural sharing
 
 ### Environment Management (`interpreter/environment.rs`)
 
@@ -370,7 +393,7 @@ worker
 ```scheme
 > (define task1 (async (+ 10 20)))
 task1
-> (define task2 (async (lambda () 
+> (define task2 (async (lambda ()
     (let ((subtask (async (* 3 4))))
       (+ (task-wait subtask) 100)))))
 task2
@@ -410,47 +433,88 @@ Finished!
 
 ### Immutable Value Design
 
-| Type | Implementation | Memory Strategy |
-|------|----------------|-----------------|
-| **Numbers** | `f64` (Copy) | Stack allocation |
-| **Booleans** | `bool` (Copy) | Stack allocation |
-| **Strings** | `Arc<str>` | Heap + reference counting |
-| **Symbols** | `Arc<str>` | Heap + interning |
-| **Lists** | `Arc<[Value]>` | Heap + structural sharing |
-| **Procedures** | `Arc<Procedure>` | Heap + sharing |
+| Type | Implementation | Memory Strategy | Optimization |
+|------|----------------|-----------------|--------------|
+| **Numbers** | `Number(f64)` | Stack allocation | Copy semantics |
+| **Booleans** | `bool` | Stack allocation | Copy semantics |
+| **Strings** | `ArcString(Arc<String>)` | Heap + reference counting | Thread-safe sharing |
+| **Symbols** | `Symbol(SmolStr)` | Stack ≤23 bytes, heap otherwise | Automatic optimization |
+| **Lists** | `List(Vec<Value>)` | Heap allocation | Planned structural sharing |
+| **Procedures** | `Procedure` | Future implementation | Planned Arc sharing |
 
 ### Memory Management Strategy
 
 ```rust
-// Efficient immutable string sharing
-pub type String = Arc<str>;
-pub type Symbol = Arc<str>;  // Could use string interning
+// Wrapper types with specific optimizations
+pub struct Number(f64);                    // Copy, stack allocation
+pub struct ArcString(Arc<String>);         // Reference counting for thread-safe sharing
+pub struct Symbol(SmolStr);                // Smart string optimization
+pub struct List(Vec<Value>);               // Owned vector
 
-// Immutable array for lists - enables structural sharing
-pub type List = Arc<[Value]>;
+// SmolStr optimization details:
+// - Symbols ≤23 bytes: stack allocated, O(1) clone
+// - Symbols >23 bytes: heap allocated, reference counted
+// - Automatic selection based on content length
+// - Perfect for Scheme identifiers (most are short)
 
-// Reference-counted procedures
-pub type Procedure = Arc<Procedure>;
+// ArcString sharing with Arc:
+// - Thread-safe reference counting for std::string::String
+// - Efficient sharing across Value instances
+// - Automatic memory cleanup when no longer referenced
+// - Clean naming avoiding std::string::String conflicts
 ```
 
-### Structural Sharing Example
+**SmolStr Performance Characteristics**:
+- **Short symbols** (≤23 bytes): Stack allocated, zero-cost cloning
+- **Long symbols** (>23 bytes): Heap allocated, reference counted
+- **Common Scheme identifiers**: `+`, `-`, `car`, `cdr`, `list`, `define` - all stack allocated
+- **Thread safety**: Both stack and heap variants are Send + Sync
 
+### Symbol Optimization Example
+
+```rust
+// Short symbols - stack allocated (≤23 bytes)
+let short_sym = Symbol::new("+");           // Stack: 1 byte + metadata
+let medium_sym = Symbol::new("define");     // Stack: 6 bytes + metadata
+let car = Symbol::new("car");               // Stack: 3 bytes + metadata
+
+// Cloning is zero-cost for stack-allocated symbols
+let cloned = short_sym.clone();             // O(1) operation
+
+// Long symbols - heap allocated (>23 bytes)
+let long_sym = Symbol::new("very-long-identifier-name"); // Heap + refcount
+
+// All symbols are thread-safe and immutable
+
+// Zero-copy conversion for maximum efficiency
+let existing_smol = SmolStr::new("existing-identifier");
+let efficient_symbol = Symbol::from_smol_str(existing_smol); // O(1) operation
+```
+
+**Symbol Storage Benefits**:
+- **Memory Efficiency**: Common identifiers use no heap allocation
+- **Performance**: Zero-cost cloning for typical Scheme symbols
+- **Zero-copy Construction**: `Symbol::from_smol_str()` for direct SmolStr conversion
+- **Thread Safety**: Both stack and heap variants work across threads
+- **Automatic Selection**: SmolStr picks optimal storage automatically
+- **Scheme Optimized**: Perfect for typical identifier patterns
+
+**Current ArcString Sharing**:
+```rust
+let original = ArcString::new("shared content");
+let cloned = original.clone();
+// Both reference the same Arc<String> - efficient sharing
+```
+
+**Planned List Structural Sharing** (Future):
 ```
 Original List:    [1, 2, 3, 4]
-                  └─── Arc ────┘
+                  └─── shared ───┘
 
 Cons Operation:   [0, 1, 2, 3, 4]
-                  │   └─ Arc (shared) ──┘
-                  └─ New Arc ─┘
-
-Result: Two lists sharing memory for [1, 2, 3, 4] portion
+                  │   └─ shared ──┘
+                  └─ new ─┘
 ```
-
-**Benefits**:
-- **Memory Efficiency**: Shared data reduces allocation
-- **Thread Safety**: Immutable data can be shared safely
-- **Performance**: No copying required for most operations
-- **Automatic Cleanup**: Rust's ownership handles deallocation
 
 ---
 
@@ -460,9 +524,9 @@ Result: Two lists sharing memory for [1, 2, 3, 4] portion
 
 ```rust
 pub fn eval(
-    expr: Expr, 
-    env: Environment, 
-    scheduler: &mut FiberScheduler, 
+    expr: Expr,
+    env: Environment,
+    scheduler: &mut FiberScheduler,
     fiber_id: FiberId
 ) -> Result<Value, Error> {
     match expr {
@@ -473,9 +537,9 @@ pub fn eval(
 }
 
 fn eval_list(
-    exprs: Vec<Expr>, 
-    env: Environment, 
-    scheduler: &mut FiberScheduler, 
+    exprs: Vec<Expr>,
+    env: Environment,
+    scheduler: &mut FiberScheduler,
     fiber_id: FiberId
 ) -> Result<Value, Error> {
     if exprs.is_empty() {
@@ -510,9 +574,9 @@ fn eval_list(
 
 ```rust
 fn eval_application(
-    exprs: Vec<Expr>, 
-    env: Environment, 
-    scheduler: &mut FiberScheduler, 
+    exprs: Vec<Expr>,
+    env: Environment,
+    scheduler: &mut FiberScheduler,
     fiber_id: FiberId
 ) -> Result<Value, Error> {
     let func = eval(exprs[0].clone(), env.clone(), scheduler, fiber_id)?;
@@ -559,8 +623,8 @@ async fn display_async(value: &Value) -> Result<(), Error> {
 
 // Fiber-yielding wrapper (appears synchronous to Scheme)
 pub fn display(
-    args: &[Value], 
-    scheduler: &mut FiberScheduler, 
+    args: &[Value],
+    scheduler: &mut FiberScheduler,
     fiber_id: FiberId
 ) -> Result<Value, Error> {
     if args.len() != 1 {
@@ -574,7 +638,7 @@ pub fn display(
 
     // Yield fiber for I/O operation
     scheduler.yield_for_io(fiber_id, Box::pin(io_future));
-    
+
     // Execution resumes here after I/O completes
     Ok(Value::Nil)
 }
@@ -648,7 +712,7 @@ pub struct Macro {
 
 ;; Usage
 (define task1 (async (+ 1 2 3)))           ; Simple expression
-(define task2 (async (lambda () 
+(define task2 (async (lambda ()
   (display "Working...")
   (* 6 7))))                               ; Explicit thunk
 ```
@@ -737,8 +801,11 @@ async-task = "4.7"        # Task spawning
 async-channel = "2.1"     # Message passing
 polling = "3.3"           # I/O polling
 
+# String optimization
+smol_str = "0.3"          # Optimized string storage for symbols
+
 # Error handling
-thiserror = "1.0"         # Error derive macros
+thiserror = "2.0"         # Error derive macros
 
 # Optional development dependencies
 [dev-dependencies]
@@ -754,10 +821,12 @@ tokio-test = "0.4"        # Async testing
 
 # Verify vendored sources
 ls deps/vendor/smol/
+ls deps/vendor/smol_str/
 ls deps/docs/smol/
+ls deps/docs/smol_str/
 
 # Check dependency compatibility
-cargo tree | grep smol
+cargo tree | grep -E "(smol|thiserror)"
 ```
 
 ### Performance Characteristics
@@ -768,6 +837,8 @@ cargo tree | grep smol
 | **Function Calls** | <100μs overhead |
 | **Fiber Spawning** | <10μs creation |
 | **I/O Operations** | Non-blocking, <1ms yield |
+| **Symbol Creation** | O(1) for ≤23 bytes (SmolStr), O(1) clone, zero-copy from SmolStr |
+| **String Sharing** | O(1) clone via Arc reference counting |
 | **Memory Usage** | O(n) for data, minimal runtime overhead |
 | **Concurrency** | Scales with CPU cores |
 
@@ -795,7 +866,7 @@ mod tests {
             })),
             None
         );
-        
+
         let result = scheduler.run_until_complete(fiber_id).await;
         assert_eq!(result, Ok(Value::Number(42.0)));
     }
