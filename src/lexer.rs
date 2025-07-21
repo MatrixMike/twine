@@ -169,9 +169,6 @@ impl Lexer {
     }
 
     /// Get the next token from the input stream.
-    ///
-    /// This is a placeholder implementation that will be expanded in T1.3.3.
-    /// For now, it only handles EOF and basic structure.
     pub fn next_token(&mut self) -> Result<PositionedToken> {
         self.skip_whitespace();
 
@@ -187,9 +184,191 @@ impl Lexer {
             return self.next_token(); // Recurse to get the next non-comment token
         }
 
-        // For now, just return EOF for any remaining input
-        // Token recognition will be implemented in T1.3.3
-        Ok(PositionedToken::new(Token::Eof, position))
+        match self.peek().unwrap() {
+            // Delimiters
+            '(' => {
+                self.advance();
+                Ok(PositionedToken::new(Token::LeftParen, position))
+            }
+            ')' => {
+                self.advance();
+                Ok(PositionedToken::new(Token::RightParen, position))
+            }
+            '\'' => {
+                self.advance();
+                Ok(PositionedToken::new(Token::Quote, position))
+            }
+
+            // String literals
+            '"' => self.read_string(position),
+
+            // Numbers and symbols starting with digits or signs
+            ch if ch.is_ascii_digit() || ch == '+' || ch == '-' => {
+                self.read_number_or_symbol(position)
+            }
+
+            // Boolean literals
+            '#' => self.read_boolean(position),
+
+            // Symbols and keywords
+            ch if self.is_symbol_start_char(ch) => self.read_symbol(position),
+
+            // Unexpected character
+            ch => {
+                use crate::Error;
+                Err(Error::syntax_error(
+                    &format!("Unexpected character '{}'", ch),
+                    position.line,
+                    position.column,
+                ))
+            }
+        }
+    }
+
+    /// Check if a character can start a symbol.
+    fn is_symbol_start_char(&self, ch: char) -> bool {
+        ch.is_alphabetic() || "!$%&*+-./:<=>?@^_~".contains(ch)
+    }
+
+    /// Check if a character can continue a symbol.
+    fn is_symbol_char(&self, ch: char) -> bool {
+        ch.is_alphanumeric() || "!$%&*+-./:<=>?@^_~".contains(ch)
+    }
+
+    /// Read a string literal with escape sequence support.
+    fn read_string(&mut self, position: Position) -> Result<PositionedToken> {
+        use crate::Error;
+
+        self.advance(); // consume opening quote
+        let mut value = String::new();
+
+        while let Some(ch) = self.peek() {
+            if ch == '"' {
+                self.advance(); // consume closing quote
+                return Ok(PositionedToken::new(Token::String(value), position));
+            }
+
+            if ch == '\\' {
+                self.advance(); // consume backslash
+                match self.peek() {
+                    Some('n') => {
+                        value.push('\n');
+                        self.advance();
+                    }
+                    Some('t') => {
+                        value.push('\t');
+                        self.advance();
+                    }
+                    Some('r') => {
+                        value.push('\r');
+                        self.advance();
+                    }
+                    Some('\\') => {
+                        value.push('\\');
+                        self.advance();
+                    }
+                    Some('"') => {
+                        value.push('"');
+                        self.advance();
+                    }
+                    Some(escaped) => {
+                        return Err(Error::syntax_error(
+                            &format!("Invalid escape sequence '\\{}'", escaped),
+                            self.line,
+                            self.column,
+                        ));
+                    }
+                    None => {
+                        return Err(Error::syntax_error(
+                            "Unterminated escape sequence",
+                            self.line,
+                            self.column,
+                        ));
+                    }
+                }
+            } else {
+                value.push(ch);
+                self.advance();
+            }
+        }
+
+        Err(Error::syntax_error(
+            "Unterminated string literal",
+            position.line,
+            position.column,
+        ))
+    }
+
+    /// Read a number or symbol that starts with a digit, +, or -.
+    fn read_number_or_symbol(&mut self, position: Position) -> Result<PositionedToken> {
+        let mut text = String::new();
+        let start_ch = self.peek().unwrap();
+
+        // Collect the token text
+        while let Some(ch) = self.peek() {
+            if ch.is_whitespace() || "()';\"".contains(ch) {
+                break;
+            }
+            text.push(ch);
+            self.advance();
+        }
+
+        // Try to parse as number
+        if let Ok(num) = text.parse::<f64>() {
+            Ok(PositionedToken::new(Token::Number(num), position))
+        } else if start_ch == '+' || start_ch == '-' {
+            // Single + or - are symbols, not numbers
+            Ok(PositionedToken::new(Token::Symbol(text), position))
+        } else {
+            // Invalid number format, treat as symbol
+            Ok(PositionedToken::new(Token::Symbol(text), position))
+        }
+    }
+
+    /// Read a boolean literal (#t or #f).
+    fn read_boolean(&mut self, position: Position) -> Result<PositionedToken> {
+        use crate::Error;
+
+        self.advance(); // consume '#'
+
+        match self.peek() {
+            Some('t') => {
+                self.advance();
+                Ok(PositionedToken::new(Token::Boolean(true), position))
+            }
+            Some('f') => {
+                self.advance();
+                Ok(PositionedToken::new(Token::Boolean(false), position))
+            }
+            Some(ch) => Err(Error::syntax_error(
+                &format!("Invalid boolean literal '#{}'", ch),
+                position.line,
+                position.column,
+            )),
+            None => Err(Error::syntax_error(
+                "Incomplete boolean literal",
+                position.line,
+                position.column,
+            )),
+        }
+    }
+
+    /// Read a symbol.
+    fn read_symbol(&mut self, position: Position) -> Result<PositionedToken> {
+        let mut text = String::new();
+
+        while let Some(ch) = self.peek() {
+            if ch.is_whitespace() || "()';\"".contains(ch) {
+                break;
+            }
+            if !self.is_symbol_char(ch) {
+                break;
+            }
+            text.push(ch);
+            self.advance();
+        }
+
+        Ok(PositionedToken::new(Token::Symbol(text), position))
     }
 }
 
@@ -441,5 +620,304 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token, Token::Eof);
         assert_eq!(token.position, Position::start());
+    }
+
+    #[test]
+    fn test_number_tokenization() {
+        // Test integer parsing
+        let mut lexer = Lexer::new("42".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(42.0));
+        assert_eq!(token.position, Position::new(1, 1));
+
+        // Test floating-point parsing
+        let mut lexer = Lexer::new("3.14159".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(3.14159));
+
+        // Test negative numbers
+        let mut lexer = Lexer::new("-123".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(-123.0));
+
+        // Test positive numbers with explicit sign
+        let mut lexer = Lexer::new("+456".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(456.0));
+
+        // Test zero
+        let mut lexer = Lexer::new("0".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(0.0));
+
+        // Test decimal starting with zero
+        let mut lexer = Lexer::new("0.5".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(0.5));
+    }
+
+    #[test]
+    fn test_string_tokenization() {
+        // Test simple string
+        let mut lexer = Lexer::new("\"hello\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::String("hello".to_string()));
+        assert_eq!(token.position, Position::new(1, 1));
+
+        // Test empty string
+        let mut lexer = Lexer::new("\"\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::String("".to_string()));
+
+        // Test string with escape sequences
+        let mut lexer = Lexer::new("\"hello\\nworld\\t!\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::String("hello\nworld\t!".to_string()));
+
+        // Test string with escaped quote
+        let mut lexer = Lexer::new("\"say \\\"hello\\\"\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::String("say \"hello\"".to_string()));
+
+        // Test string with backslash
+        let mut lexer = Lexer::new("\"path\\\\to\\\\file\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::String("path\\to\\file".to_string()));
+    }
+
+    #[test]
+    fn test_symbol_tokenization() {
+        // Test simple symbol
+        let mut lexer = Lexer::new("hello".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("hello".to_string()));
+        assert_eq!(token.position, Position::new(1, 1));
+
+        // Test symbol with special characters
+        let mut lexer = Lexer::new("list->vector".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("list->vector".to_string()));
+
+        // Test symbol with numbers
+        let mut lexer = Lexer::new("x42".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("x42".to_string()));
+
+        // Test single character symbols
+        let mut lexer = Lexer::new("+".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("+".to_string()));
+
+        let mut lexer = Lexer::new("*".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("*".to_string()));
+
+        // Test predicate symbol
+        let mut lexer = Lexer::new("null?".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("null?".to_string()));
+    }
+
+    #[test]
+    fn test_boolean_tokenization() {
+        // Test true
+        let mut lexer = Lexer::new("#t".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Boolean(true));
+        assert_eq!(token.position, Position::new(1, 1));
+
+        // Test false
+        let mut lexer = Lexer::new("#f".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Boolean(false));
+        assert_eq!(token.position, Position::new(1, 1));
+    }
+
+    #[test]
+    fn test_delimiter_tokenization() {
+        // Test left parenthesis
+        let mut lexer = Lexer::new("(".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::LeftParen);
+        assert_eq!(token.position, Position::new(1, 1));
+
+        // Test right parenthesis
+        let mut lexer = Lexer::new(")".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::RightParen);
+        assert_eq!(token.position, Position::new(1, 1));
+
+        // Test quote
+        let mut lexer = Lexer::new("'".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Quote);
+        assert_eq!(token.position, Position::new(1, 1));
+    }
+
+    #[test]
+    fn test_complex_tokenization() {
+        let mut lexer = Lexer::new("(+ 1 (* 2 3))".to_string());
+
+        let tokens: Vec<_> = std::iter::from_fn(|| match lexer.next_token() {
+            Ok(token) if token.token != Token::Eof => Some(token.token),
+            _ => None,
+        })
+        .collect();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::LeftParen,
+                Token::Symbol("+".to_string()),
+                Token::Number(1.0),
+                Token::LeftParen,
+                Token::Symbol("*".to_string()),
+                Token::Number(2.0),
+                Token::Number(3.0),
+                Token::RightParen,
+                Token::RightParen,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_string_with_whitespace() {
+        let mut lexer = Lexer::new("\"hello world\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::String("hello world".to_string()));
+    }
+
+    #[test]
+    fn test_quoted_expression() {
+        let mut lexer = Lexer::new("'(a b c)".to_string());
+
+        let quote_token = lexer.next_token().unwrap();
+        assert_eq!(quote_token.token, Token::Quote);
+
+        let paren_token = lexer.next_token().unwrap();
+        assert_eq!(paren_token.token, Token::LeftParen);
+    }
+
+    #[test]
+    fn test_error_handling() {
+        // Test unterminated string
+        let mut lexer = Lexer::new("\"unterminated".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+
+        // Test invalid escape sequence
+        let mut lexer = Lexer::new("\"invalid\\x\"".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+
+        // Test invalid boolean
+        let mut lexer = Lexer::new("#x".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+
+        // Test incomplete boolean
+        let mut lexer = Lexer::new("#".to_string());
+        let result = lexer.next_token();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_real_scheme_expression() {
+        // Test tokenizing a realistic Scheme expression
+        let mut lexer = Lexer::new(
+            "(define factorial (lambda (n) (if (= n 0) 1 (* n (factorial (- n 1))))))".to_string(),
+        );
+
+        let mut tokens = Vec::new();
+        loop {
+            let token = lexer.next_token().unwrap();
+            if token.token == Token::Eof {
+                break;
+            }
+            tokens.push(token.token);
+        }
+
+        // Verify the complete tokenization
+        assert_eq!(
+            tokens,
+            vec![
+                Token::LeftParen,
+                Token::Symbol("define".to_string()),
+                Token::Symbol("factorial".to_string()),
+                Token::LeftParen,
+                Token::Symbol("lambda".to_string()),
+                Token::LeftParen,
+                Token::Symbol("n".to_string()),
+                Token::RightParen,
+                Token::LeftParen,
+                Token::Symbol("if".to_string()),
+                Token::LeftParen,
+                Token::Symbol("=".to_string()),
+                Token::Symbol("n".to_string()),
+                Token::Number(0.0),
+                Token::RightParen,
+                Token::Number(1.0),
+                Token::LeftParen,
+                Token::Symbol("*".to_string()),
+                Token::Symbol("n".to_string()),
+                Token::LeftParen,
+                Token::Symbol("factorial".to_string()),
+                Token::LeftParen,
+                Token::Symbol("-".to_string()),
+                Token::Symbol("n".to_string()),
+                Token::Number(1.0),
+                Token::RightParen,
+                Token::RightParen,
+                Token::RightParen,
+                Token::RightParen,
+                Token::RightParen,
+                Token::RightParen,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_r7rs_small_character_support() {
+        // Test R7RS-small identifier characters
+        // Letters: a-z, A-Z
+        let mut lexer = Lexer::new("hello WORLD".to_string());
+        let token1 = lexer.next_token().unwrap();
+        assert_eq!(token1.token, Token::Symbol("hello".to_string()));
+        let token2 = lexer.next_token().unwrap();
+        assert_eq!(token2.token, Token::Symbol("WORLD".to_string()));
+
+        // Digits in identifiers (not at start)
+        let mut lexer = Lexer::new("var123".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("var123".to_string()));
+
+        // Special characters: ! $ % & * + - . / : < = > ? @ ^ _ ~
+        let special_chars = "! $ % & * + - . / : < = > ? @ ^ _ ~";
+        for ch in special_chars.chars() {
+            if ch == ' ' {
+                continue;
+            } // Skip spaces
+            let mut lexer = Lexer::new(ch.to_string());
+            let token = lexer.next_token().unwrap();
+            assert_eq!(token.token, Token::Symbol(ch.to_string()));
+        }
+
+        // Test composite identifiers with special characters
+        let mut lexer = Lexer::new("list->vector".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("list->vector".to_string()));
+
+        let mut lexer = Lexer::new("number?".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Symbol("number?".to_string()));
+    }
+
+    #[test]
+    fn test_ascii_string_content() {
+        // Test that strings can contain any characters (including Unicode)
+        // but identifiers follow R7RS-small rules
+        let mut lexer = Lexer::new("\"Hello, 世界! 🌍\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::String("Hello, 世界! 🌍".to_string()));
     }
 }

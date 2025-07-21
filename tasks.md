@@ -208,7 +208,7 @@ cargo bench              # Benchmarks must run (when applicable)
 #[test] fn test_position_tracking()
 ```
 
-#### T1.3.2: Implement `Lexer` struct
+#### T1.3.2: Implement `Lexer` struct ✅
 **Prerequisites**: Token enum
 **Deliverables**:
 - Create lexer with input, position, line, column fields
@@ -223,7 +223,7 @@ cargo bench              # Benchmarks must run (when applicable)
 #[test] fn test_comment_handling()
 ```
 
-#### T1.3.3: Implement token recognition
+#### T1.3.3: Implement token recognition ✅
 **Prerequisites**: Lexer struct
 **Deliverables**:
 - Number parsing (integers and floats)
@@ -809,11 +809,11 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 1 (Foundation)
-**Overall Progress**: 12% (10/82 tasks completed)
+**Overall Progress**: 15% (12/82 tasks completed)
 **Estimated Completion**: 13-17 weeks
 
 ### Phase Progress
-- **Phase 1**: 🔄 71% (10/14 tasks) - Foundation
+- **Phase 1**: 🔄 86% (12/14 tasks) - Foundation
 - **Phase 2**: ☐ 0% (0/20 tasks) - Basic Interpreter
 - **Phase 3**: ☐ 0% (0/20 tasks) - Advanced Features
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
@@ -830,11 +830,13 @@ cargo fmt --check            # Formatting verification
 - ✅ T1.2.4: Implement immutable list type
 - ✅ T1.2.5: Add comprehensive value system tests
 - ✅ T1.3.1: Implement `Token` enum
+- ✅ T1.3.2: Implement `Lexer` struct
+- ✅ T1.3.3: Implement token recognition
 
 ### Immediate Next Steps
-1. **T1.3.2**: Implement `Lexer` struct (🔥 Priority)
-2. **T1.3.3**: Implement token recognition
-3. **T1.3.4**: Add lexer error handling
+1. **T1.3.4**: Add lexer error handling (🔥 Priority)
+2. **T1.3.5**: Create comprehensive lexer tests
+3. **T2.1.1**: Implement `Expr` enum
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.
