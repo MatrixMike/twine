@@ -1,13 +1,18 @@
-# 🧵 Twine
-
-A minimalist Scheme interpreter written in Rust with fiber-based concurrency and asynchronous I/O.
+<div align="center">
+  <h1>🧵 twine</h1>
+  <p>
+    <strong>
+        A minimalist Scheme with fiber-based concurrency and async I/O
+    </strong>
+  </p>
+</div>
 
 ## Overview
 
 Twine implements a functional subset of R7RS-small Scheme with four core design principles:
 
-- **Asynchronous I/O**: All I/O operations are async with fiber yielding, appearing synchronous to Scheme code
 - **Fiber-based Concurrency**: Lightweight fiber scheduler with multi-threaded execution and no Global Interpreter Lock
+- **Asynchronous I/O**: All I/O operations are async with fiber yielding, appearing synchronous to Scheme code
 - **Strict Immutability**: All data structures are immutable after creation (side effects like I/O are still supported)
 - **Minimalism**: Essential language features only for maintainability and simplicity
 

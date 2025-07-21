@@ -19,10 +19,10 @@
 
 Twine is a functional Scheme interpreter written in Rust that emphasizes asynchronous I/O, fiber-based concurrency, simplicity, and immutability. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state. The system is built around four core principles:
 
-1. **Asynchronous I/O**: All I/O operations are asynchronous with fiber yielding, appearing synchronous to Scheme code
-2. **Fiber Scheduler and Async Task System**: Lightweight fiber management with high-level task abstraction executed on a thread pool using `smol` async runtime
-3. **Simplicity and Minimalism**: Essential R7RS-small subset for maintainability and reduced complexity
-4. **Immutability**: All data structures are immutable after creation
+1. **Fiber Scheduler and Async Task System**: Lightweight fiber management with high-level task abstraction executed on a thread pool using `smol` async runtime
+2. **Asynchronous I/O**: All I/O operations are asynchronous with fiber yielding, appearing synchronous to Scheme code
+3. **Immutability**: All data structures are immutable after creation
+4. **Simplicity and Minimalism**: Essential R7RS-small subset for maintainability and reduced complexity
 
 ### Key Design Decisions
 
