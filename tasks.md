@@ -81,7 +81,7 @@ This constraint ensures:
   - **All tests must pass**: `cargo test` should run successfully (even if no tests exist yet)
   - **Constraint**: Minimal project setup only, no premature module structure
 
-- [ ] **T1.1.2**: Set up basic error handling infrastructure
+- [x] **T1.1.2**: Set up basic error handling infrastructure
   - Add `thiserror` dependency to `Cargo.toml` (first external dependency - chosen for its minimal footprint and zero dependencies)
   - Implement basic `Error` enum with only essential variants needed for Phase 1: `SyntaxError`, `ParseError`
   - DO NOT implement all error types from design.md - add them when needed
@@ -92,7 +92,7 @@ This constraint ensures:
   - **All tests must pass**: `cargo test` should run successfully with all error handling tests
   - **Constraint**: Only implement error types needed for current phase
 
-- [ ] **T1.1.3**: Set up local dependency source management
+- [x] **T1.1.3**: Set up local dependency source management
   - Create `deps/` directory structure: `deps/vendor/`, `deps/docs/`, `deps/registry/`
   - Add `deps/` to `.gitignore` to prevent committing dependency sources
   - Set up vendor management with `cargo vendor deps/vendor`

@@ -38,6 +38,14 @@ These documents are the single source of truth for the project. All implementati
 - Avoid dependencies with large dependency trees
 - Update `Cargo.toml` incrementally, not all at once
 
+#### Local Dependency Source Management - CRITICAL
+- **ALWAYS run `./scripts/update-deps.sh` after ANY dependency changes** to maintain local sources
+- **MANDATORY**: After adding, removing, or updating dependencies in `Cargo.toml`, you MUST run the update script
+- **USE LOCAL DEPENDENCY SOURCES**: Always reference vendored sources in `deps/vendor/` for accurate dependency code
+- **USE LOCAL DOCUMENTATION**: Always reference generated docs in `deps/docs/` for complete API information
+- **NO GUESSING**: Never guess about third-party APIs - always check `deps/vendor/` and `deps/docs/`
+- **COMPLETE CONTEXT**: Use local sources to understand exact dependency behavior and implementation details
+
 ### Code Quality Standards
 - Write comprehensive tests for each implemented feature
 - Follow Rust best practices and idiomatic code patterns
@@ -65,6 +73,14 @@ These documents are the single source of truth for the project. All implementati
 - Support lexical scoping with closures
 - Provide both REPL and file execution modes
 
+### Dependency Management (CRITICAL)
+- **MANDATORY**: Always use local vendored sources in `deps/vendor/` for dependency analysis
+- **MANDATORY**: Always reference local documentation in `deps/docs/` for API information
+- **MANDATORY**: Run `./scripts/update-deps.sh` immediately after ANY `Cargo.toml` changes
+- **FORBIDDEN**: Guessing about third-party APIs without checking local sources
+- **REQUIRED**: Verify all async dependencies come from smol ecosystem using local docs
+- **CONSTRAINT**: All dependency analysis must use exact vendored source code, not assumptions
+
 ## Development Workflow
 
 ### When Starting New Work
@@ -72,13 +88,16 @@ These documents are the single source of truth for the project. All implementati
 2. Identify the current phase and specific task requirements
 3. Check task dependencies are satisfied
 4. Understand acceptance criteria and test requirements
+5. **VERIFY LOCAL DEPENDENCIES**: Ensure `deps/` structure exists and is up-to-date
 
 ### When Implementing Features
 1. Follow the minimal implementation principle
 2. Write tests first when possible (TDD approach)
 3. Implement only the current task's functionality
-4. Ensure all existing tests continue to pass
-5. Update documentation if the implementation affects user-facing behavior
+4. **CHECK DEPENDENCIES LOCALLY**: Before using any third-party APIs, check `deps/vendor/` for source code and `deps/docs/` for documentation
+5. **UPDATE DEPENDENCIES**: If adding/changing dependencies, run `./scripts/update-deps.sh` immediately
+6. Ensure all existing tests continue to pass
+7. Update documentation if the implementation affects user-facing behavior
 
 ### When Completing Tasks
 1. Verify all acceptance criteria are met
@@ -102,6 +121,75 @@ These documents are the single source of truth for the project. All implementati
 - Quote acceptance criteria (AC-X) when validating implementations
 - Always explain how your solution aligns with the four core principles
 - Update the core documents when requirements or design change
+- **CITE LOCAL SOURCES**: When discussing third-party dependencies, reference specific files in `deps/vendor/` and `deps/docs/`
+- **DEPENDENCY UPDATES**: Always mention when `./scripts/update-deps.sh` needs to be run
+
+## Dependency Management Workflow
+
+### Critical Dependency Rules
+**EVERY TIME** you modify `Cargo.toml` (add, remove, or update dependencies), you MUST:
+
+1. **IMMEDIATELY** run `./scripts/update-deps.sh` after the change
+2. **VERIFY** the script completes successfully 
+3. **CONFIRM** updated sources exist in `deps/vendor/`
+4. **CHECK** that tests still pass with updated dependencies
+
+### Dependency Analysis Process
+When working with third-party crates, follow this mandatory sequence:
+
+1. **SOURCE ANALYSIS**: Read actual source code in `deps/vendor/[crate-name]/`
+   - Understand implementation details, not just public APIs
+   - Check for async/sync compatibility with our fiber model
+   - Verify immutability constraints are respected
+
+2. **API DOCUMENTATION**: Reference `deps/docs/[crate-name]/index.html`
+   - Review all public and private documentation
+   - Check feature flags and optional functionality
+   - Understand error types and failure modes
+
+3. **VERSION VERIFICATION**: Ensure compatibility
+   - Confirm version matches our requirements
+   - Check for breaking changes in changelog
+   - Verify smol ecosystem compatibility for async crates
+
+4. **INTEGRATION PLANNING**: Before writing code
+   - Plan how the dependency fits our architecture
+   - Ensure no conflicts with immutability principle
+   - Design error handling integration
+
+### Dependency Update Checklist
+- [ ] Modified `Cargo.toml`
+- [ ] Ran `./scripts/update-deps.sh` successfully
+- [ ] Verified vendored sources updated in `deps/vendor/`
+- [ ] Confirmed documentation updated in `deps/docs/`
+- [ ] All tests pass with new dependencies
+- [ ] No conflicts with project constraints (immutability, smol ecosystem)
+
+### Dependency Troubleshooting
+If you encounter issues with dependencies:
+
+1. **Compilation Errors**: Check `deps/vendor/[crate]/src/` for actual source and understand the API
+2. **Version Conflicts**: Review `Cargo.lock` and vendored sources to identify incompatibilities
+3. **Missing Documentation**: Re-run `./scripts/update-deps.sh` to regenerate docs
+4. **Outdated Vendored Sources**: Always run update script after changing `Cargo.toml`
+5. **smol Ecosystem Conflicts**: Verify async crates are from smol ecosystem (check `deps/docs/`)
+
+**NEVER assume** how a dependency works - always verify by checking the actual source code in `deps/vendor/`.
+
+## Third-Party Code Integration
+
+### Mandatory Process for External Dependencies
+1. **BEFORE IMPLEMENTATION**: Check `deps/vendor/[crate-name]/` for exact source code
+2. **REFERENCE DOCUMENTATION**: Use `deps/docs/[crate-name]/` for complete API reference
+3. **UNDERSTAND INTERNALS**: Review dependency source to understand behavior, not just public APIs
+4. **VERIFY COMPATIBILITY**: Ensure dependency versions match project requirements
+5. **UPDATE AFTER CHANGES**: Run `./scripts/update-deps.sh` after any Cargo.toml modifications
+
+### Local Dependency Resources
+- **Source Code**: `deps/vendor/` contains exact vendored source for all dependencies
+- **Documentation**: `deps/docs/` contains comprehensive docs including private items
+- **Version Lock**: Sources match exact versions in Cargo.lock for consistency
+- **Offline Access**: Complete dependency information available without network access
 
 ## Files to Keep Updated
 
