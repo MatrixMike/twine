@@ -98,44 +98,39 @@ twine/src/
 ├── lib.rs                   # Library root and public API
 │
 ├── lexer/                   # Tokenization
-│   ├── mod.rs               # Token stream generation
-│   └── token.rs             # Token type definitions
+│   └── ...                  # Token types and stream generation
 │
 ├── parser/                  # Syntax Analysis
-│   ├── mod.rs               # S-expression parsing
-│   └── ast.rs               # Abstract syntax tree types
+│   └── ...                  # S-expression parsing and AST types
 │
 ├── interpreter/             # Core Evaluation
-│   ├── mod.rs               # Main evaluation engine
-│   ├── environment.rs       # Variable scoping and binding
-│   ├── builtins.rs          # Built-in procedure implementations
-│   └── macros.rs            # Macro system (define-syntax, syntax-rules)
+│   └── ...                  # Evaluation engine, environments, builtins, macros
 │
 ├── types/                   # Data Types
-│   ├── mod.rs               # Core value types and conversions
-│   ├── value.rs             # Scheme value enumeration
-│   └── procedures.rs        # Function and procedure types
+│   └── ...                  # Scheme value types and procedures
 │
 ├── runtime/                 # Concurrency and Execution
-│   ├── mod.rs               # Runtime coordination
-│   ├── scheduler.rs         # Fiber scheduler implementation
-│   ├── task.rs              # High-level task abstraction
-│   └── io.rs                # Async I/O operations
+│   └── ...                  # Fiber scheduler, tasks, async I/O
 │
 ├── repl/                    # Interactive Interface
-│   ├── mod.rs               # REPL implementation
-│   └── readline.rs          # Line editing and history
+│   └── ...                  # REPL implementation and line editing
 │
 └── error/                   # Error Handling
-    ├── mod.rs               # Error type hierarchy
-    └── reporting.rs         # Error formatting and display
+    └── ...                  # Error types and reporting
 ```
 
-**Design Principles**:
-- **Single Responsibility**: Each module has one clear purpose
+**Module Design Principles**:
+- **Single Responsibility**: Each top-level module has one clear purpose
 - **Minimal Dependencies**: Clean interfaces between modules
 - **Educational Clarity**: Structure reflects domain concepts
 - **Progressive Complexity**: Learning-friendly organization
+
+**File Organization Guidelines**:
+- **Small Files**: Each file should be relatively small and focused
+- **One Type Per File**: Define at most one major type per file (e.g., one Scheme type)
+- **Logical Grouping**: Related functionality should be grouped in the same module
+- **Clear Naming**: File names should clearly indicate their contents
+- **Implementation-Driven**: Let actual implementation needs determine specific file structure
 
 ---
 
