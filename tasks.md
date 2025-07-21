@@ -151,7 +151,7 @@ cargo bench              # Benchmarks must run (when applicable)
 #### T1.2.3: Implement immutable string and symbol types ✅
 **Prerequisites**: Number type implementation
 **Deliverables**:
-- Define `SchemeString` and `SchemeSymbol` types
+- Define `String` and `Symbol` types
 - ⚠️ **DO NOT implement** symbol interning yet
 - Basic equality and hashing only
 
@@ -166,7 +166,7 @@ cargo bench              # Benchmarks must run (when applicable)
 #### T1.2.4: Implement immutable list type ✅
 **Prerequisites**: String and symbol types
 **Deliverables**:
-- Define `SchemeList` using simple `Vec<Value>`
+- Define `List` using simple `Vec<Value>`
 - ⚠️ **DO NOT implement** list operations (car, cdr, cons)
 - ⚠️ **DO NOT add** structural sharing (Arc) yet
 - Basic construction and display only

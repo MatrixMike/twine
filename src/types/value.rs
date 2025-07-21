@@ -22,14 +22,14 @@ pub enum Value {
 
     /// Immutable string values
     ///
-    /// Using SchemeString provides proper abstraction and efficient sharing
+    /// Using String provides proper abstraction and efficient sharing
     /// of string data across multiple Value instances.
     String(String),
 
     /// Symbol values (identifiers)
     ///
     /// Symbols are like strings but represent identifiers in Scheme.
-    /// Using SchemeSymbol provides proper abstraction for identifier handling.
+    /// Using Symbol provides proper abstraction for identifier handling.
     Symbol(Symbol),
 
     /// List values (compound data)
@@ -86,8 +86,8 @@ impl Value {
         Value::List(List::from_vec(values))
     }
 
-    /// Create a new list value from a SchemeList
-    pub fn scheme_list(list: List) -> Self {
+    /// Create a new list value from a List
+    pub fn from_list(list: List) -> Self {
         Value::List(list)
     }
 

@@ -423,14 +423,14 @@ Finished!
 
 ```rust
 // Efficient immutable string sharing
-pub type SchemeString = Arc<str>;
-pub type SchemeSymbol = Arc<str>;  // Could use string interning
+pub type String = Arc<str>;
+pub type Symbol = Arc<str>;  // Could use string interning
 
 // Immutable array for lists - enables structural sharing
-pub type SchemeList = Arc<[Value]>;
+pub type List = Arc<[Value]>;
 
 // Reference-counted procedures
-pub type SchemeProcedure = Arc<Procedure>;
+pub type Procedure = Arc<Procedure>;
 ```
 
 ### Structural Sharing Example
