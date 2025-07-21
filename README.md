@@ -36,13 +36,24 @@ For detailed project information, see:
 - [`tasks.md`](tasks.md) - Structured implementation plan and task dependencies
 - [`agent.md`](agent.md) - AI agent development guidelines and workflow
 
-## Features
+## Current Features
 
-- Lexical analysis with position tracking and comprehensive tokenization
+### ✅ Implemented
+- **Lexical Analysis**: Complete tokenization with position tracking for numbers, strings, symbols, booleans, and delimiters
+- **Syntactic Analysis**: Recursive descent parser for S-expressions, atoms, lists, and quoted expressions
+- **Immutable Data Types**: Numbers, booleans, strings, symbols, and lists with reference counting
+- **Error Handling**: Comprehensive syntax error reporting with precise position information
+- **Test Coverage**: 130+ tests covering all implemented features
+
+### 🚧 In Progress  
+- Environment management for variable binding
+- Basic evaluation engine
+- Built-in procedures and special forms
+
+### 📋 Planned
 - Interactive REPL and file execution
 - Fiber scheduler with automatic I/O yielding
 - Two-layer concurrency: low-level fibers and high-level async tasks
-- Immutable data types: numbers, booleans, strings, symbols, lists, procedures
 - R7RS-small macro system
 - Lexical scoping with closures
 - Built-in arithmetic, list operations, and conditionals

@@ -149,6 +149,177 @@ impl PositionedExpression {
     }
 }
 
+/// Parser for converting tokens into Abstract Syntax Tree.
+///
+/// Implements recursive descent parsing for Scheme S-expressions.
+/// Maintains current position in token stream for error reporting.
+///
+/// # Example
+/// ```rust
+/// use twine_scheme::parser::Parser;
+///
+/// let input = "(+ 1 2)".to_string();
+/// let mut parser = Parser::new(input)?;
+/// let expr = parser.parse_expression()?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub struct Parser {
+    tokens: Vec<crate::lexer::PositionedToken>,
+    current: usize,
+}
+
+impl Parser {
+    /// Create a new parser for the given input string.
+    ///
+    /// Tokenizes the input using the lexer and prepares for parsing.
+    pub fn new(input: String) -> crate::Result<Self> {
+        use crate::lexer::Lexer;
+
+        let mut lexer = Lexer::new(input);
+        let mut tokens = Vec::new();
+
+        // Collect all tokens from the lexer
+        loop {
+            let positioned_token = lexer.next_token()?;
+            let is_eof = positioned_token.token.is_eof();
+            tokens.push(positioned_token);
+
+            if is_eof {
+                break;
+            }
+        }
+
+        Ok(Self { tokens, current: 0 })
+    }
+
+    /// Get the current token without advancing the parser.
+    ///
+    /// Returns the EOF token if we've reached the end of input.
+    pub fn peek(&self) -> &crate::lexer::PositionedToken {
+        self.tokens
+            .get(self.current)
+            .unwrap_or(self.tokens.last().unwrap()) // Always has EOF token
+    }
+
+    /// Advance to the next token and return the previous current token.
+    ///
+    /// Returns the EOF token if we've already reached the end.
+    pub fn advance(&mut self) -> crate::lexer::PositionedToken {
+        let token = self.peek().clone();
+        if self.current < self.tokens.len() - 1 {
+            self.current += 1;
+        }
+        token
+    }
+
+    /// Check if we've reached the end of the token stream.
+    pub fn is_at_end(&self) -> bool {
+        self.peek().token.is_eof()
+    }
+
+    /// Get the current position in the source for error reporting.
+    pub fn current_position(&self) -> crate::lexer::Position {
+        self.peek().position.clone()
+    }
+
+    /// Parse a single expression from the token stream.
+    ///
+    /// Handles atoms, lists, and quoted expressions according to Scheme syntax.
+    pub fn parse_expression(&mut self) -> crate::Result<PositionedExpression> {
+        let position = self.current_position();
+
+        match &self.peek().token {
+            crate::lexer::Token::Quote => {
+                self.advance(); // consume quote
+                let quoted_expr = self.parse_expression()?;
+                Ok(PositionedExpression::new(
+                    Expression::quote(quoted_expr.expr),
+                    position,
+                ))
+            }
+            crate::lexer::Token::LeftParen => {
+                self.advance(); // consume left paren
+                let mut expressions = Vec::new();
+
+                while !self.is_at_end()
+                    && !matches!(self.peek().token, crate::lexer::Token::RightParen)
+                {
+                    expressions.push(self.parse_expression()?.expr);
+                }
+
+                if self.is_at_end() {
+                    return Err(crate::Error::syntax_error(
+                        "Unexpected end of input, expected ')'",
+                        position.line,
+                        position.column,
+                    ));
+                }
+
+                self.advance(); // consume right paren
+                Ok(PositionedExpression::new(
+                    Expression::list(expressions),
+                    position,
+                ))
+            }
+            crate::lexer::Token::RightParen => Err(crate::Error::syntax_error(
+                "Unexpected ')'",
+                position.line,
+                position.column,
+            )),
+            crate::lexer::Token::Number(n) => {
+                let value = *n;
+                self.advance();
+                Ok(PositionedExpression::new(
+                    Expression::atom(crate::types::Value::number(value)),
+                    position,
+                ))
+            }
+            crate::lexer::Token::String(s) => {
+                let value = s.clone();
+                self.advance();
+                Ok(PositionedExpression::new(
+                    Expression::atom(crate::types::Value::string(&value)),
+                    position,
+                ))
+            }
+            crate::lexer::Token::Symbol(s) => {
+                let value = s.clone();
+                self.advance();
+                Ok(PositionedExpression::new(
+                    Expression::atom(crate::types::Value::symbol(&value)),
+                    position,
+                ))
+            }
+            crate::lexer::Token::Boolean(b) => {
+                let value = *b;
+                self.advance();
+                Ok(PositionedExpression::new(
+                    Expression::atom(crate::types::Value::boolean(value)),
+                    position,
+                ))
+            }
+            crate::lexer::Token::Eof => Err(crate::Error::syntax_error(
+                "Unexpected end of input",
+                position.line,
+                position.column,
+            )),
+        }
+    }
+
+    /// Parse all expressions from the token stream.
+    ///
+    /// Returns a vector of all top-level expressions in the input.
+    pub fn parse_all(&mut self) -> crate::Result<Vec<PositionedExpression>> {
+        let mut expressions = Vec::new();
+
+        while !self.is_at_end() {
+            expressions.push(self.parse_expression()?);
+        }
+
+        Ok(expressions)
+    }
+}
+
 /// Display formatting for expressions.
 ///
 /// Provides readable string representation that closely matches Scheme syntax.
@@ -587,5 +758,227 @@ mod tests {
             current.as_atom().unwrap().as_symbol().unwrap().to_string(),
             "deeply-nested"
         );
+    }
+
+    // Parser struct tests
+    #[test]
+    fn test_parser_creation() {
+        let parser = Parser::new("42".to_string()).unwrap();
+        assert_eq!(parser.current, 0);
+        assert!(!parser.is_at_end());
+    }
+
+    #[test]
+    fn test_parser_peek_and_advance() {
+        let mut parser = Parser::new("42 hello".to_string()).unwrap();
+
+        // Should start with number token
+        let first_token = parser.peek().clone();
+        assert!(matches!(
+            first_token.token,
+            crate::lexer::Token::Number(42.0)
+        ));
+
+        // Advance should return the token we just peeked
+        let advanced_token = parser.advance();
+        assert_eq!(advanced_token.token, first_token.token);
+
+        // Now should be at symbol
+        let second_token = parser.peek();
+        assert!(matches!(second_token.token, crate::lexer::Token::Symbol(ref s) if s == "hello"));
+    }
+
+    #[test]
+    fn test_parser_is_at_end() {
+        let mut parser = Parser::new("42".to_string()).unwrap();
+
+        assert!(!parser.is_at_end());
+        parser.advance(); // consume number
+        assert!(parser.is_at_end()); // should be at EOF
+    }
+
+    #[test]
+    fn test_parse_atom_expressions() {
+        // Number
+        let mut parser = Parser::new("42".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_atom());
+        assert_eq!(expr.expr.as_atom().unwrap().as_number().unwrap(), 42.0);
+
+        // String
+        let mut parser = Parser::new("\"hello\"".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_atom());
+        assert_eq!(
+            expr.expr
+                .as_atom()
+                .unwrap()
+                .as_string()
+                .unwrap()
+                .to_string(),
+            "hello"
+        );
+
+        // Symbol
+        let mut parser = Parser::new("foo".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_atom());
+        assert_eq!(
+            expr.expr
+                .as_atom()
+                .unwrap()
+                .as_symbol()
+                .unwrap()
+                .to_string(),
+            "foo"
+        );
+
+        // Boolean
+        let mut parser = Parser::new("#t".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_atom());
+        assert_eq!(expr.expr.as_atom().unwrap().as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_parse_list_expressions() {
+        // Simple list: (1 2 3)
+        let mut parser = Parser::new("(1 2 3)".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_list());
+        let list = expr.expr.as_list().unwrap();
+        assert_eq!(list.len(), 3);
+
+        // Nested list: (+ (* 2 3) 4)
+        let mut parser = Parser::new("(+ (* 2 3) 4)".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_list());
+        let outer_list = expr.expr.as_list().unwrap();
+        assert_eq!(outer_list.len(), 3);
+        assert!(outer_list[1].is_list()); // (* 2 3) should be a list
+
+        // Empty list: ()
+        let mut parser = Parser::new("()".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_list());
+        assert_eq!(expr.expr.as_list().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_parse_quoted_expressions() {
+        // Simple quote: 'x
+        let mut parser = Parser::new("'x".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_quoted());
+        let quoted = expr.expr.as_quoted().unwrap();
+        assert!(quoted.is_atom());
+
+        // Quoted list: '(a b c)
+        let mut parser = Parser::new("'(a b c)".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_quoted());
+        let quoted = expr.expr.as_quoted().unwrap();
+        assert!(quoted.is_list());
+        assert_eq!(quoted.as_list().unwrap().len(), 3);
+
+        // Nested quotes: ''x
+        let mut parser = Parser::new("''x".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_quoted());
+        let first_quote = expr.expr.as_quoted().unwrap();
+        assert!(first_quote.is_quoted());
+    }
+
+    #[test]
+    fn test_parse_all_expressions() {
+        let mut parser = Parser::new("42 hello (+ 1 2) 'world".to_string()).unwrap();
+        let expressions = parser.parse_all().unwrap();
+
+        assert_eq!(expressions.len(), 4);
+        assert!(expressions[0].expr.is_atom()); // 42
+        assert!(expressions[1].expr.is_atom()); // hello
+        assert!(expressions[2].expr.is_list()); // (+ 1 2)
+        assert!(expressions[3].expr.is_quoted()); // 'world
+    }
+
+    #[test]
+    fn test_parser_error_handling() {
+        // Unexpected right paren
+        let mut parser = Parser::new(")".to_string()).unwrap();
+        assert!(parser.parse_expression().is_err());
+
+        // Unmatched left paren
+        let mut parser = Parser::new("(1 2".to_string()).unwrap();
+        assert!(parser.parse_expression().is_err());
+
+        // Empty input
+        let mut parser = Parser::new("".to_string()).unwrap();
+        assert!(parser.parse_expression().is_err());
+    }
+
+    #[test]
+    fn test_parser_position_tracking() {
+        let mut parser = Parser::new("42".to_string()).unwrap();
+        let position = parser.current_position();
+        assert_eq!(position.line, 1);
+        assert_eq!(position.column, 1);
+
+        let expr = parser.parse_expression().unwrap();
+        assert_eq!(expr.position.line, 1);
+        assert_eq!(expr.position.column, 1);
+    }
+
+    #[test]
+    fn test_fr2_compliance_parser() {
+        // Test FR-2: Syntactic Analysis compliance
+
+        // Build AST from S-expressions
+        let mut parser = Parser::new(
+            "(define factorial (lambda (n) (if (= n 0) 1 (* n (factorial (- n 1))))))".to_string(),
+        )
+        .unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_list());
+
+        // Validate parentheses handling
+        let mut parser = Parser::new("((()))".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert!(expr.expr.is_list());
+        let outer = expr.expr.as_list().unwrap();
+        assert_eq!(outer.len(), 1);
+        assert!(outer[0].is_list());
+
+        // Report syntax errors
+        let mut parser = Parser::new("(unclosed".to_string()).unwrap();
+        assert!(parser.parse_expression().is_err());
+
+        // Unexpected right paren at start should error
+        let mut parser = Parser::new(")".to_string()).unwrap();
+        assert!(parser.parse_expression().is_err());
+
+        // Multiple unmatched parens should error
+        let mut parser = Parser::new("(()".to_string()).unwrap();
+        assert!(parser.parse_expression().is_err());
+    }
+
+    #[test]
+    fn test_educational_parser_examples() {
+        // Simple arithmetic that students can understand
+        let mut parser = Parser::new("(+ 1 2)".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert_eq!(format!("{}", expr.expr), "(+ 1 2)");
+
+        // Function definition example
+        let mut parser = Parser::new("(define square (lambda (x) (* x x)))".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert_eq!(
+            format!("{}", expr.expr),
+            "(define square (lambda (x) (* x x)))"
+        );
+
+        // Data structure example
+        let mut parser = Parser::new("'(the quick brown fox)".to_string()).unwrap();
+        let expr = parser.parse_expression().unwrap();
+        assert_eq!(format!("{}", expr.expr), "'(the quick brown fox)");
     }
 }

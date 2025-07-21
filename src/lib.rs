@@ -11,9 +11,6 @@ pub mod types;
 // Re-export error types for convenience
 pub use error::{Error, Result};
 
-// Re-export parser types for convenience
-pub use parser::{Expression, PositionedExpression};
-
 #[cfg(test)]
 mod tests {
     #[test]
@@ -96,12 +93,12 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_type_reexports() {
+    fn test_parser_type_imports() {
         use crate::lexer::Position;
+        use crate::parser::{Expression, PositionedExpression};
         use crate::types::Value;
-        use crate::{Expression, PositionedExpression};
 
-        // Test that re-exported parser types work correctly
+        // Test that parser types work correctly when imported directly
         let expr = Expression::atom(Value::number(42.0));
         assert!(expr.is_atom());
         assert_eq!(expr.type_name(), "atom");
