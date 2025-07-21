@@ -872,20 +872,31 @@ sequenceDiagram
 
 ## Implementation Considerations
 
-### Possible Dependencies
+### Core Dependencies
 
-This is not an exhaustive list. Just some possible dependecies we could use.
+We keep project dependencies to an absolute minimum. When required, we choose alternatives that are minimal and have as few dependencies as possible. All async-related crates come from the smol ecosystem.
+
+The following are the **CORE** dependencies that are essential to the interpreter's functionality:
 
 ```toml
 [dependencies]
-smol = "2.0"
-futures-lite = "2.6"
+# Error handling - minimal, zero-dependency error derive macros
 thiserror = "2.0"
-clap = "4.5"
-polling = "3.9"
-async-task = "4.7"
-async-channel = "2.5"
+
+# Async runtime and utilities - smol ecosystem only
+smol = "2.0"           # Main async runtime
+futures-lite = "2.6"   # Async utilities (smol ecosystem)
+async-task = "4.7"     # Task management (smol ecosystem)
+async-channel = "2.5"  # Async communication (smol ecosystem)
+polling = "3.9"        # Event polling for I/O (smol ecosystem)
 ```
+
+**Dependency Philosophy:**
+- Only add dependencies when absolutely necessary for core functionality
+- Prefer single-purpose, minimal crates over feature-rich alternatives
+- All async functionality must use the smol ecosystem for consistency
+- Avoid dependencies that pull in large dependency trees
+- CLI parsing (`clap`) and other non-core features are added only when implementing specific phases
 
 ### Performance Optimizations
 
