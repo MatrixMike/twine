@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-You are working on **Twine**, a minimalist Scheme interpreter written in Rust that implements a functional subset of R7RS-small Scheme. Twine is designed around four core principles:
+You are working on **Twine**, an educational Scheme interpreter project designed primarily for learning AI-assisted development, interpreter implementation, async I/O, parallelism, and advanced Rust concepts. Twine implements a functional subset of R7RS-small Scheme and is designed around four core principles:
 
 1. **Fiber-based Concurrency**: Lightweight fiber scheduler with multi-threaded execution and no Global Interpreter Lock
 2. **Asynchronous I/O**: All I/O operations are async with fiber yielding, appearing synchronous to Scheme code  
@@ -11,6 +11,19 @@ You are working on **Twine**, a minimalist Scheme interpreter written in Rust th
 5. **Minimalism**: Essential language features only for maintainability and simplicity
 
 The project uses the `smol` async runtime for concurrency and provides both low-level fiber management and high-level async task abstraction.
+
+## Educational Objectives
+
+This project serves as a comprehensive learning platform with the following primary educational goals:
+
+- **AI Agent Development**: Learn effective collaboration patterns with AI coding agents (specifically Zed Agentic Editing)
+- **Interpreter Implementation**: Understand the complete pipeline from source code to execution
+- **Scheme Language**: Explore functional programming concepts and Lisp-family syntax
+- **Rust Async Ecosystem**: Gain hands-on experience with async programming and the `smol` library
+- **Concurrency Models**: Implement and understand fiber-based scheduling and parallelism
+- **Software Architecture**: Make design decisions that balance technical requirements with learning value
+
+All implementation decisions should prioritize educational value and learning opportunities while maintaining technical rigor.
 
 ## Agent Behavioral Instructions Management
 
@@ -58,27 +71,30 @@ These documents are the single source of truth for the project. All implementati
 
 ## Implementation Philosophy
 
-### Simplicity and Clarity
-- **Keep implementation simple and easy to understand**
-- **Avoid unnecessary usage of advanced Rust features or abstractions**
-- **Prefer straightforward, readable code over clever optimizations**
-- Use Rust's basic features effectively: structs, enums, pattern matching, ownership
+### Educational Simplicity and Clarity
+- **Keep implementation simple and easy to understand** (maximize learning value)
+- **Avoid unnecessary usage of advanced Rust features or abstractions** (focus on fundamental concepts)
+- **Prefer straightforward, readable code over clever optimizations** (prioritize educational clarity)
+- Use Rust's basic features effectively: structs, enums, pattern matching, ownership (build solid foundations)
 - Avoid complex trait hierarchies, excessive generics, or advanced lifetime patterns unless absolutely necessary
-- Write code that a Rust beginner could understand and maintain
+- Write code that a Rust beginner could understand and maintain (serve as learning resource)
+- **Include extensive documentation explaining design decisions and implementation choices**
 
-### Logical Module Organization
-- **Break up implementation logic into logical modules/folders where it makes sense**
-- Each module should have a clear, single responsibility
-- Group related functionality together (e.g., lexer/, parser/, types/, runtime/)
-- Use simple file and folder structures that reflect the domain concepts
-- Keep module interfaces clean with minimal public APIs
-- Organize code to minimize cross-module dependencies
+### Learning-Oriented Module Organization
+- **Break up implementation logic into logical modules/folders that support educational progression**
+- Each module should have a clear, single responsibility that maps to specific learning concepts
+- Group related functionality together (e.g., lexer/, parser/, types/, runtime/) to reinforce domain understanding
+- Use simple file and folder structures that reflect the domain concepts clearly
+- Keep module interfaces clean with minimal public APIs (focus on essential concepts)
+- Organize code to minimize cross-module dependencies (build understanding incrementally)
+- **Document each module's educational purpose and learning objectives**
 
-### Incremental Development
-- Follow the phase-based approach outlined in `tasks.md`
-- Implement ONLY the features described in the current task
-- Do not add forward-looking code or stubs for future functionality
-- Each task should produce the minimal working implementation
+### Educational Incremental Development
+- Follow the phase-based approach outlined in `tasks.md` (designed for optimal learning progression)
+- Implement ONLY the features described in the current task (focus learning on specific concepts)
+- Do not add forward-looking code or stubs for future functionality (avoid overwhelming complexity)
+- Each task should produce the minimal working implementation that maximizes learning value
+- **Ensure each task builds understanding progressively and reinforces previous concepts**
 
 ### Dependency Management
 - Keep Rust dependencies to an absolute minimum
@@ -180,8 +196,10 @@ These documents are the single source of truth for the project. All implementati
 - Update the core documents when requirements or design change
 - **CITE LOCAL SOURCES**: When discussing third-party dependencies, reference specific files in `deps/vendor/` and `deps/docs/`
 - **DEPENDENCY UPDATES**: Always mention when `./scripts/update-deps.sh` needs to be run
-- **SIMPLICITY FOCUS**: Explain why simple solutions were chosen over complex alternatives
-- **MODULE ORGANIZATION**: Describe how code organization supports maintainability and understanding
+- **EDUCATIONAL VALUE**: Explain the learning opportunities and educational benefits of implementation choices
+- **SIMPLICITY FOCUS**: Explain why simple solutions were chosen over complex alternatives (emphasize learning value)
+- **MODULE ORGANIZATION**: Describe how code organization supports both maintainability and educational understanding
+- **CONCEPT REINFORCEMENT**: Explain how each implementation reinforces or builds upon previously learned concepts
 
 ## Dependency Management Workflow
 

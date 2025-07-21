@@ -1,7 +1,14 @@
 [package]
 name = "twine-scheme"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "An educational Scheme interpreter for learning AI agents, async I/O, and parallelism"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/dtcristo/twine"
+keywords = ["scheme", "interpreter", "async", "educational", "smol"]
+categories = ["development-tools", "parser-implementations"]
+readme = "README.md"
+authors = ["dtcristo"]
 
 [dependencies]
 thiserror = "2.0"

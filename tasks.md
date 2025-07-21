@@ -2,9 +2,18 @@
 
 ## Overview
 
-This document provides a detailed implementation plan for the Twine Scheme interpreter, based on the specifications in `requirements.md` and technical design in `design.md`. Tasks are organized incrementally to allow for a minimal working interpreter that gradually adds features.
+This document provides a detailed implementation plan for the Twine Scheme interpreter, designed specifically to maximize educational value while building a functional interpreter. Tasks are organized to create optimal learning progression through AI-assisted development, interpreter implementation, async programming, and Rust ecosystem exploration.
 
-**Simplicity First**: Throughout all phases, prioritize simple, readable implementations over complex or advanced Rust features. Every task should produce code that is easy to understand, maintain, and debug. Organize implementation logic into logical modules and folders that reflect the domain concepts clearly.
+**Educational Learning Path**: The task structure is designed to facilitate learning about:
+- AI agent collaboration patterns and effective prompting
+- Interpreter architecture from lexing through execution
+- Async programming with Rust and the `smol` ecosystem
+- Functional programming concepts and immutable data structures
+- Concurrency models and fiber-based scheduling
+
+**Simplicity First**: Throughout all phases, prioritize simple, readable implementations over complex or advanced Rust features. Every task should produce code that is easy to understand, maintain, and debug, serving as an effective learning resource. Organize implementation logic into logical modules and folders that reflect the domain concepts clearly.
+
+**Learning-Oriented Implementation**: Each task is structured to build understanding progressively, with extensive documentation and clear explanations of design decisions to support the educational goals of the project.
 
 ## Task Organization
 
@@ -23,30 +32,43 @@ Each task includes:
 
 ## Task Implementation Guidelines
 
-### Minimal Implementation Principle
-Each task should implement **ONLY** the features explicitly described in that task. Do not implement functionality that belongs to future tasks, even if it seems related or convenient to add. This ensures:
-- Clear progress tracking
-- Incremental testing and validation
-- Easier debugging and rollback
-- Proper dependency management
+### Educational Implementation Principles
+
+#### Minimal Implementation Principle
+Each task should implement **ONLY** the features explicitly described in that task. Do not implement functionality that belongs to future tasks, even if it seems related or convenient to add. This educational approach ensures:
+- Clear progress tracking and learning milestones
+- Incremental testing and validation of concepts
+- Easier debugging and rollback for learning
+- Proper dependency management understanding
+- Focused learning on specific concepts per task
+
+#### Learning-First Development
+**Maximize Educational Value**: Each task should provide clear learning opportunities about specific concepts (lexing, parsing, async programming, etc.)
+**Progressive Complexity**: Start with fundamental concepts and build understanding gradually
+**Extensive Documentation**: Include detailed comments explaining design decisions and implementation choices
+**Concept Reinforcement**: Each task should reinforce understanding of previously learned concepts while introducing new ones
 
 ### Implementation Simplicity and Module Organization
-**Keep implementation simple and easy to understand**:
-- Avoid unnecessary usage of advanced Rust features or abstractions
-- Prefer straightforward, readable code over clever optimizations
-- Use Rust's basic features effectively: structs, enums, pattern matching, ownership
-- Avoid complex trait hierarchies, excessive generics, or advanced lifetime patterns unless absolutely necessary
-- Write code that a Rust beginner could understand and maintain
-- Favor explicit, verbose code over implicit, clever code
 
-**Break up implementation logic into logical modules/folders where it makes sense**:
-- Each module should have a clear, single responsibility
-- Group related functionality together (e.g., lexer/, parser/, types/, runtime/)
-- Use simple file and folder structures that reflect the domain concepts
-- Keep module interfaces clean with minimal public APIs
-- Organize code to minimize cross-module dependencies
-- Use descriptive names for functions, variables, and modules
-- Keep functions and modules small and focused on single responsibilities
+#### Educational Code Quality Standards
+**Keep implementation simple and easy to understand**:
+- Avoid unnecessary usage of advanced Rust features or abstractions (focus on learning fundamentals)
+- Prefer straightforward, readable code over clever optimizations (prioritize learning value)
+- Use Rust's basic features effectively: structs, enums, pattern matching, ownership (build solid foundations)
+- Avoid complex trait hierarchies, excessive generics, or advanced lifetime patterns unless absolutely necessary
+- Write code that a Rust beginner could understand and maintain (serve as learning resource)
+- Favor explicit, verbose code over implicit, clever code (maximize educational clarity)
+
+#### Learning-Oriented Module Structure
+**Break up implementation logic into logical modules/folders that reflect learning progression**:
+- Each module should have a clear, single responsibility that maps to a specific learning concept
+- Group related functionality together (e.g., lexer/, parser/, types/, runtime/) to reinforce domain understanding
+- Use simple file and folder structures that reflect the domain concepts clearly
+- Keep module interfaces clean with minimal public APIs (focus on essential concepts)
+- Organize code to minimize cross-module dependencies (build understanding incrementally)
+- Use descriptive names for functions, variables, and modules (enhance learning through clear naming)
+- Keep functions and modules small and focused on single responsibilities (easier to understand and learn from)
+- Include extensive inline documentation explaining the purpose and design of each module
 
 ### Dependency Management
 - Keep project dependencies to an **absolute minimum**

@@ -9,7 +9,7 @@
 
 ## Overview
 
-Twine implements a functional subset of R7RS-small Scheme including macro support with five core design principles:
+Twine is an educational project designed to explore AI-assisted development, interpreter implementation, and advanced Rust concepts. The project implements a functional subset of R7RS-small Scheme including macro support with five core design principles:
 
 - **Fiber-based Concurrency**: Lightweight fiber scheduler with multi-threaded execution and no Global Interpreter Lock
 - **Asynchronous I/O**: All I/O operations are async with fiber yielding, appearing synchronous to Scheme code
@@ -17,6 +17,19 @@ Twine implements a functional subset of R7RS-small Scheme including macro suppor
 - **Macro System**: R7RS-small macro support with `define-syntax` and `syntax-rules` for compile-time code transformation
 - **Implementation Simplicity**: Simple, readable code using basic Rust features, organized into logical modules that reflect domain concepts
 - **Minimalism**: Essential language features only for maintainability and simplicity
+
+## Educational Goals
+
+This project serves as a practical learning platform for:
+
+- **AI Agent Development**: Learning to work effectively with AI coding agents (specifically Zed Agentic Editing)
+- **Interpreter Implementation**: Understanding lexing, parsing, evaluation, and runtime systems
+- **Scheme Language**: Exploring functional programming concepts and Lisp-family syntax
+- **Async I/O and Parallelism**: Hands-on experience with Rust's async ecosystem and the `smol` library
+- **Concurrency Models**: Implementing fiber-based scheduling and multi-threaded execution
+- **Language Design**: Making architectural decisions for simplicity and maintainability
+
+The interpreter is designed as an educational tool and is not intended for production use.
 
 ## Features
 
@@ -59,13 +72,23 @@ Twine uses a fiber scheduler built on the `smol` async runtime, allowing multipl
 
 The codebase is organized into logical modules that reflect the interpreter's domain concepts:
 - `lexer/` - Input tokenization with clear token definitions
-- `parser/` - S-expression parsing and AST construction  
+- `parser/` - S-expression parsing and AST construction
 - `types/` - Immutable Scheme data types and values
 - `interpreter/` - Core evaluation engine and environment management
 - `runtime/` - Fiber scheduler, task system, and async I/O
 - `repl/` - Interactive interface and user interaction
 
-Each module maintains a single responsibility with simple, readable implementations that prioritize clarity over complex optimizations.
+Each module maintains a single responsibility with simple, readable implementations that prioritize clarity over complex optimizations. The codebase is intentionally structured to facilitate learning and experimentation with different implementation approaches.
+
+## Learning Resources
+
+This project explores several key concepts:
+
+- **AI-Assisted Development**: Using AI agents for iterative development and learning
+- **Interpreter Architecture**: From tokenization through execution
+- **Rust Async Ecosystem**: Leveraging `smol` for lightweight concurrency
+- **Functional Programming**: Immutable data structures and functional evaluation
+- **Concurrency Patterns**: Fiber scheduling and multi-threaded execution
 
 ## License
 

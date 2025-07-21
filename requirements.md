@@ -2,7 +2,24 @@
 
 ## Overview
 
-This document captures the functional and non-functional requirements for the Twine Scheme interpreter using the EARS (Easy Approach to Requirements Syntax) format. The interpreter SHALL implement a subset of the R7RS-small Scheme specification to provide a functional programming environment with **immutable data structures only** as a core design principle. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state.
+This document captures the functional and non-functional requirements for the Twine Scheme interpreter using the EARS (Easy Approach to Requirements Syntax) format. Twine is designed as an **educational project** to facilitate learning about AI-assisted development, interpreter implementation, async I/O, parallelism, and advanced Rust concepts.
+
+### Educational Objectives
+
+The primary purpose of this project is to provide hands-on learning experiences in:
+
+- **AI Agent Development**: Practical experience working with AI coding agents (specifically Zed Agentic Editing) for iterative software development and learning how to effectively collaborate with AI tools
+- **Interpreter Implementation**: Complete understanding of language implementation from lexical analysis through execution, including parsing, evaluation, and runtime systems
+- **Scheme Language**: Deep exploration of functional programming concepts, Lisp-family syntax, and language design principles
+- **Rust Async Ecosystem**: Comprehensive learning of async programming patterns, the `smol` library, and Rust's approach to asynchronous programming
+- **Concurrency Models**: Hands-on implementation and understanding of fiber-based scheduling, parallelism, and alternative concurrency approaches
+- **Software Architecture**: Learning to make architectural decisions that balance technical requirements with code clarity and maintainability
+
+### Technical Requirements Framework
+
+The interpreter SHALL implement a subset of the R7RS-small Scheme specification to provide a functional programming environment with **immutable data structures only** as a core design principle. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state.
+
+All technical requirements serve the dual purpose of creating a functional interpreter while maximizing learning value and educational insight into the underlying concepts.
 
 ## Key Design Principles
 
@@ -18,11 +35,42 @@ This document captures the functional and non-functional requirements for the Tw
 ### Principle 4: Simplicity and Minimalism
 **PRIORITY: HIGH** - The interpreter SHALL prioritize simple implementation and minimal syntax. Only the essential subset of R7RS-small SHALL be implemented to maintain code clarity, reduce complexity, and ensure maintainability.
 
-**Implementation Simplicity**: The codebase SHALL favor straightforward, readable implementations over advanced Rust features or complex abstractions. Code SHALL be written to be easily understood and maintained by developers at all experience levels.
+**Implementation Simplicity**: The codebase SHALL favor straightforward, readable implementations over advanced Rust features or complex abstractions. Code SHALL be written to be easily understood and maintained by developers at all experience levels, serving as an effective learning resource.
 
 **Logical Module Organization**: The implementation SHALL be organized into clear, logical modules and folders that reflect the domain concepts. Each module SHALL have a single, well-defined responsibility with minimal cross-module dependencies.
 
+### Principle 5: Educational Value
+**PRIORITY: HIGH** - All design and implementation decisions SHALL prioritize learning opportunities and educational insight. The codebase SHALL serve as a comprehensive learning resource for understanding interpreter implementation, async programming, and AI-assisted development patterns.
+
+**Learning-Oriented Design**: Features SHALL be implemented to maximize understanding of underlying concepts, with extensive documentation and clear progression of complexity.
+
+**Experimentation Support**: The architecture SHALL facilitate exploration of alternative implementation approaches and comparison of different design choices.
+
 ## User Stories
+
+### Educational User Stories
+
+### Story E1: AI Agent Learning
+**As a** developer learning AI-assisted programming
+**I want to** build a complex project with an AI agent
+**So that** I can understand effective collaboration patterns and AI tool capabilities
+
+### Story E2: Interpreter Understanding
+**As a** computer science student
+**I want to** implement a complete interpreter from scratch
+**So that** I can understand language implementation from lexing through execution
+
+### Story E3: Async Programming Learning
+**As a** Rust developer
+**I want to** build an async system using the smol library
+**So that** I can learn fiber-based concurrency and async I/O patterns
+
+### Story E4: Functional Programming Exploration
+**As a** programmer exploring functional concepts
+**I want to** implement and use Scheme language features
+**So that** I can understand immutability, closures, and functional evaluation
+
+### Functional User Stories
 
 ### Story 1: Basic Expression Evaluation
 **As a** developer learning functional programming
@@ -415,6 +463,60 @@ The following R7RS-small features are explicitly out of scope to maintain simpli
 - **ALL mutable operations** - This is a core design constraint
 - Local variable binding forms (let, let*, letrec) - excluded for simplicity, not immutability conflicts
 - Any form of data structure modification after creation
+
+## Educational Validation Criteria
+
+### Learning Objective Validation
+
+#### EV-1: AI Agent Collaboration Learning
+**Criteria**: Successful completion demonstrates effective AI-assisted development patterns
+- **Evidence**: Well-documented task progression showing AI collaboration at each phase
+- **Validation**: Code comments and commit history showing iterative AI-assisted refinement
+- **Learning Outcome**: Understanding of effective prompting, context management, and AI tool limitations
+
+#### EV-2: Interpreter Implementation Understanding
+**Criteria**: Complete comprehension of language implementation pipeline
+- **Evidence**: Ability to explain lexing, parsing, evaluation, and runtime phases
+- **Validation**: Clear module separation with well-documented responsibilities
+- **Learning Outcome**: Deep understanding of how programming languages work internally
+
+#### EV-3: Async Programming Mastery
+**Criteria**: Practical understanding of async I/O and concurrency patterns
+- **Evidence**: Successful fiber scheduler implementation using `smol` ecosystem
+- **Validation**: Non-blocking I/O operations with proper error handling
+- **Learning Outcome**: Confidence in building async systems in Rust
+
+#### EV-4: Functional Programming Concepts
+**Criteria**: Understanding of immutability, closures, and functional evaluation
+- **Evidence**: Complete immutable data structure implementation with no mutation operations
+- **Validation**: Proper lexical scoping and closure capture mechanisms
+- **Learning Outcome**: Solid foundation in functional programming principles
+
+#### EV-5: Software Architecture Skills
+**Criteria**: Ability to balance technical requirements with maintainability
+- **Evidence**: Simple, readable code organization with clear module boundaries
+- **Validation**: Code that serves as effective learning resource for others
+- **Learning Outcome**: Understanding of how to design systems for both functionality and educational value
+
+### Project Success Metrics
+
+#### Technical Completeness
+- [ ] All functional requirements (FR-1 through FR-18) implemented and tested
+- [ ] All acceptance criteria (AC-1 through AC-12) validated
+- [ ] Comprehensive test suite with >90% code coverage
+- [ ] Documentation complete and up-to-date
+
+#### Educational Value Achievement
+- [ ] Clear learning progression through task phases
+- [ ] Extensive inline documentation explaining design decisions
+- [ ] Code examples and usage patterns for key concepts
+- [ ] Reflection on lessons learned from AI collaboration
+
+#### Knowledge Transfer Validation
+- [ ] Project can serve as learning resource for others
+- [ ] Implementation choices clearly documented with educational rationale
+- [ ] Alternative approaches considered and documented
+- [ ] Learning objectives measurably achieved through practical implementation
 
 ## Glossary
 

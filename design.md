@@ -18,24 +18,51 @@
 
 ## System Overview
 
-Twine is a functional Scheme interpreter written in Rust that emphasizes asynchronous I/O, fiber-based concurrency, simplicity, and immutability. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state. The system is built around four core principles:
+Twine is an educational Scheme interpreter written in Rust designed to facilitate learning about AI-assisted development, interpreter implementation, async I/O, parallelism, and advanced Rust concepts. The project serves as a hands-on learning platform for exploring these technical domains through the implementation of a functional programming language.
+
+### Educational Objectives
+
+The primary goals of this project are to provide learning opportunities in:
+
+- **AI Agent Development**: Practical experience working with AI coding agents for iterative software development
+- **Interpreter Design**: Understanding the complete pipeline from source code to execution
+- **Scheme Language**: Exploring functional programming paradigms and Lisp-family language concepts
+- **Rust Async Ecosystem**: Deep dive into async programming patterns and the `smol` library
+- **Concurrency Models**: Implementing and understanding fiber-based scheduling and parallelism
+- **Software Architecture**: Making design decisions that prioritize learning value and code clarity
+
+### Core Technical Principles
+
+While serving educational purposes, Twine maintains rigorous technical standards built around four core principles:
 
 1. **Fiber Scheduler and Async Task System**: Lightweight fiber management with high-level task abstraction executed on a thread pool using `smol` async runtime
 2. **Asynchronous I/O**: All I/O operations are asynchronous with fiber yielding, appearing synchronous to Scheme code
 3. **Immutability**: All data structures are immutable after creation
 4. **Simplicity and Minimalism**: Essential R7RS-small subset including macro support for maintainability and reduced complexity
 
+The interpreter emphasizes asynchronous I/O, fiber-based concurrency, simplicity, and immutability. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state.
+
 ### Key Design Decisions
 
-- **Runtime**: `smol` async runtime for lightweight, efficient concurrency
-- **Concurrency Model**: Fiber-based parallelism without Global Interpreter Lock (GIL)
-- **Memory Management**: Rust's ownership system + reference counting for shared immutable data
-- **Thread Pool**: Multi-threaded execution pool managed by `smol`
-- **Error Handling**: Result-based error propagation with async-compatible patterns
-- **Side Effects**: Side effects (I/O, network) are permitted while maintaining data immutability
+#### Learning-Oriented Architecture
+- **Educational Value**: All architectural decisions prioritize learning opportunities and code readability
+- **Incremental Complexity**: Features are designed to build understanding progressively
+- **Exploration-Friendly**: Codebase structure facilitates experimentation with alternative approaches
+- **Documentation Focus**: Extensive inline documentation to support learning and understanding
+
+#### Technical Implementation Choices
+- **Runtime**: `smol` async runtime for lightweight, efficient concurrency (learning async Rust patterns)
+- **Concurrency Model**: Fiber-based parallelism without Global Interpreter Lock (exploring alternative concurrency models)
+- **Memory Management**: Rust's ownership system + reference counting for shared immutable data (understanding Rust memory safety)
+- **Thread Pool**: Multi-threaded execution pool managed by `smol` (learning parallel execution patterns)
+- **Error Handling**: Result-based error propagation with async-compatible patterns (practicing robust error design)
+- **Side Effects**: Side effects (I/O, network) are permitted while maintaining data immutability (balancing purity with practicality)
+
+#### Code Quality Standards for Learning
 - **Implementation Simplicity**: Straightforward, readable code over advanced Rust features or complex abstractions
 - **Module Organization**: Clear, logical module structure reflecting domain concepts with single responsibilities
 - **Code Clarity**: Explicit, verbose implementations over implicit, clever solutions
+- **Learning Scaffolding**: Code structured to facilitate understanding of interpreter concepts and async programming
 
 ## Architecture
 
@@ -1075,4 +1102,59 @@ impl ResourceLimits {
 - **Memory Pooling**: Custom memory allocators for performance
 - **JIT Compilation**: Just-in-time compilation for hot code paths
 
-This design document provides the foundation for implementing the Twine Scheme interpreter with the specified requirements for immutability, async I/O, and parallel fiber execution using the `smol` runtime.
+## Educational Architecture and Learning Progression
+
+### Learning-Oriented Design Philosophy
+
+The Twine architecture is specifically designed to maximize educational value while maintaining technical rigor. Each component serves dual purposes: implementing functional interpreter features and providing clear learning opportunities about specific computer science concepts.
+
+### Progressive Learning Structure
+
+#### Phase 1: Foundation Concepts
+- **Lexical Analysis**: Understanding tokenization and input processing
+- **Parsing**: Building abstract syntax trees and language grammar
+- **Basic Data Types**: Immutable value systems and memory management
+- **Core Evaluation**: Simple expression evaluation and environment handling
+
+#### Phase 2: Intermediate Concepts  
+- **Function Systems**: Closures, lexical scoping, and procedure application
+- **Built-in Operations**: Standard library implementation patterns
+- **Error Handling**: Robust error propagation in language runtimes
+- **REPL Implementation**: Interactive programming environment design
+
+#### Phase 3: Advanced Concepts
+- **Async Programming**: Fiber-based concurrency with `smol` runtime
+- **Parallel Execution**: Multi-threaded scheduling without global locks
+- **I/O Integration**: Asynchronous operations with synchronous language semantics
+- **Macro Systems**: Compile-time code transformation and metaprogramming
+
+### AI-Assisted Development Learning
+
+The project structure facilitates learning effective AI collaboration patterns:
+
+- **Incremental Development**: Each task builds understanding progressively
+- **Clear Documentation**: Extensive inline documentation supports AI context understanding
+- **Modular Architecture**: Clean separation of concerns enables focused AI assistance
+- **Test-Driven Development**: Comprehensive testing validates AI-generated implementations
+- **Iterative Refinement**: Code structure supports easy modification and improvement
+
+### Educational Code Quality Standards
+
+- **Readability First**: All code prioritizes clarity over performance optimization
+- **Extensive Documentation**: Every module includes educational comments explaining design decisions
+- **Simple Patterns**: Basic Rust features used effectively without unnecessary complexity
+- **Learning Scaffolding**: Code structure guides understanding of interpreter concepts
+- **Concept Reinforcement**: Each implementation reinforces previously learned material
+
+### Knowledge Transfer Goals
+
+By completing this project, developers will gain practical experience with:
+
+1. **Language Implementation**: Complete understanding of interpreter architecture
+2. **Async Rust**: Hands-on experience with async programming patterns and `smol` ecosystem
+3. **Concurrency Models**: Alternative approaches to parallel execution beyond traditional threading
+4. **Functional Programming**: Immutable data structures and functional evaluation models
+5. **AI Collaboration**: Effective patterns for working with AI coding agents
+6. **Software Architecture**: Balancing technical requirements with maintainability and learning value
+
+This design document provides the foundation for implementing the Twine Scheme interpreter with the specified requirements for immutability, async I/O, and parallel fiber execution using the `smol` runtime, while maximizing educational value and learning opportunities throughout the development process.
