@@ -9,15 +9,13 @@
 
 ## Overview
 
-Twine is an educational Scheme interpreter implementing:
+Twine is a [Scheme](https://en.wikipedia.org/wiki/Scheme_(programming_language)) interpreter implementing:
 
 - **Fiber-based Concurrency**: Lightweight fiber scheduler with multi-threaded execution
 - **Asynchronous I/O**: All I/O operations are async with fiber yielding
 - **Strict Immutability**: All data structures are immutable after creation
 - **Macro System**: R7RS-small macro support with `define-syntax` and `syntax-rules`
 - **Minimalism**: Essential language features only
-
-Built on the `smol` async runtime for educational exploration of AI-assisted development, interpreter implementation, and advanced Rust concepts.
 
 ## Educational Goals
 
