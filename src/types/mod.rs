@@ -8,10 +8,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 // Re-export all public types
-pub use procedures::Procedure;
+pub use procedure::Procedure;
 pub use value::Value;
 
-pub mod procedures;
+pub mod procedure;
 pub mod value;
 
 /// Immutable number type for Scheme numeric values
