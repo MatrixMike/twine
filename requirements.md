@@ -1,285 +1,175 @@
 # Requirements for Twine Scheme Interpreter
 
-## Overview
+## Quick Reference
 
-This document captures the functional and non-functional requirements for the Twine Scheme interpreter using the EARS (Easy Approach to Requirements Syntax) format. Twine is designed as an **educational project** to facilitate learning about AI-assisted development, interpreter implementation, async I/O, parallelism, and advanced Rust concepts.
+### Core Principles (All HIGH Priority)
+1. **Fiber-based Concurrency**: Lightweight scheduler with multi-threaded execution, no GIL
+2. **Asynchronous I/O**: All I/O async with fiber yielding, appears synchronous to Scheme
+3. **Strict Immutability**: All data structures immutable after creation
+4. **Simplicity & Minimalism**: Essential R7RS-small subset only
+5. **Educational Value**: Learning-first design and implementation
+
+### Key Constraints
+- ❌ **NO mutable operations** - Complete immutability enforced
+- ✅ **smol ecosystem only** - All async dependencies from smol
+- ✅ **R7RS-small subset** - Essential features only
+- ✅ **Educational focus** - Simple, readable implementations
+
+### Success Criteria
+- All 17 functional requirements implemented
+- All 12 acceptance criteria validated
+- >90% test coverage
+- Clear learning progression documented
+
+---
+
+## Project Overview
+
+**Twine** is an educational Scheme interpreter designed for learning AI-assisted development, interpreter implementation, async I/O, parallelism, and advanced Rust concepts.
 
 ### Educational Objectives
+| Learning Area | Goal |
+|---------------|------|
+| **AI Agent Development** | Practical collaboration with AI coding agents |
+| **Interpreter Implementation** | Complete language pipeline understanding |
+| **Scheme Language** | Functional programming and Lisp concepts |
+| **Rust Async Ecosystem** | Hands-on async programming with `smol` |
+| **Concurrency Models** | Fiber-based scheduling implementation |
+| **Software Architecture** | Balance technical requirements with learning value |
 
-The primary purpose of this project is to provide hands-on learning experiences in:
+### Technical Foundation
+Implements functional subset of R7RS-small with:
+- Immutable data structures only (core constraint)
+- Fiber scheduler for concurrent execution
+- Asynchronous I/O with automatic yielding
+- Two-layer system: low-level fibers + high-level async tasks
 
-- **AI Agent Development**: Practical experience working with AI coding agents (specifically Zed Agentic Editing) for iterative software development and learning how to effectively collaborate with AI tools
-- **Interpreter Implementation**: Complete understanding of language implementation from lexical analysis through execution, including parsing, evaluation, and runtime systems
-- **Scheme Language**: Deep exploration of functional programming concepts, Lisp-family syntax, and language design principles
-- **Rust Async Ecosystem**: Comprehensive learning of async programming patterns, the `smol` library, and Rust's approach to asynchronous programming
-- **Concurrency Models**: Hands-on implementation and understanding of fiber-based scheduling, parallelism, and alternative concurrency approaches
-- **Software Architecture**: Learning to make architectural decisions that balance technical requirements with code clarity and maintainability
+---
 
-### Technical Requirements Framework
+## Core Design Principles
 
-The interpreter SHALL implement a subset of the R7RS-small Scheme specification to provide a functional programming environment with **immutable data structures only** as a core design principle. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state.
+### 1. Fiber Scheduler and Async Task System
+- **Execution Model**: All code runs within fibers managed by central scheduler
+- **I/O Integration**: Automatic fiber yielding during I/O operations
+- **Two-Layer System**:
+  - **Low-level**: `spawn-fiber` for independent fibers
+  - **High-level**: `async` macro for hierarchical parent-child tasks
+- **Parallelism**: Multi-threaded execution across CPU cores without GIL
+- **Synchronization**: `task-wait` and `fiber-wait` for coordination
 
-All technical requirements serve the dual purpose of creating a functional interpreter while maximizing learning value and educational insight into the underlying concepts.
+### 2. Asynchronous I/O
+- **Transparent to Scheme**: I/O appears synchronous, no async/await syntax
+- **Fiber Yielding**: Automatic suspension during I/O operations
+- **Non-blocking**: Other fibers continue executing during I/O
+- **Integration**: REPL and file execution work seamlessly with fibers
 
-## Key Design Principles
+### 3. Strict Immutability
+- **Core Constraint**: All data structures immutable after creation
+- **No Mutation**: Zero mutable operations supported
+- **Side Effects**: I/O operations allowed but don't mutate data
+- **Enforcement**: System rejects any mutation attempts
 
-### Principle 1: Fiber Scheduler and Async Task System
-**PRIORITY: HIGH** - The interpreter SHALL use a fiber scheduler to manage execution of all code within fibers, with automatic I/O yielding that appears synchronous to Scheme code. The interpreter SHALL provide a two-layer system: low-level fiber management via `spawn-fiber`, and high-level async tasks via the `async` macro that creates hierarchical parent-child relationships. The `async` macro SHALL support both simple expressions `(async expr)` and explicit thunks `(async (lambda () body))`, expanding to appropriate `spawn-fiber` calls that spawn tasks immediately and return task handles, while `task-wait` SHALL provide task synchronization. Multiple fibers SHALL execute concurrently across CPU cores via a thread pool without a Global Interpreter Lock (GIL).
+### 4. Simplicity and Minimalism
+- **Essential Features**: Only core R7RS-small constructs
+- **Readable Code**: Straightforward implementations over optimizations
+- **Learning Focus**: Code serves as educational resource
+- **Minimal Dependencies**: Limited external dependencies, smol ecosystem only
 
-### Principle 2: Asynchronous IO
-**PRIORITY: HIGH** - All IO operations SHALL be asynchronous in the context of the entire runtime through fiber yielding. The interpreter SHALL make IO operations appear synchronous to Scheme code while internally yielding fiber execution to the scheduler. No async/await syntax SHALL be exposed to Scheme programmers.
+### 5. Educational Value
+- **Learning-First**: All decisions prioritize educational insight
+- **Progressive Complexity**: Clear advancement through concepts
+- **Documentation**: Extensive explanation of design decisions
+- **Experimentation**: Architecture supports exploring alternatives
 
-### Principle 3: Immutability
-**PRIORITY: HIGH** - The interpreter SHALL enforce complete immutability of all data structures. No mutable operations SHALL be supported. This is a fundamental design constraint that affects all aspects of the system. Note that while data structures are immutable, the language supports side effects such as I/O operations that do not mutate existing data.
-
-### Principle 4: Simplicity and Minimalism
-**PRIORITY: HIGH** - The interpreter SHALL prioritize simple implementation and minimal syntax. Only the essential subset of R7RS-small SHALL be implemented to maintain code clarity, reduce complexity, and ensure maintainability.
-
-**Implementation Simplicity**: The codebase SHALL favor straightforward, readable implementations over advanced Rust features or complex abstractions. Code SHALL be written to be easily understood and maintained by developers at all experience levels, serving as an effective learning resource.
-
-**Logical Module Organization**: The implementation SHALL be organized into clear, logical modules and folders that reflect the domain concepts. Each module SHALL have a single, well-defined responsibility with minimal cross-module dependencies.
-
-### Principle 5: Educational Value
-**PRIORITY: HIGH** - All design and implementation decisions SHALL prioritize learning opportunities and educational insight. The codebase SHALL serve as a comprehensive learning resource for understanding interpreter implementation, async programming, and AI-assisted development patterns.
-
-**Learning-Oriented Design**: Features SHALL be implemented to maximize understanding of underlying concepts, with extensive documentation and clear progression of complexity.
-
-**Experimentation Support**: The architecture SHALL facilitate exploration of alternative implementation approaches and comparison of different design choices.
+---
 
 ## User Stories
 
-### Educational User Stories
+### Educational Stories
+| Story | User | Goal | Benefit |
+|-------|------|------|---------|
+| **E1** | Developer learning AI programming | Build complex project with AI agent | Understand collaboration patterns |
+| **E2** | Computer science student | Implement complete interpreter | Understand language implementation |
+| **E3** | Rust developer | Build async system with smol | Learn fiber-based concurrency |
+| **E4** | Functional programming explorer | Use Scheme features | Understand immutability and closures |
 
-### Story E1: AI Agent Learning
-**As a** developer learning AI-assisted programming
-**I want to** build a complex project with an AI agent
-**So that** I can understand effective collaboration patterns and AI tool capabilities
+### Functional Stories
+| Story | User | Goal | Benefit |
+|-------|------|------|---------|
+| **F1** | Functional programming learner | Evaluate basic expressions | Perform arithmetic/logical operations |
+| **F2** | Scheme programmer | Define and call functions | Create reusable code modules |
+| **F3** | Developer | Use interactive REPL | Experiment and debug interactively |
+| **F4** | Programmer | Execute files | Run complete programs and scripts |
+| **F5** | Code debugger | Receive clear errors | Quickly identify and fix issues |
 
-### Story E2: Interpreter Understanding
-**As a** computer science student
-**I want to** implement a complete interpreter from scratch
-**So that** I can understand language implementation from lexing through execution
-
-### Story E3: Async Programming Learning
-**As a** Rust developer
-**I want to** build an async system using the smol library
-**So that** I can learn fiber-based concurrency and async I/O patterns
-
-### Story E4: Functional Programming Exploration
-**As a** programmer exploring functional concepts
-**I want to** implement and use Scheme language features
-**So that** I can understand immutability, closures, and functional evaluation
-
-### Functional User Stories
-
-### Story 1: Basic Expression Evaluation
-**As a** developer learning functional programming
-**I want to** evaluate basic Scheme expressions
-**So that** I can perform arithmetic and logical operations interactively
-
-### Story 2: Function Definition and Application
-**As a** Scheme programmer
-**I want to** define and call custom functions
-**So that** I can create reusable code modules
-
-### Story 3: Interactive REPL
-**As a** Scheme developer
-**I want to** interact with the interpreter through a read-eval-print loop
-**So that** I can experiment with code and debug programs interactively
-
-### Story 4: File Execution
-**As a** Scheme programmer
-**I want to** execute Scheme programs from files
-**So that** I can run complete programs and scripts
-
-### Story 5: Error Handling
-**As a** developer using the interpreter
-**I want to** receive clear error messages when my code has issues
-**So that** I can quickly identify and fix problems
+---
 
 ## Functional Requirements
 
-### FR-1: Lexical Analysis
-**WHEN** the interpreter receives Scheme source code
-**THEN** the system SHALL tokenize the input into atoms, numbers, strings, and delimiters
-**AND** the system SHALL handle comments by ignoring text after semicolons until end of line
+### Core Language (FR-1 to FR-8)
 
-### FR-2: Syntactic Analysis
-**WHEN** tokens are parsed
-**THEN** the system SHALL construct an abstract syntax tree (AST) from S-expressions
-**AND** the system SHALL validate proper parentheses matching
-**AND** the system SHALL report syntax errors with line and column information
+| ID | Requirement | Key Features |
+|----|-------------|--------------|
+| **FR-1** | **Lexical Analysis** | Tokenize source into atoms, numbers, strings, delimiters; handle comments |
+| **FR-2** | **Syntactic Analysis** | Build AST from S-expressions; validate parentheses; report syntax errors |
+| **FR-3** | **Immutable Data Types** | Numbers, booleans, strings, symbols, lists, procedures - NO mutation |
+| **FR-4** | **Arithmetic Operations** | +, -, *, /, =, <, >, <=, >= with variadic support |
+| **FR-5** | **List Operations** | car, cdr, cons, list, null?, pair? |
+| **FR-6** | **Conditional Expressions** | `if` with condition, then-clause, optional else-clause |
+| **FR-7** | **Variable Binding** | `define` for globals, `lambda` for functions - NO reassignment |
+| **FR-8** | **Function Application** | Left-to-right evaluation, proper binding, tail-call optimization |
 
-### FR-3: Immutable Data Types
-**WHEN** evaluating expressions
-**THEN** the system SHALL support the following immutable data types:
-- Numbers (integers and floating-point) - immutable by nature
-- Booleans (#t and #f) - immutable by nature
-- Strings - immutable after creation
-- Symbols - immutable by nature
-- Lists (proper and improper) - immutable after creation
-- Procedures (built-in and user-defined) - immutable after creation
-**AND** the system SHALL NOT provide any mutation operations for these data types
+### Interactive Features (FR-9 to FR-12)
 
-### FR-4: Arithmetic Operations
-**WHEN** arithmetic expressions are evaluated
-**THEN** the system SHALL support the operators: +, -, *, /, =, <, >, <=, >=
-**AND** the system SHALL handle both integer and floating-point arithmetic
-**AND** the system SHALL support variadic arithmetic functions
+| ID | Requirement | Key Features |
+|----|-------------|--------------|
+| **FR-9** | **REPL Functionality** | Interactive prompt, read S-expressions, evaluate and print |
+| **FR-10** | **File Execution** | Sequential evaluation of file expressions |
+| **FR-11** | **Built-in Procedures** | Type predicates, I/O (fiber-yielding), list ops, higher-order functions |
+| **FR-12** | **Error Handling** | Descriptive messages, location info, error type distinction |
 
-### FR-5: List Operations
-**WHEN** list manipulation is required
-**THEN** the system SHALL provide: car, cdr, cons, list, null?, pair?
-**AND** the system SHALL support proper list construction and deconstruction
+### Advanced Features (FR-13 to FR-17)
 
-### FR-6: Conditional Expressions
-**WHEN** conditional logic is needed
-**THEN** the system SHALL support the `if` special form with condition, then-clause, and optional else-clause
-**AND** the system SHALL treat any non-#f value as true in conditional contexts
+| ID | Requirement | Key Features |
+|----|-------------|--------------|
+| **FR-13** | **Lexical Scoping** | Environment chains, closures, strict immutability enforcement |
+| **FR-14** | **Fiber Scheduler Integration** | All code in fibers, automatic I/O yielding, transparent to Scheme |
+| **FR-15** | **Async Task System** | Hierarchical tasks via `async` macro, independent fibers via `spawn-fiber` |
+| **FR-16** | **Macro System** | R7RS-small `define-syntax` and `syntax-rules`, hygienic expansion |
+| **FR-17** | **Minimal Language Subset** | Essential features only, simple implementation priority |
 
-### FR-7: Variable Binding
-**WHEN** variables need to be defined
-**THEN** the system SHALL support `define` for immutable global variable binding
-**AND** the system SHALL support `lambda` for function definition
-**AND** the system SHALL NOT support mutable variable assignment or rebinding
-
-### FR-8: Function Application
-**WHEN** functions are called
-**THEN** the system SHALL evaluate arguments left-to-right
-**AND** the system SHALL apply functions with proper argument binding
-**AND** the system SHALL support tail-call optimization for recursive functions
-
-### FR-9: REPL Functionality
-**WHEN** the interpreter starts in interactive mode
-**THEN** the system SHALL display a prompt for user input
-**AND** the system SHALL read complete S-expressions
-**AND** the system SHALL evaluate expressions and print results
-**AND** the system SHALL continue the loop until user exits
-
-### FR-10: File Execution
-**WHEN** a Scheme file is provided as input
-**THEN** the system SHALL read and evaluate all expressions in the file sequentially
-**AND** the system SHALL report the final expression's result or any errors encountered
-
-### FR-11: Built-in Procedures
-**WHEN** standard Scheme procedures are called
-**THEN** the system SHALL provide implementations for:
-- Type predicates: number?, boolean?, string?, symbol?, list?, procedure?
-- I/O operations: display, newline (appear synchronous, internally yield fiber)
-- List operations: length, append, reverse
-- Higher-order functions: map, apply
-- Fiber operations: async, fiber-wait
-**AND** the system SHALL implement all I/O operations to yield fiber execution while appearing synchronous
-
-### FR-12: Error Handling
-**WHEN** errors occur during execution
-**THEN** the system SHALL provide descriptive error messages
-**AND** the system SHALL indicate the location of syntax errors
-**AND** the system SHALL distinguish between syntax errors, runtime errors, and type errors
-**AND** the system SHALL continue REPL operation after handling errors
-
-### FR-13: Lexical Scoping and Strict Immutability
-**WHEN** variables are referenced
-**THEN** the system SHALL use lexical scoping rules
-**AND** the system SHALL maintain proper environment chains
-**AND** the system SHALL support closures that capture their defining environment
-**AND** the system SHALL enforce strict immutability - all data structures SHALL be immutable after creation
-**AND** the system SHALL NOT provide any assignment or mutation operators whatsoever
-**AND** the system SHALL reject any attempt to modify existing data structures
-
-### FR-14: Fiber Scheduler and I/O Integration
-**WHEN** any code executes
-**THEN** the system SHALL execute all code within fibers managed by a central fiber scheduler
-**AND** the system SHALL start execution in a single main fiber
-**WHEN** I/O operations are performed
-**THEN** the system SHALL automatically yield the current fiber to the scheduler during I/O operations
-**AND** the system SHALL resume fiber execution automatically when I/O completes
-**AND** the system SHALL make I/O operations appear completely synchronous to Scheme code with no async/await syntax
-**AND** the system SHALL ensure REPL and file execution work seamlessly with fiber yielding
-**AND** the system SHALL provide fiber-compatible error handling for I/O operations
-
-### FR-15: Async Task System and Fiber Management
-**WHEN** tasks are spawned using the `async` macro
-**THEN** the system SHALL create hierarchical tasks with parent-child relationships
-**AND** the system SHALL start task execution immediately
-**AND** the system SHALL return a task handle for synchronization
-**WHEN** fibers are spawned using the `spawn-fiber` builtin
-**THEN** the system SHALL create independent fibers without parent-child relationships
-**AND** the system SHALL execute fibers across multiple threads via a thread pool
-**AND** the system SHALL NOT use a Global Interpreter Lock (GIL)
-**AND** the system SHALL ensure thread-safe access to immutable data structures
-**AND** the system SHALL provide `task-wait` for task synchronization and `fiber-wait` for fiber synchronization
-**AND** the system SHALL terminate child tasks automatically when parent tasks complete
-
-### FR-16: Macro System
-**WHEN** the interpreter processes macro definitions and expansions
-**THEN** the system SHALL support R7RS-small `define-syntax` and `syntax-rules` macros
-**AND** the system SHALL expand macros at compile time before evaluation
-**AND** the system SHALL support pattern matching in macro rules
-**AND** the system SHALL support ellipsis (`...`) for variable-length patterns
-**AND** the system SHALL provide hygenic macro expansion to prevent variable capture
-**AND** the system SHALL allow macros to generate new syntax forms
-
-### FR-17: Minimal Language Subset
-**WHEN** language features are implemented
-**THEN** the system SHALL include only essential R7RS-small constructs
-**AND** the system SHALL prioritize core functionality over comprehensive feature coverage
-**AND** the system SHALL maintain simple, readable implementation code
-**AND** the system SHALL avoid complex language features that increase implementation complexity
-**AND** the system SHALL focus on the minimal viable subset for functional programming
+---
 
 ## Non-Functional Requirements
 
-### NFR-1: Performance
-**WHEN** the interpreter evaluates expressions
-**THEN** the system SHALL complete simple arithmetic operations within 1ms
-**AND** the system SHALL handle recursive functions with reasonable stack depth (>1000 calls)
-**AND** the system SHALL maintain responsive IO through fiber yielding without blocking other fibers
-**AND** the system SHALL utilize multiple CPU cores for parallel fiber execution
-**AND** the system SHALL scale performance with available hardware threads through the fiber scheduler
+### Performance (NFR-1)
+- Simple arithmetic: <1ms completion
+- Recursive functions: >1000 call depth support
+- Responsive I/O: Non-blocking through fiber yielding
+- Multi-core utilization: Parallel fiber execution
+- Hardware scaling: Performance scales with available threads
 
-### NFR-2: Memory Management
-**WHEN** the interpreter runs
-**THEN** the system SHALL manage memory efficiently without manual intervention
-**AND** the system SHALL handle garbage collection automatically (leveraging Rust's ownership)
+### System Quality (NFR-2 to NFR-4)
+| Area | Requirements |
+|------|-------------|
+| **Memory Management** | Automatic garbage collection via Rust ownership |
+| **Usability** | Clear REPL prompts, readable output, multi-line input support |
+| **Portability** | Cross-platform (Windows/macOS/Linux), minimal dependencies |
 
-### NFR-3: Usability
-**WHEN** users interact with the REPL
-**THEN** the system SHALL provide clear prompts and readable output formatting
-**AND** the system SHALL support multi-line input for complex expressions
+### Code Quality (NFR-5 to NFR-6)
+| Principle | Requirements |
+|-----------|-------------|
+| **Maintainability** | Rust best practices, modular architecture, simplicity over features |
+| **Implementation Standards** | Descriptive names, small focused functions, explicit over clever code |
+| **Standards Compliance** | R7RS-small subset with documented deviations |
 
-### NFR-4: Portability
-**WHEN** the interpreter is compiled
-**THEN** the system SHALL run on major operating systems (Windows, macOS, Linux)
-**AND** the system SHALL require minimal external dependencies (async runtime like smol)
-**AND** the system SHALL maintain cross-platform fiber-yielding IO compatibility
-**AND** the system SHALL provide consistent fiber-based parallel execution across platforms
-
-### NFR-5: Maintainability and Simplicity
-**WHEN** the codebase is modified
-**THEN** the system SHALL follow Rust best practices and conventions
-**AND** the system SHALL maintain modular architecture with clear separation of concerns
-**AND** the system SHALL prioritize code simplicity over feature completeness
-**AND** the system SHALL keep implementation complexity minimal
-**AND** the system SHALL prefer straightforward solutions over optimized complex ones
-**AND** the system SHALL avoid unnecessary usage of advanced Rust features or abstractions
-**AND** the system SHALL organize implementation logic into logical modules/folders based on functionality
-**AND** the system SHALL use descriptive names for functions, variables, and modules
-**AND** the system SHALL keep functions and modules small and focused on single responsibilities
-**AND** the system SHALL favor explicit, verbose code over implicit, clever code
-**AND** the system SHALL write code that is easily understood by developers at all experience levels
-
-### NFR-6: Standards Compliance and Subset Focus
-**WHEN** Scheme features are implemented
-**THEN** the system SHALL follow R7RS-small specification where applicable
-**AND** the system SHALL document any deviations from standard behavior
-**AND** the system SHALL prioritize R7RS-small syntax and semantics over earlier standards
-**AND** the system SHALL implement only the most essential subset of R7RS-small
-**AND** the system SHALL justify each included feature against the simplicity principle
+---
 
 ## Acceptance Criteria
 
-### AC-1: Basic Arithmetic
+### Basic Language Features
+
+#### AC-1: Basic Arithmetic
 ```scheme
 > (+ 1 2 3)
 6
@@ -289,7 +179,7 @@ All technical requirements serve the dual purpose of creating a functional inter
 5
 ```
 
-### AC-2: Function Definition and Application
+#### AC-2: Function Definition and Application
 ```scheme
 > (define square (lambda (x) (* x x)))
 square
@@ -297,7 +187,7 @@ square
 16
 ```
 
-### AC-3: List Operations
+#### AC-3: List Operations
 ```scheme
 > (cons 1 (cons 2 '()))
 (1 2)
@@ -307,7 +197,7 @@ a
 (b c)
 ```
 
-### AC-4: Conditional Logic
+#### AC-4: Conditional Logic
 ```scheme
 > (if (> 5 3) 'yes 'no)
 yes
@@ -315,7 +205,7 @@ yes
 false
 ```
 
-### AC-5: Function Parameters as Local Binding
+#### AC-5: Function Parameters and Local Binding
 ```scheme
 > ((lambda (x y) (+ x y)) 10 20)
 30
@@ -325,7 +215,9 @@ add-ten
 15
 ```
 
-### AC-6: Error Handling
+### Error Handling and I/O
+
+#### AC-6: Error Handling
 ```scheme
 > (+ 1 'symbol)
 Error: Type error - expected number, got symbol
@@ -333,16 +225,18 @@ Error: Type error - expected number, got symbol
 Error: Type error - expected pair, got number
 ```
 
-### AC-7: Fiber-Yielding IO
+#### AC-7: Fiber-Yielding I/O
 ```scheme
 > (display "Hello, World!")
 Hello, World!
 > (newline)
 
 ```
-*Note: IO operations yield fiber execution but appear synchronous to Scheme code*
+*Note: I/O operations yield fiber execution but appear synchronous*
 
-### AC-8: Async Task System and Fiber Execution
+### Concurrency Features
+
+#### AC-8: Async Task System
 ```scheme
 > (define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))
 fib
@@ -355,22 +249,20 @@ task2
 > (task-wait task2)
 14930352
 ```
-*Note: Tasks execute in parallel across multiple threads with hierarchical parent-child relationships*
+*Note: Tasks execute in parallel with hierarchical relationships*
 
-### AC-9: Minimal Syntax Example
+#### AC-9: Minimal Syntax Example
 ```scheme
 > (define factorial (lambda (n) (if (= n 0) 1 (* n (factorial (- n 1))))))
 factorial
 > (factorial 5)
 120
 ```
-*Note: Simple, essential syntax covering define, lambda, if, arithmetic, and recursion*
 
-### AC-10: Task Coordination and Hierarchical Cleanup
+#### AC-10: Task Coordination
 ```scheme
 > (define slow-task (lambda ()
     (display "Starting slow task\n")
-    ; I/O automatically yields fiber but appears synchronous
     (display "Slow task complete\n")
     42))
 slow-task
@@ -385,9 +277,8 @@ task2
 Slow task complete
 42
 ```
-*Note: Tasks execute independently with parent-child relationships and can be synchronized using task-wait*
 
-### AC-11: Low-Level Fiber Management
+#### AC-11: Low-Level Fiber Management
 ```scheme
 > (define worker-fiber (spawn-fiber (lambda ()
     (display "Independent worker running\n")
@@ -399,9 +290,8 @@ result
 > result
 300
 ```
-*Note: spawn-fiber creates independent fibers without parent-child relationships, managed separately from async tasks*
 
-### AC-12: Basic Macro Usage
+#### AC-12: Basic Macro Usage
 ```scheme
 > (define-syntax when
     (syntax-rules ()
@@ -410,130 +300,96 @@ result
 when
 > (when #t (display "Hello") (display " World"))
 Hello World
-> (define-syntax async
-    (syntax-rules (lambda)
-      ((async (lambda () body ...))
-       (spawn-fiber (lambda () body ...)))
-      ((async expr)
-       (spawn-fiber (lambda () expr)))))
-async
-> (define task1 (async (+ 1 2 3)))
-task1
-> (define task2 (async (lambda () (* 4 5))))
-task2
-> (fiber-wait task1)
-6
-> (fiber-wait task2)
-20
 ```
-*Note: Macros provide compile-time syntax transformation using R7RS-small pattern matching*
+
+---
 
 ## Out of Scope
 
-The following R7RS-small features are explicitly out of scope to maintain simplicity:
+### Excluded for Simplicity
+- **Complex Language Features**
+  - Continuations and call/cc
+  - Module system (define-library, import, export)
+  - Exception handling (guard, raise)
+  - Dynamic binding, quasiquote, multiple return values
+  - Eval procedure
 
-### Complex Language Features (Simplicity Principle)
-- Continuations and call/cc
-- Module system (define-library, import, export)
-- Exception handling (guard, raise) - async-compatible error handling will be implemented instead
-- Dynamic binding
-- Quasiquote and unquote syntax
-- Multiple return values
-- Eval procedure
+- **Advanced Data Types**
+  - Full numeric tower (complex, rationals, exact/inexact)
+  - Vector and bytevector operations
+  - Record types, parameter objects
+  - Advanced character/string manipulation
 
-### Advanced Data Types (Minimalism Principle)
-- Full numeric tower (complex numbers, rationals, exact/inexact)
-- Vector operations
-- Bytevector operations
-- Record types
-- Parameter objects
-- Character and string manipulation beyond basics
+### Excluded for Minimalism
+- **I/O and System Features**
+  - Synchronous file I/O (async alternatives considered)
+  - Port operations beyond basic display
+  - Environment variable access
 
-### I/O and System Features
-- Synchronous file I/O (open-input-file, with-input-from-file, etc.) - async alternatives will be considered
-- Port operations beyond basic display
-- Environment variable access
+- **Concurrency and Debugging**
+  - Manual threading (handled by async runtime)
+  - Debugging facilities, performance profiling
 
-### Concurrency and Debugging
-- Manual threading and concurrency management - handled by async runtime and thread pool
-- Debugging facilities
-- Performance profiling tools
+### Excluded by Core Constraints
+- **ALL mutable operations** (violates immutability principle)
+- Local binding forms (let, let*, letrec) for simplicity
 
-### Excluded by Other Principles
-- **ALL mutable operations** - This is a core design constraint
-- Local variable binding forms (let, let*, letrec) - excluded for simplicity, not immutability conflicts
-- Any form of data structure modification after creation
+---
 
-## Educational Validation Criteria
+## Educational Validation
 
 ### Learning Objective Validation
 
-#### EV-1: AI Agent Collaboration Learning
-**Criteria**: Successful completion demonstrates effective AI-assisted development patterns
-- **Evidence**: Well-documented task progression showing AI collaboration at each phase
-- **Validation**: Code comments and commit history showing iterative AI-assisted refinement
-- **Learning Outcome**: Understanding of effective prompting, context management, and AI tool limitations
+| Objective | Criteria | Evidence | Outcome |
+|-----------|----------|----------|---------|
+| **AI Collaboration** | Effective AI-assisted patterns | Task progression docs, commit history | Understanding of AI tool capabilities |
+| **Interpreter Implementation** | Complete pipeline comprehension | Module separation, documentation | Deep language implementation knowledge |
+| **Async Programming** | Practical async/concurrency mastery | Fiber scheduler with `smol` | Confidence in async Rust systems |
+| **Functional Programming** | Immutability and closure understanding | Complete immutable implementation | Solid functional programming foundation |
+| **Software Architecture** | Balance requirements with maintainability | Simple, readable code organization | System design for functionality and education |
 
-#### EV-2: Interpreter Implementation Understanding
-**Criteria**: Complete comprehension of language implementation pipeline
-- **Evidence**: Ability to explain lexing, parsing, evaluation, and runtime phases
-- **Validation**: Clear module separation with well-documented responsibilities
-- **Learning Outcome**: Deep understanding of how programming languages work internally
-
-#### EV-3: Async Programming Mastery
-**Criteria**: Practical understanding of async I/O and concurrency patterns
-- **Evidence**: Successful fiber scheduler implementation using `smol` ecosystem
-- **Validation**: Non-blocking I/O operations with proper error handling
-- **Learning Outcome**: Confidence in building async systems in Rust
-
-#### EV-4: Functional Programming Concepts
-**Criteria**: Understanding of immutability, closures, and functional evaluation
-- **Evidence**: Complete immutable data structure implementation with no mutation operations
-- **Validation**: Proper lexical scoping and closure capture mechanisms
-- **Learning Outcome**: Solid foundation in functional programming principles
-
-#### EV-5: Software Architecture Skills
-**Criteria**: Ability to balance technical requirements with maintainability
-- **Evidence**: Simple, readable code organization with clear module boundaries
-- **Validation**: Code that serves as effective learning resource for others
-- **Learning Outcome**: Understanding of how to design systems for both functionality and educational value
-
-### Project Success Metrics
+### Success Metrics
 
 #### Technical Completeness
-- [ ] All functional requirements (FR-1 through FR-18) implemented and tested
-- [ ] All acceptance criteria (AC-1 through AC-12) validated
-- [ ] Comprehensive test suite with >90% code coverage
-- [ ] Documentation complete and up-to-date
+- [ ] All 17 functional requirements implemented and tested
+- [ ] All 12 acceptance criteria validated
+- [ ] Comprehensive test suite with >90% coverage
+- [ ] Complete and current documentation
 
-#### Educational Value Achievement
-- [ ] Clear learning progression through task phases
-- [ ] Extensive inline documentation explaining design decisions
-- [ ] Code examples and usage patterns for key concepts
-- [ ] Reflection on lessons learned from AI collaboration
+#### Educational Achievement
+- [ ] Clear learning progression through phases
+- [ ] Extensive design decision documentation
+- [ ] Code examples for key concepts
+- [ ] AI collaboration lessons documented
 
-#### Knowledge Transfer Validation
-- [ ] Project can serve as learning resource for others
-- [ ] Implementation choices clearly documented with educational rationale
+#### Knowledge Transfer
+- [ ] Project serves as learning resource
+- [ ] Implementation rationale clearly documented
 - [ ] Alternative approaches considered and documented
-- [ ] Learning objectives measurably achieved through practical implementation
+- [ ] Learning objectives measurably achieved
+
+---
 
 ## Glossary
 
-- **S-expression**: Symbolic expression, the fundamental syntax of Scheme
-- **REPL**: Read-Eval-Print Loop, interactive interpreter interface
-- **AST**: Abstract Syntax Tree, internal representation of parsed code
-- **Tail-call optimization**: Optimization that allows recursive calls in tail position to reuse stack frames
-- **Lexical scoping**: Variable binding rules where variables refer to bindings in enclosing lexical scope
-- **Closure**: Function object that captures variables from its defining environment
-- **Async Runtime**: Event-driven execution environment that manages asynchronous operations
-- **Non-blocking IO**: Input/output operations that don't halt program execution while waiting for completion
-- **Fiber**: Lightweight unit of computation managed by the fiber scheduler that can be executed in parallel
-- **Fiber Scheduler**: Central component that manages fiber execution, automatic I/O yielding, and resumption
-- **Async Task**: High-level abstraction built on fibers with hierarchical parent-child relationships
-- **Task Handle**: Reference to an async task that can be used with task-wait for synchronization
-- **Fiber Yielding**: Automatic process where a fiber suspends execution (e.g., for I/O) and allows other fibers to run
-- **Thread Pool**: Collection of worker threads that execute fibers without the overhead of thread creation
-- **GIL-free**: Architecture without a Global Interpreter Lock, allowing true parallel execution
-- **Essential Subset**: Minimal set of language features required for functional programming
-- **Implementation Simplicity**: Design principle favoring straightforward code over complex optimizations
+| Term | Definition |
+|------|------------|
+| **S-expression** | Symbolic expression, fundamental Scheme syntax |
+| **REPL** | Read-Eval-Print Loop, interactive interpreter interface |
+| **AST** | Abstract Syntax Tree, internal representation of parsed code |
+| **Tail-call optimization** | Recursive calls in tail position reuse stack frames |
+| **Lexical scoping** | Variables refer to bindings in enclosing lexical scope |
+| **Closure** | Function capturing variables from defining environment |
+| **Fiber** | Lightweight computation unit managed by scheduler |
+| **Fiber Scheduler** | Central component managing fiber execution and I/O yielding |
+| **Async Task** | High-level abstraction with hierarchical parent-child relationships |
+| **Task Handle** | Reference for task synchronization with task-wait |
+| **Fiber Yielding** | Automatic suspension for I/O allowing other fibers to run |
+| **Thread Pool** | Worker threads executing fibers without creation overhead |
+| **GIL-free** | Architecture allowing true parallel execution |
+| **Essential Subset** | Minimal language features for functional programming |
+| **Implementation Simplicity** | Straightforward code over complex optimizations |
+
+---
+
+This document serves as the definitive specification for Twine's requirements. All implementation decisions must align with these specifications, prioritizing educational value while maintaining technical rigor.

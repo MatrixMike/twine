@@ -1,269 +1,262 @@
 # Twine Scheme Interpreter - Implementation Tasks
 
-## Overview
+## Quick Reference
 
-This document provides a detailed implementation plan for the Twine Scheme interpreter, designed specifically to maximize educational value while building a functional interpreter. Tasks are organized to create optimal learning progression through AI-assisted development, interpreter implementation, async programming, and Rust ecosystem exploration.
+### Current Status
+- **Phase 1.1**: ✅ **COMPLETE** (4/4 tasks) - Project Setup
+- **Phase 1.2**: ☐ Not Started (0/5 tasks) - Core Data Types  
+- **Overall Progress**: 5% (4/81 tasks completed)
 
-**Educational Learning Path**: The task structure is designed to facilitate learning about:
-- AI agent collaboration patterns and effective prompting
-- Interpreter architecture from lexing through execution
-- Async programming with Rust and the `smol` ecosystem
-- Functional programming concepts and immutable data structures
-- Concurrency models and fiber-based scheduling
+### Next Priority
+**→ T1.2.1**: Implement basic `Value` enum
 
-**Simplicity First**: Throughout all phases, prioritize simple, readable implementations over complex or advanced Rust features. Every task should produce code that is easy to understand, maintain, and debug, serving as an effective learning resource. Organize implementation logic into logical modules and folders that reflect the domain concepts clearly.
+### Phase Overview
+| Phase | Focus | Tasks | Est. Duration |
+|-------|-------|-------|---------------|
+| **Phase 1** | Foundation | 14 tasks | 2-3 weeks |
+| **Phase 2** | Basic Interpreter | 20 tasks | 3-4 weeks |
+| **Phase 3** | Advanced Features | 20 tasks | 3-4 weeks |
+| **Phase 4** | Concurrency | 16 tasks | 3-4 weeks |
+| **Phase 5** | Polish & Macros | 11 tasks | 2-3 weeks |
 
-**Learning-Oriented Implementation**: Each task is structured to build understanding progressively, with extensive documentation and clear explanations of design decisions to support the educational goals of the project.
+### Critical Rules
+- ✅ **All tests must pass** after each task
+- ⚠️ **Minimal implementation** - only current task features
+- 📦 **Add dependencies only when needed** - not all at once
+- 🧪 **smol ecosystem only** for async dependencies
 
-## Task Organization
+---
 
-- **Phase 1**: Core Language Foundation
-- **Phase 2**: Basic Interpreter Functionality  
-- **Phase 3**: Advanced Language Features
-- **Phase 4**: Concurrency and Async Features
-- **Phase 5**: Macro System and Polish
+## Project Overview
 
-Each task includes:
-- Clear description and expected outcome
-- References to requirements (FR-X) and design sections
-- Dependencies on other tasks
-- Test requirements
-- All-tests-passing validation
+**Twine** is an educational Scheme interpreter designed to maximize learning value through AI-assisted development. Each task builds understanding progressively while creating a functional interpreter.
 
-## Task Implementation Guidelines
+### Educational Goals
+- **AI Collaboration**: Learn effective patterns for working with coding agents
+- **Interpreter Implementation**: Understand complete language pipeline
+- **Async Programming**: Master fiber-based concurrency with `smol`
+- **Functional Programming**: Explore immutability and Scheme concepts
+- **Software Architecture**: Balance technical requirements with learning value
 
-### Educational Implementation Principles
+### Implementation Philosophy
+- **Simplicity First**: Readable code over clever optimizations
+- **Educational Value**: Every decision prioritizes learning opportunities
+- **Progressive Complexity**: Build understanding incrementally
+- **Minimal Dependencies**: Add only when absolutely necessary
+- **Complete Testing**: All tests pass after every task
+
+---
+
+## Task Guidelines
+
+### Critical Constraints
 
 #### Minimal Implementation Principle
-Each task should implement **ONLY** the features explicitly described in that task. Do not implement functionality that belongs to future tasks, even if it seems related or convenient to add. This educational approach ensures:
-- Clear progress tracking and learning milestones
-- Incremental testing and validation of concepts
-- Easier debugging and rollback for learning
-- Proper dependency management understanding
-- Focused learning on specific concepts per task
+- ⚠️ **ONLY** implement features described in current task
+- 🚫 **NO** forward-looking code or stubs for future features
+- ✅ **YES** to simple, working implementations
+- 📝 **DOCUMENT** all design decisions for learning
 
-#### Learning-First Development
-**Maximize Educational Value**: Each task should provide clear learning opportunities about specific concepts (lexing, parsing, async programming, etc.)
-**Progressive Complexity**: Start with fundamental concepts and build understanding gradually
-**Extensive Documentation**: Include detailed comments explaining design decisions and implementation choices
-**Concept Reinforcement**: Each task should reinforce understanding of previously learned concepts while introducing new ones
+#### All-Tests-Passing Requirement
+```bash
+# After EVERY task completion:
+cargo test                 # All tests must pass
+cargo test --release      # Release mode must pass
+cargo bench              # Benchmarks must run (when applicable)
+```
 
-### Implementation Simplicity and Module Organization
+#### Dependency Management
+- **Add dependencies ONLY when task requires them**
+- **All async crates MUST be from smol ecosystem**
+- **Justify each dependency** with task requirements
+- **Update `./scripts/update-deps.sh`** after any Cargo.toml changes
 
-#### Educational Code Quality Standards
-**Keep implementation simple and easy to understand**:
-- Avoid unnecessary usage of advanced Rust features or abstractions (focus on learning fundamentals)
-- Prefer straightforward, readable code over clever optimizations (prioritize learning value)
-- Use Rust's basic features effectively: structs, enums, pattern matching, ownership (build solid foundations)
-- Avoid complex trait hierarchies, excessive generics, or advanced lifetime patterns unless absolutely necessary
-- Write code that a Rust beginner could understand and maintain (serve as learning resource)
-- Favor explicit, verbose code over implicit, clever code (maximize educational clarity)
-
-#### Learning-Oriented Module Structure
-**Break up implementation logic into logical modules/folders that reflect learning progression**:
-- Each module should have a clear, single responsibility that maps to a specific learning concept
-- Group related functionality together (e.g., lexer/, parser/, types/, runtime/) to reinforce domain understanding
-- Use simple file and folder structures that reflect the domain concepts clearly
-- Keep module interfaces clean with minimal public APIs (focus on essential concepts)
-- Organize code to minimize cross-module dependencies (build understanding incrementally)
-- Use descriptive names for functions, variables, and modules (enhance learning through clear naming)
-- Keep functions and modules small and focused on single responsibilities (easier to understand and learn from)
-- Include extensive inline documentation explaining the purpose and design of each module
-
-### Dependency Management
-- Keep project dependencies to an **absolute minimum**
-- When required, choose alternatives that are minimal and have as few dependencies as possible
-- All async-related crates **must** come from the smol ecosystem: https://github.com/smol-rs
-- Add Rust dependencies **only when they are actually needed** for a specific task
-- Do not add all dependencies at once in the initial setup
-- Each dependency addition should be justified by the current task requirements
-- Update `Cargo.toml` incrementally as features are implemented
-- Avoid dependencies that pull in large dependency trees
-
-### Implementation Constraints
-- **No forward implementation**: Don't add stubs, placeholder code, or partial implementations for future features
-- **No premature optimization**: Implement the simplest solution that works for the current task
-- **Minimal viable feature**: Each task should produce the smallest working implementation of its described functionality
-- **Test-driven**: Write tests for the current task only, not for future functionality
-- **Simplicity first**: Always choose the most straightforward implementation approach
-- **Avoid advanced patterns**: Don't use complex Rust features unless absolutely necessary
-- **Clear organization**: Structure code into logical modules that reflect the problem domain
-- **Readable over clever**: Write explicit, verbose code rather than implicit, clever solutions
-- **Beginner-friendly**: Code should be understandable by developers at all experience levels
-
-### Testing Requirements
-Each task must include comprehensive testing that validates:
-- **Unit tests**: Test individual functions and methods in isolation
-- **Integration tests**: Test interactions between components where applicable
-- **Error condition tests**: Test all error paths and edge cases
-- **Property tests**: Verify invariants and expected behaviors
-
-### All-Tests-Passing Constraint
-**CRITICAL**: After completing each task, ALL tests in the project must pass. This includes:
-- All existing tests from previous tasks
-- All new tests for the current task
-- No test should be commented out, ignored, or marked as "todo"
-- Tests must run successfully with `cargo test`
-- If any test fails, the task is not considered complete
-
-This constraint ensures:
-- No regression in previously implemented functionality
-- Quality assurance at every step
-- Continuous integration readiness
-- Incremental validation of the entire system
+### Module Organization Principles
+- **Single Responsibility**: Each module has one clear purpose
+- **Domain Alignment**: Structure reflects interpreter concepts
+- **Educational Clarity**: Code organization supports learning
+- **Minimal Dependencies**: Clean interfaces between modules
 
 ---
 
 ## Phase 1: Core Language Foundation
 
-### 1.1 Project Setup and Infrastructure
+### 1.1 Project Setup and Infrastructure ✅ COMPLETE
 
-- [x] **T1.1.1**: Initialize Rust project structure
-  - Create basic `Cargo.toml` with project metadata (name, version, edition)
-  - DO NOT add any external dependencies yet - add them only when needed
-  - Create basic `src/main.rs` and `src/lib.rs` files
-  - DO NOT create module directories yet - create them when implementing specific components
-  - **Module Organization**: When creating modules in later tasks, organize them logically:
-    - Each module should have a single, clear responsibility
-    - Use descriptive names that reflect domain concepts (lexer/, parser/, types/, runtime/)
-    - Keep module interfaces minimal with clean public APIs
-    - Structure directories to mirror the interpreter's logical components
-  - **Ref**: Design Section "Dependencies"
-  - **Tests**: Create basic test infrastructure in `src/lib.rs`, verify project compiles with `cargo check`
-  - **All tests must pass**: `cargo test` should run successfully (even if no tests exist yet)
-  - **Constraint**: Minimal project setup only, no premature module structure, prioritize simplicity
+#### T1.1.1: Initialize Rust project structure ✅
+**Status**: ✅ Complete
+- Created basic `Cargo.toml` with project metadata
+- Basic `src/main.rs` and `src/lib.rs` files
+- **Constraint**: No external dependencies, no premature modules
 
-- [x] **T1.1.2**: Set up basic error handling infrastructure
-  - Add `thiserror` dependency to `Cargo.toml` (first external dependency - chosen for its minimal footprint and zero dependencies)
-  - Implement basic `Error` enum with only essential variants needed for Phase 1: `SyntaxError`, `ParseError`
-  - DO NOT implement all error types from design.md - add them when needed
-  - Implement `Display` trait for current error types only
-  - Create `Result<T>` type alias
-  - **Ref**: FR-12, Design Section "Error Handling"
-  - **Tests**: Unit tests for error creation, Display implementation, and Result type usage
-  - **All tests must pass**: `cargo test` should run successfully with all error handling tests
-  - **Constraint**: Only implement error types needed for current phase
+#### T1.1.2: Set up basic error handling infrastructure ✅
+**Status**: ✅ Complete
+- Added `thiserror` dependency (minimal, zero-dependency choice)
+- Implemented basic `Error` enum with essential variants
+- Created `Result<T>` type alias
+- **Tests**: Unit tests for error creation and Display implementation
 
-- [x] **T1.1.3**: Set up local dependency source management
-  - Create `deps/` directory structure: `deps/vendor/`, `deps/docs/`, `deps/registry/`
-  - Add `deps/` to `.gitignore` to prevent committing dependency sources
-  - Set up vendor management with `cargo vendor deps/vendor`
-  - Generate comprehensive documentation with `cargo doc --all-features --document-private-items`
-  - Copy generated docs to `deps/docs/` directory
-  - Create maintenance script or document commands for updating vendored sources
-  - **Ref**: Design Section "Local Dependency Source Management"
-  - **Tests**: Verify `deps/` directories exist, `.gitignore` excludes them, and documentation is generated
-  - **All tests must pass**: Basic project structure tests should still pass
-  - **Constraint**: Set up infrastructure for AI agent dependency access
+#### T1.1.3: Set up local dependency source management ✅
+**Status**: ✅ Complete
+- Created `deps/` directory structure for AI agent access
+- Set up vendor management and documentation generation
+- Added to `.gitignore` to prevent committing large sources
+- **Purpose**: Enable AI agents to reference accurate dependency code
 
-- [x] **T1.1.4**: Create basic test framework structure
-  - Create `tests/` directory for integration tests
-  - Add basic unit test setup in `src/lib.rs`
-  - DO NOT create test utilities yet - add them when specific tests need them
-  - **Ref**: Design Section "Testing Strategy"
-  - **Tests**: Verify test framework setup works with a simple dummy test
-  - **All tests must pass**: `cargo test` should discover and run tests successfully
-  - **Constraint**: Minimal test setup only, no premature utilities
-  - **Implementation**: Created `tests/basic_integration.rs` with 4 dummy integration tests that verify error handling and result types from the main library. All tests pass successfully.
+#### T1.1.4: Create basic test framework structure ✅
+**Status**: ✅ Complete
+- Created `tests/` directory for integration tests
+- Added basic unit test setup in `src/lib.rs`
+- **Tests**: Created `tests/basic_integration.rs` with validation tests
 
 ### 1.2 Core Data Types and Value System
 
-- [ ] **T1.2.1**: Implement basic `Value` enum
-  - Create `src/types.rs` module
-  - Create `Value` enum with Number, Boolean, String, Symbol, Nil variants ONLY
-  - DO NOT add List, Procedure, TaskHandle variants yet - these belong to future tasks
-  - Implement `Clone`, `Debug`, `PartialEq` traits
-  - Add basic constructor methods for current variants only
-  - **Ref**: FR-3, Design Section "Value System"
-  - **Tests**: Unit tests for Value creation, Debug output, PartialEq behavior, and Clone functionality
-  - **All tests must pass**: All Value enum tests plus existing error handling tests
-  - **Constraint**: Only implement Value variants needed for lexer/parser phases
+#### T1.2.1: Implement basic `Value` enum
+**Priority**: 🔥 **NEXT TASK**
+**Prerequisites**: Error handling infrastructure
+**Deliverables**:
+- Create `src/types.rs` module
+- Implement `Value` enum with: `Number`, `Boolean`, `String`, `Symbol`, `Nil`
+- ⚠️ **DO NOT add** `List`, `Procedure`, `TaskHandle` variants yet
+- Implement `Clone`, `Debug`, `PartialEq` traits
+- Add basic constructor methods
 
-- [ ] **T1.2.2**: Implement immutable number type
-  - Define `SchemeNumber` type (f64 wrapper)
-  - DO NOT implement arithmetic operations yet - these belong to evaluation phase
-  - Add only number parsing and basic formatting for display
-  - **Ref**: FR-4, Design Section "Immutable Value Design"
-  - **Tests**: Unit tests for number parsing, formatting, equality, and edge cases (infinity, NaN)
-  - **All tests must pass**: All number type tests plus all previous tests (Value, Error, etc.)
-  - **Constraint**: Only implement what's needed for lexer number token creation
+**Tests Required**:
+```rust
+#[test] fn test_value_creation()
+#[test] fn test_value_debug_output()
+#[test] fn test_value_equality()
+#[test] fn test_value_cloning()
+```
 
-- [ ] **T1.2.3**: Implement immutable string and symbol types
-  - Define `SchemeString` and `SchemeSymbol` types as simple wrappers
-  - DO NOT implement symbol interning yet - use simple String storage for now
-  - Add basic equality and hashing
-  - DO NOT implement string operations - only basic construction and display
-  - **Ref**: FR-3, Design Section "Immutable Value Design"
-  - **Tests**: Unit tests for string/symbol creation, equality, hashing, and display formatting
-  - **All tests must pass**: All string/symbol tests plus all previous tests
-  - **Constraint**: Minimal types for lexer/parser needs only
+**Acceptance**: All Value enum tests + all previous tests pass
+**References**: FR-3, Design Section "Value System"
 
-- [ ] **T1.2.4**: Implement immutable list type
-  - Define `SchemeList` using simple `Vec<Value>` (no Arc yet)
-  - DO NOT implement list operations (car, cdr, cons) - these belong to evaluation phase
-  - DO NOT add structural sharing - implement basic version first
-  - Add only basic construction and display
-  - **Ref**: FR-5, Design Section "List Operations and Structural Sharing"
-  - **Tests**: Unit tests for list creation, basic display, equality, and Vec operations
-  - **All tests must pass**: All list type tests plus all previous tests
-  - **Constraint**: Basic list type for parser AST only, no operations yet
+#### T1.2.2: Implement immutable number type
+**Prerequisites**: Basic Value enum
+**Deliverables**:
+- Define `SchemeNumber` type (f64 wrapper)
+- ⚠️ **DO NOT implement** arithmetic operations yet
+- Add number parsing and basic formatting only
 
-- [ ] **T1.2.5**: Add comprehensive value system tests
-  - Test basic data type construction and display
-  - Test equality and basic properties
-  - DO NOT test operations that haven't been implemented yet
-  - DO NOT add performance benchmarks yet - focus on correctness
-  - **Tests**: Comprehensive test suite covering all Value variants, edge cases, and error conditions
-  - **All tests must pass**: Complete value system test suite (20+ tests expected)
-  - **Constraint**: Test only the minimal functionality implemented so far
+**Tests Required**:
+```rust
+#[test] fn test_number_parsing()
+#[test] fn test_number_formatting()
+#[test] fn test_number_equality()
+#[test] fn test_number_edge_cases() // infinity, NaN
+```
+
+**References**: FR-4, Design Section "Immutable Value Design"
+
+#### T1.2.3: Implement immutable string and symbol types
+**Prerequisites**: Number type implementation
+**Deliverables**:
+- Define `SchemeString` and `SchemeSymbol` types
+- ⚠️ **DO NOT implement** symbol interning yet
+- Basic equality and hashing only
+
+**Tests Required**:
+```rust
+#[test] fn test_string_creation()
+#[test] fn test_symbol_creation()
+#[test] fn test_string_symbol_equality()
+#[test] fn test_string_symbol_hashing()
+```
+
+#### T1.2.4: Implement immutable list type
+**Prerequisites**: String and symbol types
+**Deliverables**:
+- Define `SchemeList` using simple `Vec<Value>`
+- ⚠️ **DO NOT implement** list operations (car, cdr, cons)
+- ⚠️ **DO NOT add** structural sharing (Arc) yet
+- Basic construction and display only
+
+**Tests Required**:
+```rust
+#[test] fn test_list_creation()
+#[test] fn test_list_display()
+#[test] fn test_list_equality()
+#[test] fn test_empty_list()
+```
+
+#### T1.2.5: Add comprehensive value system tests
+**Prerequisites**: All basic types implemented
+**Deliverables**:
+- Comprehensive test suite for all Value variants
+- Edge case testing
+- Error condition testing
+
+**Acceptance**: 20+ tests covering complete value system
 
 ### 1.3 Lexical Analysis
 
-- [ ] **T1.3.1**: Implement `Token` enum
-  - Create `src/lexer.rs` module
-  - Create token types from `design.md`: LeftParen, RightParen, Quote, Number, String, Symbol, Boolean, EOF
-  - Add position tracking (line, column)
-  - Implement `Debug` and `PartialEq` traits
-  - **Tests**: Unit tests for Lexer creation, position tracking, and basic iteration setup
-  - **All tests must pass**: All Lexer struct tests plus all previous tests
-  - **Ref**: FR-1, Design Section "Lexer"
-  - **Tests**: Unit tests for Token creation, Debug output, PartialEq, and position tracking
-  - **All tests must pass**: All Token tests plus all previous tests (Value system, etc.)
-  - **Constraint**: Token definition only, no lexer logic yet
+#### T1.3.1: Implement `Token` enum
+**Prerequisites**: Value system complete
+**Deliverables**:
+- Create `src/lexer.rs` module
+- Token types: `LeftParen`, `RightParen`, `Quote`, `Number`, `String`, `Symbol`, `Boolean`, `EOF`
+- Add position tracking (line, column)
+- Implement `Debug` and `PartialEq` traits
 
-- [ ] **T1.3.2**: Implement `Lexer` struct
-  - Create lexer with input, position, line, column fields
-  - Implement character-by-character scanning
-  - Add whitespace and comment handling
-  - **Ref**: FR-1, Design Section "Lexer"
+**Tests Required**:
+```rust
+#[test] fn test_token_creation()
+#[test] fn test_token_debug_output()
+#[test] fn test_token_equality()
+#[test] fn test_position_tracking()
+```
 
-- [ ] **T1.3.3**: Implement token recognition
-  - Add number parsing (integers and floats)
-  - Add string parsing with escape sequences
-  - Add symbol and boolean recognition
-  - Handle parentheses and quotes
-  - **Tests**: Unit tests for each token type recognition, number parsing, string parsing, symbol parsing
-  - **All tests must pass**: Comprehensive lexer functionality tests plus all previous tests
-  - **Ref**: FR-1
+#### T1.3.2: Implement `Lexer` struct
+**Prerequisites**: Token enum
+**Deliverables**:
+- Create lexer with input, position, line, column fields
+- Character-by-character scanning infrastructure
+- Whitespace and comment handling
 
-- [ ] **T1.3.4**: Add lexer error handling
-  - Implement detailed error messages with position
-  - Handle invalid characters and malformed tokens
-  - Add recovery strategies for continued parsing
-  - **Tests**: Unit tests for error conditions, invalid input handling, and error message formatting
-  - **All tests must pass**: All lexer error handling tests plus all previous tests
-  - **Tests**: Unit tests for syntax errors, unmatched parentheses, and error recovery
-  - **All tests must pass**: All parser error handling tests plus all previous tests
-  - **Tests**: Unit tests for unbound variables, error message quality, and shadowing detection
-  - **All tests must pass**: All environment error tests plus all previous tests
-  - **Ref**: FR-12
+**Tests Required**:
+```rust
+#[test] fn test_lexer_creation()
+#[test] fn test_position_tracking()
+#[test] fn test_whitespace_handling()
+#[test] fn test_comment_handling()
+```
 
-- [ ] **T1.3.5**: Create comprehensive lexer tests
-  - Test all token types
-  - Test error conditions and recovery
-  - Test position tracking accuracy
-  - Performance tests for large inputs
-  - **All tests must pass**: Complete lexer test suite (30+ tests expected) plus all previous tests
+#### T1.3.3: Implement token recognition
+**Prerequisites**: Lexer struct
+**Deliverables**:
+- Number parsing (integers and floats)
+- String parsing with escape sequences
+- Symbol and boolean recognition
+- Parentheses and quote handling
+
+**Tests Required**:
+```rust
+#[test] fn test_number_tokenization()
+#[test] fn test_string_tokenization()
+#[test] fn test_symbol_tokenization()
+#[test] fn test_boolean_tokenization()
+#[test] fn test_delimiter_tokenization()
+```
+
+#### T1.3.4: Add lexer error handling
+**Prerequisites**: Token recognition
+**Deliverables**:
+- Detailed error messages with position
+- Invalid character handling
+- Error recovery strategies
+
+**Tests Required**:
+```rust
+#[test] fn test_syntax_errors()
+#[test] fn test_invalid_characters()
+#[test] fn test_error_recovery()
+#[test] fn test_error_positions()
+```
+
+#### T1.3.5: Create comprehensive lexer tests
+**Prerequisites**: Complete lexer implementation
+**Acceptance**: 30+ tests covering all token types and error conditions
 
 ---
 
@@ -271,141 +264,107 @@ This constraint ensures:
 
 ### 2.1 Syntactic Analysis
 
-- [ ] **T2.1.1**: Implement `Expr` enum
-  - Create expression types: Atom, List, Quote
-  - Add position information for error reporting
-  - Implement `Debug` and `Clone` traits
-  - **Tests**: Unit tests for Expr creation, Debug output, Clone functionality, and position tracking
-  - **All tests must pass**: All Expr enum tests plus all previous tests (Lexer, Value system, etc.)
-  - **Tests**: Unit tests for Parser creation, token consumption, and basic parsing setup
-  - **All tests must pass**: All Parser struct tests plus all previous tests
-  - **Ref**: FR-2, Design Section "Parser"
+#### T2.1.1: Implement `Expr` enum
+**Prerequisites**: Complete lexer
+**Deliverables**:
+- Create `src/parser.rs` module
+- Expression types: `Atom`, `List`, `Quote`
+- Position information for error reporting
+- `Debug` and `Clone` traits
 
-- [ ] **T2.1.2**: Implement `Parser` struct
-  - Create parser with tokens and current position
-  - Implement recursive descent parsing
-  - Add expression parsing methods
-  - **Ref**: FR-2, Design Section "Parser"
+#### T2.1.2: Implement `Parser` struct
+**Deliverables**:
+- Parser with tokens and current position
+- Recursive descent parsing infrastructure
+- Expression parsing methods
 
-- [ ] **T2.1.3**: Implement expression parsing
-  - Parse atoms (numbers, strings, symbols, booleans)
-  - Parse lists and nested expressions
-  - Handle quote expressions
-  - **Tests**: Unit tests for atom parsing, list parsing, quote parsing, and nested expressions
-  - **All tests must pass**: Comprehensive parser functionality tests plus all previous tests
-  - **Ref**: FR-2
+#### T2.1.3: Implement expression parsing
+**Deliverables**:
+- Parse atoms (numbers, strings, symbols, booleans)
+- Parse lists and nested expressions
+- Handle quote expressions
 
-- [ ] **T2.1.4**: Add parser error handling
-  - Implement syntax error reporting with position
-  - Handle unmatched parentheses
-  - Add error recovery for partial expressions
-  - **Ref**: FR-12
+#### T2.1.4: Add parser error handling
+**Deliverables**:
+- Syntax error reporting with position
+- Unmatched parentheses handling
+- Error recovery for partial expressions
 
-- [ ] **T2.1.5**: Create comprehensive parser tests
-  - Test all expression types
-  - Test nested and complex expressions
-  - Test error conditions and recovery
-  - Performance tests for deeply nested expressions
-  - **All tests must pass**: Complete parser test suite (25+ tests expected) plus all previous tests
+#### T2.1.5: Create comprehensive parser tests
+**Acceptance**: 25+ tests covering all expression types and error conditions
 
 ### 2.2 Environment Management
 
-- [ ] **T2.2.1**: Implement `Environment` struct
-  - Create environment with bindings HashMap and optional parent
-  - Implement lexical scoping chain
-  - Add thread-safe sharing with `Arc<RwLock<Environment>>`
-  - **Tests**: Unit tests for Environment creation, thread safety, and basic structure
-  - **All tests must pass**: All Environment struct tests plus all previous tests (Parser, Lexer, etc.)
-  - **Ref**: FR-7, FR-13, Design Section "Environment Management"
+#### T2.2.1: Implement `Environment` struct
+**Prerequisites**: Parser complete
+**Deliverables**:
+- Create `src/interpreter/environment.rs`
+- Environment with bindings HashMap and optional parent
+- Thread-safe sharing with appropriate synchronization
 
-- [ ] **T2.2.2**: Implement environment operations
-  - Add `new()`, `with_parent()`, `define()`, `lookup()` methods
-  - Implement variable binding and lookup
-  - Add environment extension for function calls
-  - **Tests**: Unit tests for all environment operations, scoping behavior, and variable binding
-  - **All tests must pass**: All environment operation tests plus all previous tests
-  - **Tests**: Unit tests for let bindings, lexical scoping, and binding evaluation order
-  - **All tests must pass**: All let binding tests plus all previous tests
-  - **Ref**: FR-7, FR-13
+#### T2.2.2: Implement environment operations
+**Deliverables**:
+- `new()`, `with_parent()`, `define()`, `lookup()` methods
+- Variable binding and lookup
+- Environment extension for function calls
 
-- [ ] **T2.2.3**: Add environment error handling
-  - Handle unbound variable errors
-  - Implement detailed error messages
-  - Add variable shadowing detection
-  - **Tests**: Unit tests for error recovery, graceful handling, and continued operation
-  - **All tests must pass**: All REPL error handling tests plus all previous tests
-  - **Ref**: FR-12
+#### T2.2.3: Add environment error handling
+**Deliverables**:
+- Unbound variable errors
+- Detailed error messages
+- Variable shadowing detection
 
-- [ ] **T2.2.4**: Create environment tests
-  - Test variable binding and lookup
-  - Test lexical scoping behavior
-  - Test environment chaining
-  - Test thread safety
-  - **All tests must pass**: Complete environment test suite (15+ tests expected) plus all previous tests
+#### T2.2.4: Create environment tests
+**Acceptance**: 15+ tests covering scoping, binding, and thread safety
 
 ### 2.3 Basic Evaluation Engine
 
-- [ ] **T2.3.1**: Implement basic `eval` function
-  - Create evaluation for atoms (self-evaluating values)
-  - Implement symbol lookup in environment
-  - Add basic list evaluation framework
-  - **Tests**: Unit tests for atom evaluation, symbol lookup, and basic evaluation framework
-  - **All tests must pass**: All basic eval tests plus all previous tests (Environment, Parser, etc.)
-  - **Ref**: Design Section "Evaluation Model"
+#### T2.3.1: Implement basic `eval` function
+**Prerequisites**: Environment system complete
+**Deliverables**:
+- Create `src/interpreter/mod.rs`
+- Evaluation for atoms (self-evaluating values)
+- Symbol lookup in environment
+- Basic list evaluation framework
 
-- [ ] **T2.3.2**: Implement arithmetic operations
-  - Add built-in procedures: +, -, *, /, =, <, >, <=, >=
-  - Implement proper arity checking
-  - Add type checking for numeric operations
-  - **Tests**: Unit tests for each arithmetic operation, arity checking, and type validation
-  - **All tests must pass**: All arithmetic operation tests plus all previous tests
-  - **Ref**: FR-4, AC-1
+#### T2.3.2: Implement arithmetic operations
+**Deliverables**:
+- Built-in procedures: `+`, `-`, `*`, `/`, `=`, `<`, `>`, `<=`, `>=`
+- Arity checking
+- Type checking for numeric operations
 
-- [ ] **T2.3.3**: Implement conditional expressions
-  - Add `if` special form evaluation
-  - Implement boolean evaluation logic
-  - Add proper conditional flow control
-  - **Tests**: Unit tests for if expressions, boolean evaluation, and conditional flow
-  - **All tests must pass**: All conditional expression tests plus all previous tests
-  - **Ref**: FR-6, AC-4
+#### T2.3.3: Implement conditional expressions
+**Deliverables**:
+- `if` special form evaluation
+- Boolean evaluation logic
+- Conditional flow control
 
-- [ ] **T2.3.4**: Implement basic list operations
-  - Add built-in procedures: car, cdr, cons, list, null?
-  - Implement proper list type checking
-  - Add list construction and deconstruction
-  - **Tests**: Unit tests for list operations, type checking, and list manipulation
-  - **All tests must pass**: All list operation tests plus all previous tests
-  - **Ref**: FR-5, AC-3
+#### T2.3.4: Implement basic list operations
+**Deliverables**:
+- Built-in procedures: `car`, `cdr`, `cons`, `list`, `null?`
+- List type checking
+- List construction and deconstruction
 
-- [ ] **T2.3.5**: Create basic evaluation tests
-  - Test arithmetic operations
-  - Test conditional expressions
-  - Test list operations
-  - Test error handling for type mismatches
-  - **All tests must pass**: Complete evaluation test suite (20+ tests expected) plus all previous tests
+#### T2.3.5: Create basic evaluation tests
+**Acceptance**: 20+ tests covering arithmetic, conditionals, and list operations
 
 ### 2.4 Variable Binding and Definition
 
-- [ ] **T2.4.1**: Implement `define` special form
-  - Add variable definition in current environment
-  - Handle function definition syntax sugar
-  - Implement proper scoping for definitions
-  - **Tests**: Unit tests for variable definition, function definition syntax, and scoping
-  - **All tests must pass**: All define form tests plus all previous tests
-  - **Ref**: FR-7, AC-2
+#### T2.4.1: Implement `define` special form
+**Prerequisites**: Basic evaluation complete
+**Deliverables**:
+- Variable definition in current environment
+- Function definition syntax sugar
+- Proper scoping for definitions
 
-- [ ] **T2.4.2**: Implement `let` binding forms
-  - Add `let` for local variable binding
-  - Implement proper lexical scoping
-  - Add binding evaluation order
-  - **Ref**: FR-7, FR-13
+#### T2.4.2: Implement `let` binding forms
+**Deliverables**:
+- `let` for local variable binding
+- Lexical scoping implementation
+- Binding evaluation order
 
-- [ ] **T2.4.3**: Create variable binding tests
-  - Test define functionality
-  - Test let bindings and scoping
-  - Test variable shadowing
-  - Test binding error conditions
-  - **All tests must pass**: Complete variable binding test suite (10+ tests expected) plus all previous tests
+#### T2.4.3: Create variable binding tests
+**Acceptance**: 10+ tests covering define, let, and scoping behavior
 
 ---
 
@@ -413,143 +372,104 @@ This constraint ensures:
 
 ### 3.1 Function Definition and Application
 
-- [ ] **T3.1.1**: Implement `Procedure` enum
-  - Create Builtin and Lambda variants
-  - Add parameter lists and body storage
-  - Implement closure capture
-  - **Tests**: Unit tests for Procedure enum, closure capture, and parameter handling
-  - **All tests must pass**: All Procedure tests plus all previous tests (requires updating Value enum)
-  - **Ref**: FR-8, Design Section "Value System"
+#### T3.1.1: Implement `Procedure` enum
+**Prerequisites**: Variable binding complete
+**Deliverables**:
+- Create `Builtin` and `Lambda` variants
+- Parameter lists and body storage
+- Closure capture implementation
 
-- [ ] **T3.1.2**: Implement `lambda` special form
-  - Add lambda expression parsing and evaluation
-  - Implement closure creation with environment capture
-  - Add parameter binding logic
-  - **Tests**: Unit tests for lambda creation, closure behavior, and parameter binding
-  - **All tests must pass**: All lambda tests plus all previous tests
-  - **Ref**: FR-8, AC-2
+#### T3.1.2: Implement `lambda` special form
+**Deliverables**:
+- Lambda expression parsing and evaluation
+- Closure creation with environment capture
+- Parameter binding logic
 
-- [ ] **T3.1.3**: Implement function application
-  - Add procedure call evaluation
-  - Implement argument evaluation and binding
-  - Add arity checking for all procedure types
-  - **Tests**: Unit tests for function calls, argument evaluation, and arity checking
-  - **All tests must pass**: All function application tests plus all previous tests
-  - **Ref**: FR-8, Design Section "Execution Engine"
+#### T3.1.3: Implement function application
+**Deliverables**:
+- Procedure call evaluation
+- Argument evaluation and binding
+- Arity checking for all procedure types
 
-- [ ] **T3.1.4**: Implement tail call optimization
-  - Add tail position detection
-  - Implement tail call elimination
-  - Optimize recursive function calls
-  - **Tests**: Unit tests for tail call detection, recursive optimization, and stack usage
-  - **All tests must pass**: All tail call optimization tests plus all previous tests
-  - **Ref**: Design Section "Tail Call Optimization"
+#### T3.1.4: Implement tail call optimization
+**Deliverables**:
+- Tail position detection
+- Tail call elimination
+- Recursive function optimization
 
-- [ ] **T3.1.5**: Create function system tests
-  - Test lambda creation and application
-  - Test closure behavior and variable capture
-  - Test recursive functions and tail calls
-  - Test function definition with define
-  - **Tests**: Integration tests covering all function scenarios from acceptance criteria
-  - **All tests must pass**: Complete function system test suite (25+ tests expected) plus all previous tests
-  - **Ref**: AC-2, AC-5
+#### T3.1.5: Create function system tests
+**Acceptance**: 25+ tests covering lambda creation, application, recursion, and tail calls
 
 ### 3.2 Advanced Built-in Procedures
 
-- [ ] **T3.2.1**: Implement type checking procedures
-  - Add: number?, boolean?, string?, symbol?, list?, procedure?, null?
-  - Implement proper type predicate logic
-  - Add comprehensive type checking
-  - **Tests**: Unit tests for each type predicate, comprehensive type checking scenarios
-  - **All tests must pass**: All type checking procedure tests plus all previous tests
-  - **Tests**: Unit tests for I/O procedures, output formatting, and input handling
-  - **All tests must pass**: All I/O procedure tests plus all previous tests
-  - **Ref**: FR-11
+#### T3.2.1: Implement type checking procedures
+**Prerequisites**: Function system complete
+**Deliverables**:
+- `number?`, `boolean?`, `string?`, `symbol?`, `list?`, `procedure?`, `null?`
+- Comprehensive type checking logic
 
-- [ ] **T3.2.2**: Implement advanced list operations
-  - Add: length, append, reverse, member, assoc
-  - Implement list transformation procedures
-  - Add proper error handling for list operations
-  - **Tests**: Unit tests for advanced list operations, edge cases, and error conditions
-  - **All tests must pass**: All advanced list operation tests plus all previous tests
-  - **Ref**: FR-5, FR-11
+#### T3.2.2: Implement advanced list operations
+**Deliverables**:
+- `length`, `append`, `reverse`, `member`, `assoc`
+- List transformation procedures
+- Error handling for list operations
 
-- [ ] **T3.2.3**: Implement I/O procedures (synchronous)
-  - Add: display, newline, read (basic)
-  - Implement string output formatting
-  - Add basic input reading
-  - **Ref**: FR-11
+#### T3.2.3: Implement I/O procedures (synchronous)
+**Deliverables**:
+- `display`, `newline`, `read` (basic)
+- String output formatting
+- Basic input reading
 
-- [ ] **T3.2.4**: Create built-in procedure tests
-  - Test all type checking procedures
-  - Test advanced list operations
-  - Test I/O procedures
-  - Test error conditions
-  - **All tests must pass**: Complete built-in procedures test suite (20+ tests expected) plus all previous tests
+#### T3.2.4: Create built-in procedure tests
+**Acceptance**: 20+ tests covering type checking, list operations, and I/O
 
 ### 3.3 REPL Implementation
 
-- [ ] **T3.3.1**: Implement basic REPL loop
-  - Create read-eval-print loop structure
-  - Add input reading and parsing
-  - Implement expression evaluation and output
-  - **Tests**: Integration tests for REPL loop, input/output, and basic interaction
-  - **All tests must pass**: All basic REPL tests plus all previous tests
-  - **Ref**: FR-9, AC-3
+#### T3.3.1: Implement basic REPL loop
+**Prerequisites**: Built-in procedures complete
+**Deliverables**:
+- Read-eval-print loop structure
+- Input reading and parsing
+- Expression evaluation and output
 
-- [ ] **T3.3.2**: Add REPL error handling
-  - Implement graceful error recovery
-  - Add detailed error reporting
-  - Continue REPL operation after errors
-  - **Ref**: FR-12
+#### T3.3.2: Add REPL error handling
+**Deliverables**:
+- Graceful error recovery
+- Detailed error reporting
+- Continued operation after errors
 
-- [ ] **T3.3.3**: Add REPL enhancements
-  - Implement multi-line input support
-  - Add basic command history
-  - Add help and exit commands
-  - **Tests**: Integration tests for multi-line input, command history, and help system
-  - **All tests must pass**: All REPL enhancement tests plus all previous tests
-  - **Ref**: NFR-3
+#### T3.3.3: Add REPL enhancements
+**Deliverables**:
+- Multi-line input support
+- Basic command history
+- Help and exit commands
 
-- [ ] **T3.3.4**: Create REPL tests
-  - Test basic REPL functionality
-  - Test error recovery
-  - Test multi-line input
-  - Integration tests for user scenarios
-  - **All tests must pass**: Complete REPL test suite (15+ tests expected) plus all previous tests
+#### T3.3.4: Create REPL tests
+**Acceptance**: 15+ tests covering REPL functionality and error recovery
 
 ### 3.4 File Execution
 
-- [ ] **T3.4.1**: Implement file reading and parsing
-  - Add file input handling
-  - Implement multi-expression parsing
-  - Add proper file error handling
-  - **Tests**: Unit tests for file reading, parsing multiple expressions, and file error handling
-  - **All tests must pass**: All file parsing tests plus all previous tests
-  - **Tests**: Unit tests for sequential evaluation, environment handling, and result collection
-  - **All tests must pass**: All batch evaluation tests plus all previous tests
-  - **Tests**: Integration tests for command-line interface, argument parsing, and execution modes
-  - **All tests must pass**: All CLI tests plus all previous tests
-  - **Ref**: FR-10
+#### T3.4.1: Implement file reading and parsing
+**Prerequisites**: REPL complete
+**Deliverables**:
+- File input handling
+- Multi-expression parsing
+- File error handling
 
-- [ ] **T3.4.2**: Implement batch evaluation
-  - Add sequential expression evaluation
-  - Implement proper environment handling
-  - Add result collection and reporting
-  - **Ref**: FR-10
+#### T3.4.2: Implement batch evaluation
+**Deliverables**:
+- Sequential expression evaluation
+- Environment handling
+- Result collection and reporting
 
-- [ ] **T3.4.3**: Add command-line interface
-  - Implement file execution from command line
-  - Add command-line argument parsing
-  - Add execution mode selection (REPL vs file)
-  - **Ref**: FR-10
+#### T3.4.3: Add command-line interface
+**Deliverables**:
+- File execution from command line
+- Command-line argument parsing
+- Execution mode selection
 
-- [ ] **T3.4.4**: Create file execution tests
-  - Test file parsing and execution
-  - Test command-line interface
-  - Test error handling for file operations
-  - Integration tests with sample Scheme files
-  - **All tests must pass**: Complete file execution test suite (12+ tests expected) plus all previous tests
+#### T3.4.4: Create file execution tests
+**Acceptance**: 12+ tests covering file parsing, execution, and CLI
 
 ---
 
@@ -557,151 +477,108 @@ This constraint ensures:
 
 ### 4.1 Fiber Scheduler Infrastructure
 
-- [ ] **T4.1.1**: Implement `Fiber` struct
-  - Add async dependencies: `smol`, `futures-lite`, `async-channel` to `Cargo.toml` (smol ecosystem only)
-  - Create `src/runtime/` module directory
-  - Create fiber with id, state, continuation, parent fields
-  - Implement `FiberState` enum (Ready, Running, Suspended, Completed)
-  - Add `SuspendReason` enum (IoOperation, WaitingForTask, Yielded)
-  - **Ref**: FR-14, Design Section "Fiber Scheduler"
-  - **Tests**: Unit tests for Fiber creation, state transitions, and data structure integrity
-  - **All tests must pass**: All Fiber struct tests plus all previous tests
-  - **Constraint**: Data structures only, no scheduler logic yet
+#### T4.1.1: Implement `Fiber` struct
+**Prerequisites**: File execution complete
+**Dependencies**: Add `smol`, `futures-lite`, `async-channel` to Cargo.toml
+**Deliverables**:
+- Create `src/runtime/` module
+- Fiber with id, state, continuation, parent fields
+- `FiberState` enum (Ready, Running, Suspended, Completed)
+- `SuspendReason` enum (IoOperation, WaitingForTask, Yielded)
 
-- [ ] **T4.1.2**: Implement `FiberScheduler` struct
-  - Add `polling` and `async-task` dependencies to `Cargo.toml` for scheduler operations
-  - Create scheduler with ready queue, fiber map, runtime, thread pool
-  - Add main fiber management
-  - DO NOT implement scheduling algorithms yet - just the data structure
-  - **Ref**: FR-14, Design Section "Fiber Scheduler Architecture"
-  - **Tests**: Unit tests for FiberScheduler creation, data structure setup, and basic state
-  - **All tests must pass**: All FiberScheduler struct tests plus all previous tests
-  - **Constraint**: Scheduler structure only, no execution logic yet
+#### T4.1.2: Implement `FiberScheduler` struct
+**Dependencies**: Add `polling`, `async-task` to Cargo.toml
+**Deliverables**:
+- Scheduler with ready queue, fiber map, runtime, thread pool
+- Main fiber management
+- ⚠️ Data structure only, no scheduling logic yet
 
-- [ ] **T4.1.3**: Implement fiber lifecycle management
-  - Add `spawn_fiber()`, `yield_current()`, `resume_fiber()` methods
-  - Implement fiber state transitions
-  - Add fiber cleanup and resource management
-  - **Tests**: Unit tests for fiber lifecycle methods, state management, and resource cleanup
-  - **All tests must pass**: All fiber lifecycle tests plus all previous tests
-  - **Ref**: FR-14, Design Section "Fiber and Task Lifecycle"
+#### T4.1.3: Implement fiber lifecycle management
+**Deliverables**:
+- `spawn_fiber()`, `yield_current()`, `resume_fiber()` methods
+- Fiber state transitions
+- Resource cleanup
 
-- [ ] **T4.1.4**: Implement scheduler main loop
-  - Add `run_scheduler()` method with event loop
-  - Implement fiber dispatch and execution
-  - Add cooperative multitasking support
-  - **Tests**: Integration tests for scheduler main loop, fiber dispatch, and cooperative multitasking
-  - **All tests must pass**: All scheduler main loop tests plus all previous tests
-  - **Ref**: FR-14
+#### T4.1.4: Implement scheduler main loop
+**Deliverables**:
+- `run_scheduler()` method with event loop
+- Fiber dispatch and execution
+- Cooperative multitasking
 
-- [ ] **T4.1.5**: Create fiber scheduler tests
-  - Test fiber creation and scheduling
-  - Test state transitions and lifecycle
-  - Test cooperative multitasking
-  - Performance tests for scheduler overhead
-  - **All tests must pass**: Complete fiber scheduler test suite (20+ tests expected) plus all previous tests
+#### T4.1.5: Create fiber scheduler tests
+**Acceptance**: 20+ tests covering fiber creation, scheduling, and multitasking
 
 ### 4.2 Async Task System
 
-- [ ] **T4.2.1**: Implement `Task` and `TaskHandle` structs
-  - Create task with handle, fiber_id, parent/child relationships, result
-  - Implement `TaskHandle` with id and control methods
-  - Add task hierarchy management
-  - **Tests**: Unit tests for Task/TaskHandle creation, hierarchy management, and data integrity
-  - **All tests must pass**: All Task system struct tests plus all previous tests
-  - **Ref**: FR-15, Design Section "Async Task System"
+#### T4.2.1: Implement `Task` and `TaskHandle` structs
+**Prerequisites**: Fiber scheduler complete
+**Deliverables**:
+- Task with handle, fiber_id, parent/child relationships
+- TaskHandle with control methods
+- Task hierarchy management
 
-- [ ] **T4.2.2**: Implement task operations
-  - Add `wait()`, `is_finished()`, `cancel()` methods on TaskHandle
-  - Implement task completion and result propagation
-  - Add hierarchical task cancellation
-  - **Tests**: Unit tests for task operations, completion handling, and hierarchical cancellation
-  - **All tests must pass**: All task operation tests plus all previous tests
-  - **Tests**: Integration tests for task-fiber coordination, scheduling, and prioritization
-  - **All tests must pass**: All task-fiber integration tests plus all previous tests
-  - **Ref**: FR-15
+#### T4.2.2: Implement task operations
+**Deliverables**:
+- `wait()`, `is_finished()`, `cancel()` methods
+- Task completion and result propagation
+- Hierarchical task cancellation
 
-- [ ] **T4.2.3**: Integrate tasks with fiber scheduler
-  - Connect task lifecycle to fiber execution
-  - Implement task-fiber coordination
-  - Add task scheduling and prioritization
-  - **Ref**: FR-15
+#### T4.2.3: Integrate tasks with fiber scheduler
+**Deliverables**:
+- Task lifecycle to fiber execution connection
+- Task-fiber coordination
+- Task scheduling and prioritization
 
-- [ ] **T4.2.4**: Create task system tests
-  - Test task creation and execution
-  - Test task hierarchy and cancellation
-  - Test task-fiber integration
-  - **Tests**: Comprehensive task system tests covering acceptance criteria scenarios
-  - **All tests must pass**: Complete task system test suite (18+ tests expected) plus all previous tests
-  - **Ref**: AC-8, AC-10
+#### T4.2.4: Create task system tests
+**Acceptance**: 18+ tests covering task creation, hierarchy, and cancellation
 
 ### 4.3 Asynchronous I/O Integration
 
-- [ ] **T4.3.1**: Implement async I/O infrastructure
-  - Create async I/O module with `smol` integration
-  - Add `yield_for_io()` fiber suspension
-  - Implement I/O operation queuing
-  - **Tests**: Unit tests for async I/O setup, fiber suspension, and I/O operation queuing
-  - **All tests must pass**: All async I/O infrastructure tests plus all previous tests
-  - **Ref**: FR-14, Design Section "Asynchronous I/O and Fiber Integration"
+#### T4.3.1: Implement async I/O infrastructure
+**Prerequisites**: Task system complete
+**Deliverables**:
+- Async I/O module with `smol` integration
+- `yield_for_io()` fiber suspension
+- I/O operation queuing
 
-- [ ] **T4.3.2**: Implement async built-in procedures
-  - Add `display-async`, `read-line-async` procedures
-  - Implement fiber-yielding I/O operations
-  - Add proper error handling for async operations
-  - **Tests**: Unit tests for async procedures, fiber yielding, and async error handling
-  - **All tests must pass**: All async built-in procedure tests plus all previous tests
-  - **Ref**: FR-14, AC-7
+#### T4.3.2: Implement async built-in procedures
+**Deliverables**:
+- `display-async`, `read-line-async` procedures
+- Fiber-yielding I/O operations
+- Async error handling
 
-- [ ] **T4.3.3**: Implement async evaluation context
-  - Modify eval to support async operations
-  - Add async procedure call handling
-  - Implement proper async error propagation
-  - **Tests**: Integration tests for async evaluation, procedure calls, and error propagation
-  - **All tests must pass**: All async evaluation context tests plus all previous tests
-  - **Ref**: Design Section "Error Propagation in Async Context"
+#### T4.3.3: Implement async evaluation context
+**Deliverables**:
+- Modify eval to support async operations
+- Async procedure call handling
+- Async error propagation
 
-- [ ] **T4.3.4**: Create async I/O tests
-  - Test async I/O operations
-  - Test fiber yielding and resumption
-  - Test concurrent I/O operations
-  - **Tests**: Integration tests for async I/O scenarios from acceptance criteria
-  - **All tests must pass**: Complete async I/O test suite (15+ tests expected) plus all previous tests
-  - **Ref**: AC-7
+#### T4.3.4: Create async I/O tests
+**Acceptance**: 15+ tests covering async I/O and fiber yielding
 
 ### 4.4 Built-in Fiber and Task Procedures
 
-- [ ] **T4.4.1**: Implement fiber management procedures
-  - Add: `spawn-fiber`, `yield`, `current-fiber`, `fiber-status`
-  - Implement fiber control and introspection
-  - Add proper error handling for fiber operations
-  - **Tests**: Unit tests for each fiber management procedure and error handling
-  - **All tests must pass**: All fiber management procedure tests plus all previous tests
-  - **Ref**: Design Section "Built-in Fiber and Task Procedures", AC-11
+#### T4.4.1: Implement fiber management procedures
+**Prerequisites**: Async I/O complete
+**Deliverables**:
+- `spawn-fiber`, `yield`, `current-fiber`, `fiber-status`
+- Fiber control and introspection
+- Error handling for fiber operations
 
-- [ ] **T4.4.2**: Implement task management procedures
-  - Add: `spawn-task`, `task-wait`, `task-cancel`, `task-result`
-  - Implement task creation and control
-  - Add task hierarchy management procedures
-  - **Tests**: Unit tests for task management procedures and hierarchy operations
-  - **All tests must pass**: All task management procedure tests plus all previous tests
-  - **Ref**: Design Section "Built-in Fiber and Task Procedures"
+#### T4.4.2: Implement task management procedures
+**Deliverables**:
+- `spawn-task`, `task-wait`, `task-cancel`, `task-result`
+- Task creation and control
+- Task hierarchy management
 
-- [ ] **T4.4.3**: Implement coordination procedures
-  - Add: `parallel`, `sequential`, `race`, `timeout`
-  - Implement high-level concurrency patterns
-  - Add proper resource cleanup
-  - **Tests**: Integration tests for coordination patterns, resource cleanup, and high-level concurrency
-  - **All tests must pass**: All coordination procedure tests plus all previous tests
-  - **Ref**: AC-10
+#### T4.4.3: Implement coordination procedures
+**Deliverables**:
+- `parallel`, `sequential`, `race`, `timeout`
+- High-level concurrency patterns
+- Resource cleanup
 
-- [ ] **T4.4.4**: Create concurrency procedure tests
-  - Test all fiber and task procedures
-  - Test coordination patterns
-  - Test error handling and cleanup
-  - **Tests**: Comprehensive concurrency procedure tests covering all acceptance criteria
-  - **All tests must pass**: Complete concurrency procedures test suite (25+ tests expected) plus all previous tests
-  - **Ref**: AC-8, AC-10, AC-11
+#### T4.4.4: Create concurrency procedure tests
+**Acceptance**: 25+ tests covering all fiber and task procedures
 
 ---
 
@@ -709,269 +586,227 @@ This constraint ensures:
 
 ### 5.1 Macro System Infrastructure
 
-- [ ] **T5.1.1**: Implement pattern matching system
-  - Create `Pattern` enum (Literal, Variable, List, Ellipsis)
-  - Implement pattern matching algorithms
-  - Add pattern variable binding
-  - **Tests**: Unit tests for pattern matching algorithms, variable binding, and edge cases
-  - **All tests must pass**: All pattern matching tests plus all previous tests
-  - **Ref**: FR-16, Design Section "Macro System"
+#### T5.1.1: Implement pattern matching system
+**Prerequisites**: Concurrency system complete
+**Deliverables**:
+- Create `src/interpreter/macros.rs`
+- `Pattern` enum (Literal, Variable, List, Ellipsis)
+- Pattern matching algorithms
+- Pattern variable binding
 
-- [ ] **T5.1.2**: Implement template system
-  - Create `Template` enum (Literal, Variable, List, Substitution)
-  - Implement template expansion with substitution
-  - Add proper variable substitution logic
-  - **Tests**: Unit tests for template expansion, substitution logic, and template validation
-  - **All tests must pass**: All template system tests plus all previous tests
-  - **Tests**: Unit tests for macro rule application, macro expansion, and rule conflict handling
-  - **All tests must pass**: All macro rule tests plus all previous tests
-  - **Tests**: Unit tests for define-syntax parsing, macro registration, and disambiguation
-  - **All tests must pass**: All define-syntax tests plus all previous tests
-  - **Tests**: Integration tests for macro expansion phase, recursive expansion, and context management
-  - **All tests must pass**: All macro integration tests plus all previous tests
-  - **Ref**: FR-16
+#### T5.1.2: Implement template system
+**Deliverables**:
+- `Template` enum (Literal, Variable, List, Substitution)
+- Template expansion with substitution
+- Variable substitution logic
 
-- [ ] **T5.1.3**: Implement `MacroRule` and `Macro` structs
-  - Create macro rule with pattern and template
-  - Implement macro with name and rules list
-  - Add macro expansion logic
-  - **Ref**: FR-16
+#### T5.1.3: Implement `MacroRule` and `Macro` structs
+**Deliverables**:
+- Macro rule with pattern and template
+- Macro with name and rules list
+- Macro expansion logic
 
-- [ ] **T5.1.4**: Create macro system tests
-  - Test pattern matching
-  - Test template expansion
-  - Test macro rule application
-  - Test error handling
-  - **All tests must pass**: Complete macro system infrastructure test suite (15+ tests expected) plus all previous tests
+#### T5.1.4: Create macro system tests
+**Acceptance**: 15+ tests covering pattern matching and template expansion
 
 ### 5.2 Macro Integration
 
-- [ ] **T5.2.1**: Implement `define-syntax` special form
-  - Add macro definition parsing
-  - Implement macro registration in environment
-  - Add macro vs procedure disambiguation
-  - **Ref**: FR-16
+#### T5.2.1: Implement `define-syntax` special form
+**Prerequisites**: Macro system infrastructure complete
+**Deliverables**:
+- Macro definition parsing
+- Macro registration in environment
+- Macro vs procedure disambiguation
 
-- [ ] **T5.2.2**: Integrate macros with evaluation
-  - Add macro expansion phase before evaluation
-  - Implement recursive macro expansion
-  - Add expansion context management
-  - **Ref**: FR-16
+#### T5.2.2: Integrate macros with evaluation
+**Deliverables**:
+- Macro expansion phase before evaluation
+- Recursive macro expansion
+- Expansion context management
 
-- [ ] **T5.2.3**: Implement standard macros
-  - Add `when`, `unless`, `cond` macros
-  - Implement `let*`, `letrec` binding macros
-  - Add `async` macro for task creation
-  - **Tests**: Unit tests for each standard macro, expansion correctness, and usage scenarios
-  - **All tests must pass**: All standard macro tests plus all previous tests
-  - **Ref**: AC-12, Design examples
+#### T5.2.3: Implement standard macros
+**Deliverables**:
+- `when`, `unless`, `cond` macros
+- `let*`, `letrec` binding macros
+- `async` macro for task creation
 
-- [ ] **T5.2.4**: Create macro integration tests
-  - Test define-syntax functionality
-  - Test macro expansion and evaluation
-  - Test standard macro library
-  - **Tests**: Integration tests for macro integration scenarios from acceptance criteria
-  - **All tests must pass**: Complete macro integration test suite (12+ tests expected) plus all previous tests
-  - **Ref**: AC-12
+#### T5.2.4: Create macro integration tests
+**Acceptance**: 12+ tests covering macro definition and expansion
 
 ### 5.3 Performance Optimization and Polish
 
-- [ ] **T5.3.1**: Implement performance optimizations
-  - Add tail call optimization improvements
-  - Implement symbol interning for faster comparisons
-  - Add memory pool allocation for common objects
-  - **Tests**: Performance tests for optimization effectiveness and correctness validation
-  - **All tests must pass**: All performance optimization tests plus all previous tests (no regression)
-  - **Ref**: NFR-1, Design Section "Performance Optimizations"
+#### T5.3.1: Implement performance optimizations
+**Prerequisites**: Macro system complete
+**Deliverables**:
+- Tail call optimization improvements
+- Symbol interning for faster comparisons
+- Memory pool allocation
 
-- [ ] **T5.3.2**: Add resource management and limits
-  - Implement `ResourceLimits` struct
-  - Add stack depth and memory usage tracking
-  - Implement execution timeouts and limits
-  - **Tests**: Unit tests for resource limits, tracking accuracy, and limit enforcement
-  - **All tests must pass**: All resource management tests plus all previous tests
-  - **Ref**: Design Section "Security Considerations"
+#### T5.3.2: Add resource management and limits
+**Deliverables**:
+- `ResourceLimits` struct
+- Stack depth and memory tracking
+- Execution timeouts and limits
 
-- [ ] **T5.3.3**: Improve error messages and debugging
-  - Add detailed stack traces for errors
-  - Implement better error message formatting
-  - Add debugging information and introspection
-  - **Tests**: Integration tests for error message quality, stack traces, and debugging features
-  - **All tests must pass**: All error/debugging improvement tests plus all previous tests
-  - **Tests**: Documentation examples should compile and run correctly as tests
-  - **All tests must pass**: Documentation validation tests plus all previous tests
-  - **Ref**: NFR-3
+#### T5.3.3: Improve error messages and debugging
+**Deliverables**:
+- Detailed stack traces
+- Better error message formatting
+- Debugging information and introspection
 
-- [ ] **T5.3.4**: Create comprehensive performance tests
-  - Add benchmarks for all major operations
-  - Test memory usage and performance characteristics
-  - Profile and optimize critical paths
-  - **Tests**: Comprehensive performance benchmarks and memory usage validation
-  - **All tests must pass**: All performance tests plus all previous tests (complete test suite)
-  - **Ref**: Design Section "Performance Characteristics"
+#### T5.3.4: Create comprehensive performance tests
+**Acceptance**: Performance benchmarks and memory validation
 
 ### 5.4 Final Integration and Testing
 
-- [ ] **T5.4.1**: Create comprehensive integration tests
-  - Test all acceptance criteria scenarios
-  - Create complex multi-feature test cases
-  - Add regression test suite
-  - **Tests**: Complete integration test suite covering every acceptance criteria scenario
-  - **All tests must pass**: Full acceptance test suite (50+ tests expected) plus all previous tests
-  - **Ref**: All AC-* requirements
+#### T5.4.1: Create comprehensive integration tests
+**Prerequisites**: All features complete
+**Deliverables**:
+- Test all acceptance criteria scenarios
+- Complex multi-feature test cases
+- Regression test suite
 
-- [ ] **T5.4.2**: Add documentation and examples
-  - Add `clap` dependency for command-line interface (final dependency)
-  - Create user documentation and examples
-  - Add API documentation for all modules
-  - Create tutorial and getting started guide
-  - **Ref**: NFR-3
+#### T5.4.2: Add documentation and examples
+**Dependencies**: Add `clap` for CLI (final dependency)
+**Deliverables**:
+- User documentation and examples
+- API documentation for all modules
+- Tutorial and getting started guide
 
-- [ ] **T5.4.3**: Final performance validation
-  - Run complete benchmark suite
-  - Validate all non-functional requirements
-  - Profile memory usage and optimize
-  - **Tests**: Final validation tests for all non-functional requirements
-  - **All tests must pass**: Complete final validation test suite plus all previous tests
-  - **Ref**: All NFR-* requirements
+#### T5.4.3: Final performance validation
+**Deliverables**:
+- Complete benchmark suite
+- Non-functional requirements validation
+- Memory usage profiling
 
-- [ ] **T5.4.4**: Release preparation
-  - Clean up code and remove debug artifacts
-  - Finalize configuration and build scripts
-  - Prepare distribution package
-  - **Tests**: Release validation tests, build verification, and distribution testing
-  - **All tests must pass**: Final release validation tests - COMPLETE PROJECT TEST SUITE (300+ tests expected)
-  - **Ref**: NFR-4, NFR-5
+#### T5.4.4: Release preparation
+**Deliverables**:
+- Code cleanup and optimization
+- Configuration and build scripts
+- Distribution package preparation
+
+**Final Acceptance**: 300+ tests covering complete system
 
 ---
 
 ## Testing Strategy
 
-### Unit Tests
-Each module should have comprehensive unit tests covering:
-- Normal operation cases
-- Edge cases and error conditions  
-- Performance characteristics
-- Memory usage patterns
-- **Required**: All unit tests must pass before task completion
+### Test Requirements by Phase
+| Phase | Expected Tests | Focus Areas |
+|-------|---------------|-------------|
+| **Phase 1** | 50+ tests | Foundation components |
+| **Phase 2** | 120+ tests | Basic interpreter functionality |
+| **Phase 3** | 200+ tests | Advanced language features |
+| **Phase 4** | 280+ tests | Concurrency and async operations |
+| **Phase 5** | 300+ tests | Complete system integration |
 
-### Integration Tests
+### Test Categories
+
+#### Unit Tests (Per Module)
+```rust
+// Example test structure
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normal_operation() { /* ... */ }
+
+    #[test]
+    fn test_edge_cases() { /* ... */ }
+
+    #[test]
+    fn test_error_conditions() { /* ... */ }
+
+    #[test]
+    fn test_performance_characteristics() { /* ... */ }
+}
+```
+
+#### Integration Tests
 - End-to-end scenarios matching acceptance criteria
-- REPL interaction tests
-- File execution tests
-- Concurrency and async operation tests
-- **Required**: All integration tests must pass before task completion
+- REPL interaction testing
+- File execution testing
+- Multi-component interactions
 
-### Performance Tests
-- Benchmarks for core operations
-- Memory usage profiling
-- Concurrency overhead measurement
-- Regression detection
-- **Required**: Performance tests must validate no regression from previous tasks
+#### Acceptance Tests
+Each acceptance criteria (AC-1 through AC-12) must have corresponding automated tests:
 
-### Acceptance Tests
-Each acceptance criteria (AC-1 through AC-12) should have corresponding automated tests that verify the exact scenarios described in `requirements.md`.
-- **Required**: All acceptance tests must pass when their corresponding features are implemented
+```rust
+// Example acceptance test
+#[test]
+fn test_ac_1_basic_arithmetic() {
+    let result = eval_string("(+ 1 2 3)");
+    assert_eq!(result, Ok(Value::Number(6.0)));
+}
+```
 
 ### Test Execution Validation
-After each task completion, run the complete test suite:
 ```bash
+# Required after each task:
 cargo test                    # All tests must pass
-cargo test --release         # Release mode tests must pass
-cargo bench                  # Benchmarks must run without errors (when applicable)
+cargo test --release         # Release mode validation
+cargo clippy                  # Code quality checks
+cargo fmt --check            # Formatting verification
 ```
-
-### Test Coverage Expectations
-- **Phase 1**: 50+ tests (foundation)
-- **Phase 2**: 120+ tests (basic interpreter)
-- **Phase 3**: 200+ tests (advanced features)
-- **Phase 4**: 280+ tests (concurrency)
-- **Phase 5**: 300+ tests (complete system)
 
 ---
 
-## Dependencies and References
+## Dependencies and Constraints
 
-### External Dependencies (Add Only When Needed)
+### Dependency Addition Rules
+1. **Add ONLY when task requires** - no bulk additions
+2. **Justify each dependency** with specific task needs  
+3. **Prefer minimal alternatives** - avoid feature-rich crates
+4. **Update local sources** with `./scripts/update-deps.sh`
 
-**Core Dependencies (minimal, essential only):**
-- `thiserror` - Error handling with zero dependencies (Phase 1)
-- `smol` - Main async runtime from smol ecosystem (Phase 4)
-- `futures-lite` - Async utilities from smol ecosystem (Phase 4)
-- `async-channel` - Async communication from smol ecosystem (Phase 4)
-- `polling` - Event polling for I/O from smol ecosystem (Phase 4)
-- `async-task` - Task management from smol ecosystem (Phase 4)
+### Approved Dependencies
+| Dependency | Phase | Purpose | Ecosystem |
+|------------|-------|---------|-----------|
+| `thiserror` | 1 | Error handling | Minimal |
+| `smol` | 4 | Async runtime | smol |
+| `futures-lite` | 4 | Async utilities | smol |
+| `async-channel` | 4 | Async communication | smol |
+| `polling` | 4 | Event polling | smol |
+| `async-task` | 4 | Task management | smol |
+| `clap` | 5 | CLI parsing | Optional |
 
-**Non-core Dependencies (add only if absolutely necessary):**
-- `clap` - Command line parsing (Phase 5, only if CLI features are implemented)
-
-**Dependency Philosophy:**
-- All async-related crates must come from the smol ecosystem: https://github.com/smol-rs
-- Prefer single-purpose, minimal crates over feature-rich alternatives
-- Each dependency must be justified and have minimal sub-dependencies
-- Remove non-smol async crates from consideration
-
-**Important**: Each dependency should be added to `Cargo.toml` only when the task specifically requires it. Do not add all dependencies at project initialization.
-
-### Local Dependency Source Management
-
-**Purpose**: Enable AI agents to access accurate source code and documentation for all project dependencies without network access.
-
-**Setup Commands**:
-```bash
-# Initial setup
-mkdir -p deps/{vendor,docs,registry}
-echo "deps/" >> .gitignore
-cargo vendor deps/vendor
-cargo doc --all-features --document-private-items --workspace
-cp -r target/doc/* deps/docs/
-
-# Maintenance (run after Cargo.toml changes)
-cargo vendor deps/vendor --sync Cargo.toml
-cargo doc --all-features --document-private-items --workspace --force-rebuild
-cp -r target/doc/* deps/docs/
-```
-
-**Benefits**:
-- Complete offline access to dependency source code for AI analysis
-- Version-locked sources ensure consistency with Cargo.lock
-- Generated documentation includes private implementation details
-- No network dependency during development or AI assistance
-
-### Internal References
-- **Requirements**: See `requirements.md` for FR-* and NFR-* specifications
-- **Design**: See `design.md` for detailed technical specifications
-- **Acceptance Criteria**: See `requirements.md` AC-* sections for validation requirements
+### Critical Constraints
+- **All async dependencies MUST be from smol ecosystem**
+- **No tokio, async-std, or other async runtimes**
+- **Minimal dependency trees preferred**
+- **Local source management required for AI agents**
 
 ---
-
-## Task Status Legend
-
-- [ ] **Not Started** - Task not yet begun
-- [x] **Completed** - Task finished and tested
-- [🔄] **In Progress** - Task currently being worked on
-- [⚠️] **Blocked** - Task waiting on dependencies or issues
 
 ## Progress Tracking
 
-**Phase 1**: 🔄 In Progress (4/14 tasks completed, ~29%)  
-**Phase 2**: ☐ Not Started  
-**Phase 3**: ☐ Not Started  
-**Phase 4**: ☐ Not Started  
-**Phase 5**: ☐ Not Started  
+### Overall Status
+**Current Phase**: Phase 1 (Foundation)  
+**Overall Progress**: 5% (4/81 tasks completed)  
+**Estimated Completion**: 13-17 weeks
 
-**Overall Progress**: 5% (4/81 tasks completed)
+### Phase Progress
+- **Phase 1**: 🔄 29% (4/14 tasks) - Foundation
+- **Phase 2**: ☐ 0% (0/20 tasks) - Basic Interpreter  
+- **Phase 3**: ☐ 0% (0/20 tasks) - Advanced Features
+- **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
+- **Phase 5**: ☐ 0% (0/11 tasks) - Polish & Macros
 
-### Completed Tasks
-- [x] T1.1.1: Initialize Rust project structure
-- [x] T1.1.2: Set up basic error handling infrastructure
-- [x] T1.1.3: Set up local dependency source management
-- [x] T1.1.4: Create basic test framework structure
+### Recently Completed
+- ✅ T1.1.1: Initialize Rust project structure
+- ✅ T1.1.2: Set up basic error handling infrastructure  
+- ✅ T1.1.3: Set up local dependency source management
+- ✅ T1.1.4: Create basic test framework structure
 
-### Current Status
-- **Phase 1.1** (Project Setup and Infrastructure): ✅ **COMPLETE** (4/4 tasks)
-- **Phase 1.2** (Core Data Types and Value System): ☐ Not Started (0/5 tasks)
-- **Phase 1.3** (Lexical Analysis): ☐ Not Started (0/5 tasks)
+### Immediate Next Steps
+1. **T1.2.1**: Implement basic `Value` enum (🔥 Priority)
+2. **T1.2.2**: Implement immutable number type
+3. **T1.2.3**: Implement immutable string and symbol types
 
-### Next Priority
-**T1.2.1**: Implement basic `Value` enum - This is the next critical task to begin Phase 1.2
+### Blocked Tasks
+None currently - clear path forward through Phase 1.
+
+---
+
+This task plan provides a structured, educational approach to building the Twine Scheme interpreter while maximizing learning value through AI-assisted development. Each task builds understanding progressively while maintaining rigorous testing and quality standards.

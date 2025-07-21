@@ -1,150 +1,165 @@
 # Twine Scheme Interpreter - Technical Design Document
 
-## Table of Contents
+## Quick Reference
 
-1. [System Overview](#system-overview)
-2. [Architecture](#architecture)
-3. [Core Components](#core-components)
-4. [Concurrency Model](#concurrency-model)
-5. [Data Types and Memory Management](#data-types-and-memory-management)
-6. [Execution Engine](#execution-engine)
-7. [Asynchronous I/O](#asynchronous-io)
-8. [Macro System](#macro-system)
-9. [Error Handling](#error-handling)
-10. [Sequence Diagrams](#sequence-diagrams)
-11. [Implementation Considerations](#implementation-considerations)
-12. [Performance Characteristics](#performance-characteristics)
-13. [Security Considerations](#security-considerations)
+### System Architecture Overview
+```
+User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thread Pool
+                          ↓
+              Immutable Data Types ← Environment Manager ← Built-ins
+```
+
+### Core Components
+| Component | Purpose | Key Features |
+|-----------|---------|--------------|
+| **Lexer** | Tokenization | Comments, numbers, strings, symbols |
+| **Parser** | AST Construction | S-expressions, quote syntax, error reporting |
+| **Evaluator** | Expression Evaluation | Special forms, function application, tail-call optimization |
+| **Environment** | Variable Binding | Lexical scoping, closures, immutable chains |
+| **Fiber Scheduler** | Concurrency Management | Automatic I/O yielding, thread pool execution |
+| **Task System** | High-level Async | Hierarchical parent-child relationships |
+| **Value System** | Data Types | Complete immutability, reference counting |
+| **Macro System** | Code Transformation | R7RS-small patterns, hygienic expansion |
+
+### Concurrency Model
+- **All code runs in fibers** managed by central scheduler
+- **Two-layer system**: Low-level fibers + High-level tasks
+- **Automatic I/O yielding** - appears synchronous to Scheme
+- **Thread pool execution** - true parallelism without GIL
+- **Immutable data sharing** - thread-safe by design
+
+---
 
 ## System Overview
 
-Twine is an educational Scheme interpreter written in Rust designed to facilitate learning about AI-assisted development, interpreter implementation, async I/O, parallelism, and advanced Rust concepts. The project serves as a hands-on learning platform for exploring these technical domains through the implementation of a functional programming language.
+**Twine** is an educational Scheme interpreter designed for learning AI-assisted development, interpreter implementation, async I/O, parallelism, and advanced Rust concepts.
 
-### Educational Objectives
-
-The primary goals of this project are to provide learning opportunities in:
-
-- **AI Agent Development**: Practical experience working with AI coding agents for iterative software development
-- **Interpreter Design**: Understanding the complete pipeline from source code to execution
-- **Scheme Language**: Exploring functional programming paradigms and Lisp-family language concepts
-- **Rust Async Ecosystem**: Deep dive into async programming patterns and the `smol` library
-- **Concurrency Models**: Implementing and understanding fiber-based scheduling and parallelism
-- **Software Architecture**: Making design decisions that prioritize learning value and code clarity
+### Educational Focus Areas
+| Area | Learning Goals |
+|------|----------------|
+| **AI Collaboration** | Iterative development with AI coding agents |
+| **Interpreter Design** | Complete language implementation pipeline |
+| **Scheme Language** | Functional programming and Lisp concepts |
+| **Rust Async** | Async programming patterns with `smol` ecosystem |
+| **Concurrency** | Fiber-based scheduling and parallelism |
+| **Architecture** | Educational-first design decisions |
 
 ### Core Technical Principles
+1. **Fiber-based Concurrency**: Lightweight scheduling with thread pool execution
+2. **Asynchronous I/O**: Non-blocking I/O that appears synchronous to Scheme
+3. **Strict Immutability**: All data structures immutable after creation
+4. **Educational Simplicity**: Readable implementations over optimizations
+5. **Minimal Feature Set**: Essential R7RS-small subset only
 
-While serving educational purposes, Twine maintains rigorous technical standards built around four core principles:
-
-1. **Fiber Scheduler and Async Task System**: Lightweight fiber management with high-level task abstraction executed on a thread pool using `smol` async runtime
-2. **Asynchronous I/O**: All I/O operations are asynchronous with fiber yielding, appearing synchronous to Scheme code
-3. **Immutability**: All data structures are immutable after creation
-4. **Simplicity and Minimalism**: Essential R7RS-small subset including macro support for maintainability and reduced complexity
-
-The interpreter emphasizes asynchronous I/O, fiber-based concurrency, simplicity, and immutability. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state.
-
-### Key Design Decisions
-
-#### Learning-Oriented Architecture
-- **Educational Value**: All architectural decisions prioritize learning opportunities and code readability
-- **Incremental Complexity**: Features are designed to build understanding progressively
-- **Exploration-Friendly**: Codebase structure facilitates experimentation with alternative approaches
-- **Documentation Focus**: Extensive inline documentation to support learning and understanding
-
-#### Technical Implementation Choices
-- **Runtime**: `smol` async runtime for lightweight, efficient concurrency (learning async Rust patterns)
-- **Concurrency Model**: Fiber-based parallelism without Global Interpreter Lock (exploring alternative concurrency models)
-- **Memory Management**: Rust's ownership system + reference counting for shared immutable data (understanding Rust memory safety)
-- **Thread Pool**: Multi-threaded execution pool managed by `smol` (learning parallel execution patterns)
-- **Error Handling**: Result-based error propagation with async-compatible patterns (practicing robust error design)
-- **Side Effects**: Side effects (I/O, network) are permitted while maintaining data immutability (balancing purity with practicality)
-
-#### Code Quality Standards for Learning
-- **Implementation Simplicity**: Straightforward, readable code over advanced Rust features or complex abstractions
-- **Module Organization**: Clear, logical module structure reflecting domain concepts with single responsibilities
-- **Code Clarity**: Explicit, verbose implementations over implicit, clever solutions
-- **Learning Scaffolding**: Code structured to facilitate understanding of interpreter concepts and async programming
+---
 
 ## Architecture
 
-### High-Level System Architecture
+### High-Level System Design
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        User Interface Layer                     │
+│                     User Interface Layer                        │
+│  ┌─────────────────┐     ┌─────────────────────────────────────┐ │
+│  │  REPL Interface │     │        File Execution              │ │
+│  └─────────────────┘     └─────────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
-│  REPL Interface  │           File Execution                     │
+│                      Interpreter Core                           │
+│  ┌───────────┐  ┌──────────────┐  ┌─────────────────────────────┐ │
+│  │  Lexer    │  │   Parser     │  │     Evaluator               │ │
+│  │  Tokens   │→ │  AST Builder │→ │  Expression Evaluation      │ │
+│  └───────────┘  └──────────────┘  └─────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
-│                     Interpreter Core                            │
+│                    Execution Engine                             │
+│  ┌─────────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
+│  │ Fiber Scheduler │  │ Task System  │  │ Environment Manager │  │
+│  │ Low-level Mgmt  │  │ High-level   │  │ Variable Binding    │  │
+│  └─────────────────┘  └──────────────┘  └─────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────┤
-│   Parser    │    Evaluator    │    Environment Manager          │
+│                    Runtime Foundation                           │
+│  ┌──────────────────┐  ┌─────────────────────────────────────────┐ │
+│  │ Smol Async       │  │         Thread Pool                     │ │
+│  │ Runtime          │  │    Parallel Fiber Execution            │ │
+│  └──────────────────┘  └─────────────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
-│                   Fiber Execution Engine                        │
-├─────────────────────────────────────────────────────────────────┤
-│              Smol Async Runtime + Thread Pool                   │
-├─────────────────────────────────────────────────────────────────┤
-│        Immutable Data Types    │    Built-in Procedures         │
+│                      Data Layer                                 │
+│  ┌──────────────────┐  ┌─────────────────────────────────────────┐ │
+│  │ Immutable Values │  │        Built-in Procedures              │ │
+│  │ Reference Counted│  │     I/O, Math, List Operations          │ │
+│  └──────────────────┘  └─────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Module Structure
-
-The codebase is organized into logical modules that reflect domain concepts and maintain clear separation of concerns. Each module has a single, well-defined responsibility with minimal cross-module dependencies.
-
-#### Design Principles for Module Organization
-- **Single Responsibility**: Each module focuses on one aspect of the interpreter
-- **Clear Boundaries**: Minimal public APIs between modules
-- **Domain Alignment**: Module structure reflects Scheme interpreter concepts
-- **Simple Interfaces**: Straightforward function signatures and data flow
-- **Explicit Dependencies**: Clear import relationships without circular dependencies
+### Module Organization
 
 ```
-twine/
-├── src/
-│   ├── main.rs              # Entry point and CLI
-│   ├── lib.rs               # Library root
-│   ├── lexer/               # Input tokenization
-│   │   ├── mod.rs           # Tokenization logic
-│   │   └── token.rs         # Token definitions
-│   ├── parser/              # Syntax analysis
-│   │   ├── mod.rs           # S-expression parsing
-│   │   └── ast.rs           # Abstract syntax tree
-│   ├── interpreter/         # Core evaluation engine
-│   │   ├── mod.rs           # Evaluation engine
-│   │   ├── environment.rs   # Variable binding and scope
-│   │   ├── procedures.rs    # Built-in functions
-│   │   └── macros.rs        # Macro system
-│   ├── types/               # Core data types
-│   │   ├── mod.rs           # Core data types
-│   │   ├── value.rs         # Scheme values
-│   │   └── immutable.rs     # Immutable collections
-│   ├── runtime/             # Concurrency and execution
-│   │   ├── mod.rs           # Async runtime management
-│   │   ├── fiber.rs         # Fiber scheduler
-│   │   ├── task.rs          # Task system
-│   │   └── io.rs            # Async I/O operations
-│   ├── repl/                # Interactive interface
-│   │   ├── mod.rs           # REPL implementation
-│   │   └── prompt.rs        # User interaction
-│   └── error/               # Error handling
-│       ├── mod.rs           # Error types
-│       └── reporting.rs     # Error formatting
+twine/src/
+├── main.rs                  # CLI entry point
+├── lib.rs                   # Library root and public API
+│
+├── lexer/                   # Tokenization
+│   ├── mod.rs               # Token stream generation
+│   └── token.rs             # Token type definitions
+│
+├── parser/                  # Syntax Analysis
+│   ├── mod.rs               # S-expression parsing
+│   └── ast.rs               # Abstract syntax tree types
+│
+├── interpreter/             # Core Evaluation
+│   ├── mod.rs               # Main evaluation engine
+│   ├── environment.rs       # Variable scoping and binding
+│   ├── builtins.rs          # Built-in procedure implementations
+│   └── macros.rs            # Macro system (define-syntax, syntax-rules)
+│
+├── types/                   # Data Types
+│   ├── mod.rs               # Core value types and conversions
+│   ├── value.rs             # Scheme value enumeration
+│   └── procedures.rs        # Function and procedure types
+│
+├── runtime/                 # Concurrency and Execution
+│   ├── mod.rs               # Runtime coordination
+│   ├── scheduler.rs         # Fiber scheduler implementation
+│   ├── task.rs              # High-level task abstraction
+│   └── io.rs                # Async I/O operations
+│
+├── repl/                    # Interactive Interface
+│   ├── mod.rs               # REPL implementation
+│   └── readline.rs          # Line editing and history
+│
+└── error/                   # Error Handling
+    ├── mod.rs               # Error type hierarchy
+    └── reporting.rs         # Error formatting and display
 ```
+
+**Design Principles**:
+- **Single Responsibility**: Each module has one clear purpose
+- **Minimal Dependencies**: Clean interfaces between modules
+- **Educational Clarity**: Structure reflects domain concepts
+- **Progressive Complexity**: Learning-friendly organization
+
+---
 
 ## Core Components
 
-### 1. Lexer (`lexer/`)
+### Lexer (`lexer/`)
 
-**Responsibility**: Convert source code into tokens
+**Purpose**: Transform source code into token stream
 
 ```rust
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
+    // Delimiters
     LeftParen,
     RightParen,
     Quote,
+    
+    // Literals
     Number(f64),
     String(String),
     Symbol(String),
     Boolean(bool),
+    
+    // Control
     EOF,
 }
 
@@ -157,21 +172,21 @@ pub struct Lexer {
 ```
 
 **Key Features**:
-- Line/column tracking for error reporting
-- Comment handling (semicolon to end-of-line)
-- Proper number parsing (integers and floats)
-- String literal parsing with escape sequences
+- **Error Location**: Line/column tracking for precise error reporting
+- **Comment Handling**: Semicolon to end-of-line comments
+- **Number Parsing**: Both integers and floating-point literals
+- **String Literals**: Escape sequence support ("hello\nworld")
 
-### 2. Parser (`parser/`)
+### Parser (`parser/`)
 
-**Responsibility**: Convert tokens into Abstract Syntax Tree
+**Purpose**: Build Abstract Syntax Tree from tokens
 
 ```rust
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Atom(Value),
-    List(Vec<Expr>),
-    Quote(Box<Expr>),
+    Atom(Value),              // Single values (numbers, symbols, etc.)
+    List(Vec<Expr>),          // S-expressions (function calls, special forms)
+    Quote(Box<Expr>),         // Quoted expressions ('expr)
 }
 
 pub struct Parser {
@@ -181,33 +196,41 @@ pub struct Parser {
 ```
 
 **Key Features**:
-- S-expression parsing with proper nesting
-- Quote syntax handling
-- Syntax error detection and reporting
-- AST construction for efficient evaluation
+- **S-expression Parsing**: Proper nested list handling
+- **Quote Syntax**: Support for 'expr shorthand
+- **Error Recovery**: Detailed syntax error messages
+- **AST Generation**: Efficient tree structure for evaluation
 
-### 3. Value System (`types/`)
+### Value System (`types/`)
 
-**Responsibility**: Immutable data type representation
+**Purpose**: Immutable data type representation
 
 ```rust
 #[derive(Debug, Clone)]
 pub enum Value {
+    // Primitive types
     Number(f64),
     Boolean(bool),
-    String(Arc<str>),
-    Symbol(Arc<str>),
-    List(Arc<[Value]>),
-    Procedure(Arc<Procedure>),
-    TaskHandle(TaskId),
-    Nil,
+    String(Arc<str>),         // Immutable shared strings
+    Symbol(Arc<str>),         // Interned symbols
+    
+    // Compound types
+    List(Arc<[Value]>),       // Immutable arrays
+    Procedure(Arc<Procedure>), // Functions (builtin/lambda)
+    
+    // Concurrency types
+    TaskHandle(TaskId),       // High-level task reference
+    FiberHandle(FiberId),     // Low-level fiber reference
+    
+    // Special
+    Nil,                      // Empty list/null value
 }
 
 #[derive(Debug)]
 pub enum Procedure {
     Builtin {
         name: String,
-        func: fn(&[Value], &mut TaskScheduler, TaskId) -> Result<Value, Error>,
+        func: BuiltinFn,
     },
     Lambda {
         params: Vec<String>,
@@ -218,14 +241,14 @@ pub enum Procedure {
 ```
 
 **Key Features**:
-- All values are immutable after creation
-- Reference counting (`Arc`) for memory efficiency
-- Built-in and user-defined procedure support
-- Proper list representation (proper/improper)
+- **Complete Immutability**: No mutation operations supported
+- **Reference Counting**: `Arc<T>` for efficient sharing
+- **Thread Safety**: Immutable data shared safely across threads
+- **Memory Efficiency**: Structural sharing for large values
 
-### 4. Environment Management (`interpreter/environment.rs`)
+### Environment Management (`interpreter/environment.rs`)
 
-**Responsibility**: Variable binding and lexical scoping
+**Purpose**: Variable binding and lexical scoping
 
 ```rust
 #[derive(Debug, Clone)]
@@ -235,49 +258,74 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn new() -> Self { /* ... */ }
-    pub fn with_parent(parent: Arc<Environment>) -> Self { /* ... */ }
-    pub fn define(&mut self, name: String, value: Value) { /* ... */ }
-    pub fn lookup(&self, name: &str) -> Option<Value> { /* ... */ }
-    pub fn extend(&self, params: &[String], args: &[Value]) -> Environment { /* ... */ }
+    pub fn new() -> Self
+    pub fn with_parent(parent: Arc<Environment>) -> Self
+    pub fn define(&self, name: String, value: Value) -> Self
+    pub fn lookup(&self, name: &str) -> Option<Value>
+    pub fn extend(&self, params: &[String], args: &[Value]) -> Self
 }
 ```
 
 **Key Features**:
-- Immutable environment chains
-- Lexical scoping implementation
-- Closure capture support
-- Thread-safe sharing via `Arc`
+- **Lexical Scoping**: Proper scope chain traversal
+- **Closure Support**: Environment capture for lambdas
+- **Immutable Chains**: New environments don't modify parents
+- **Thread-Safe Sharing**: `Arc` enables concurrent access
 
-### 5. Fiber Scheduler and Task System (`runtime/`)
+---
 
-**Responsibility**: Manage fiber execution and provide async task abstraction for Scheme code
+## Concurrency Model
 
-The runtime consists of two layers:
-1. **Fiber Scheduler**: Low-level fiber management with automatic I/O yielding
-2. **Async Task System**: High-level task abstraction built on fibers
+### Two-Layer Concurrency System
 
-#### Fiber Scheduler
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    High-Level: Task System                      │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │ async macro → spawn-fiber → creates hierarchical tasks     │ │
+│  │ task-wait → synchronization with parent-child cleanup      │ │
+│  │ Task Tree: Main → [TaskA, TaskB → [TaskB1, TaskB2]]        │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│                   Low-Level: Fiber Scheduler                    │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │ spawn-fiber → independent execution units                   │ │
+│  │ fiber-wait → manual synchronization                        │ │
+│  │ I/O Yielding → automatic suspension/resumption             │ │
+│  │ Ready Queue: [F1, F3] | Suspended: [F2→IO] | Running: F4   │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│                     Thread Pool Execution                       │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│  │  Thread 1   │ │  Thread 2   │ │  Thread 3   │ │  Thread 4   │ │
+│  │  Running    │ │  Running    │ │  Running    │ │   (idle)    │ │
+│  │  Fiber A    │ │  Fiber C    │ │  Fiber E    │ │             │ │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Fiber Scheduler Architecture
 
 ```rust
 pub struct Fiber {
     id: FiberId,
     state: FiberState,
     continuation: Pin<Box<dyn Future<Output = Result<Value, Error>> + Send>>,
-    parent: Option<FiberId>, // Only used when fiber is associated with a task; fibers are independent by default
+    associated_task: Option<TaskId>, // Only for task-spawned fibers
 }
 
 pub enum FiberState {
-    Ready,
-    Running,
-    Suspended(SuspendReason),
-    Completed(Result<Value, Error>),
+    Ready,                          // In ready queue
+    Running,                        // Executing on thread
+    Suspended(SuspendReason),       // Waiting for something
+    Completed(Result<Value, Error>), // Finished execution
 }
 
 pub enum SuspendReason {
-    IoOperation(Pin<Box<dyn Future<Output = ()> + Send>>),
-    WaitingForTask(TaskHandle),
-    Yielded,
+    IoOperation(IoFuture),          // Waiting for I/O
+    WaitingForTask(TaskId),         // Waiting for task completion
+    WaitingForFiber(FiberId),       // Waiting for fiber completion
+    Yielded,                        // Explicit yield
 }
 
 pub struct FiberScheduler {
@@ -285,110 +333,317 @@ pub struct FiberScheduler {
     fibers: HashMap<FiberId, Fiber>,
     runtime: smol::Executor<'static>,
     thread_pool: Vec<std::thread::JoinHandle<()>>,
-    main_fiber: FiberId,
-}
-
-impl FiberScheduler {
-    pub fn new(thread_count: usize) -> Self { /* ... */ }
-    pub fn spawn_fiber(&mut self, thunk: Value, parent: Option<FiberId>) -> FiberId { /* ... */ } // parent only set for task-associated fibers
-    pub fn yield_for_io(&mut self, fiber_id: FiberId, io_op: impl Future<Output = ()> + Send + 'static) { /* ... */ }
-    pub fn yield_current(&mut self) { /* ... */ }
-    pub fn resume_fiber(&mut self, fiber_id: FiberId) { /* ... */ }
-    pub fn run_scheduler(&mut self) { /* ... */ }
+    current_fiber: Option<FiberId>,
 }
 ```
 
-#### Async Task System
-
-Built on top of fibers, tasks provide hierarchical execution with parent-child relationships. Note that the hierarchy exists at the task level - fibers themselves are independent by default and only become connected when running tasks:
+### Task System Architecture
 
 ```rust
 pub struct Task {
-    handle: TaskHandle,
-    fiber_id: FiberId,
-    parent_task: Option<TaskHandle>,
-    child_tasks: HashSet<TaskHandle>,
+    id: TaskId,
+    fiber_id: FiberId,               // Associated fiber
+    parent: Option<TaskId>,          // Hierarchical parent
+    children: HashSet<TaskId>,       // Child tasks
+    state: TaskState,
     result: Option<Result<Value, Error>>,
 }
 
 pub struct TaskHandle {
     id: TaskId,
-    // Internal reference to task in scheduler
+    scheduler_ref: Weak<RefCell<TaskScheduler>>,
 }
 
 impl TaskHandle {
-    pub fn wait(&self, scheduler: &mut FiberScheduler) -> Result<Value, Error> { /* ... */ }
-    pub fn is_finished(&self) -> bool { /* ... */ }
-    pub fn cancel(&self, scheduler: &mut FiberScheduler) { /* ... */ }
+    pub fn wait(&self) -> Result<Value, Error>  // Suspend until completion
+    pub fn is_finished(&self) -> bool           // Check completion status
+    pub fn cancel(&self) -> Result<(), Error>   // Cancel with children
 }
 ```
 
-**Key Features**:
-- **Main Fiber**: All execution starts in a single main fiber
-- **Transparent I/O**: I/O operations automatically yield without explicit syntax
-- **Task Hierarchy**: Parent-child relationships for resource management
-- **Task Abstraction**: High-level async tasks for Scheme programmers
-- **Automatic Cleanup**: Child tasks terminated when parent completes
-- **Synchronous Semantics**: All operations appear synchronous to Scheme code
-- **True Parallelism**: Thread pool enables multi-core execution without GIL
+### Execution Flow Examples
 
-**Important Distinction**: Fibers are independent execution units by default. The hierarchy and parent-child relationships exist at the **task level**, not the fiber level. Fibers only become connected when they are associated with tasks that have hierarchical relationships.
+#### Basic Fiber Spawning
+```scheme
+> (define worker (spawn-fiber (lambda () (+ 100 200))))
+worker
+> (fiber-wait worker)
+300
+```
 
-### 6. Macro System (`interpreter/macros.rs`)
+#### Hierarchical Task Execution
+```scheme
+> (define task1 (async (+ 10 20)))
+task1
+> (define task2 (async (lambda () 
+    (let ((subtask (async (* 3 4))))
+      (+ (task-wait subtask) 100)))))
+task2
+> (task-wait task1)
+30
+> (task-wait task2)
+112
+```
 
-**Responsibility**: Compile-time code transformation using R7RS-small macros
+#### Automatic I/O Yielding
+```scheme
+> (define slow-task (async (lambda ()
+    (display "Starting...\n")    ; Automatically yields fiber
+    (display "Finished!\n")      ; Resumes after I/O
+    42)))
+Starting...
+slow-task
+> (define quick-task (async (+ 1 2 3)))
+quick-task
+> (task-wait quick-task)
+6
+> (task-wait slow-task)
+Finished!
+42
+```
+
+**Key Properties**:
+- **Transparent I/O**: All I/O operations automatically yield without syntax
+- **True Parallelism**: Multiple fibers execute simultaneously across CPU cores
+- **No GIL**: Immutable data enables lock-free parallel execution
+- **Hierarchical Tasks**: Parent-child relationships for resource management
+- **Independent Fibers**: Low-level control for advanced use cases
+
+---
+
+## Data Types and Memory Management
+
+### Immutable Value Design
+
+| Type | Implementation | Memory Strategy |
+|------|----------------|-----------------|
+| **Numbers** | `f64` (Copy) | Stack allocation |
+| **Booleans** | `bool` (Copy) | Stack allocation |
+| **Strings** | `Arc<str>` | Heap + reference counting |
+| **Symbols** | `Arc<str>` | Heap + interning |
+| **Lists** | `Arc<[Value]>` | Heap + structural sharing |
+| **Procedures** | `Arc<Procedure>` | Heap + sharing |
+
+### Memory Management Strategy
+
+```rust
+// Efficient immutable string sharing
+pub type SchemeString = Arc<str>;
+pub type SchemeSymbol = Arc<str>;  // Could use string interning
+
+// Immutable array for lists - enables structural sharing
+pub type SchemeList = Arc<[Value]>;
+
+// Reference-counted procedures
+pub type SchemeProcedure = Arc<Procedure>;
+```
+
+### Structural Sharing Example
+
+```
+Original List:    [1, 2, 3, 4]
+                  └─── Arc ────┘
+
+Cons Operation:   [0, 1, 2, 3, 4]
+                  │   └─ Arc (shared) ──┘
+                  └─ New Arc ─┘
+
+Result: Two lists sharing memory for [1, 2, 3, 4] portion
+```
+
+**Benefits**:
+- **Memory Efficiency**: Shared data reduces allocation
+- **Thread Safety**: Immutable data can be shared safely
+- **Performance**: No copying required for most operations
+- **Automatic Cleanup**: Rust's ownership handles deallocation
+
+---
+
+## Execution Engine
+
+### Evaluation Model
+
+```rust
+pub fn eval(
+    expr: Expr, 
+    env: Environment, 
+    scheduler: &mut FiberScheduler, 
+    fiber_id: FiberId
+) -> Result<Value, Error> {
+    match expr {
+        Expr::Atom(value) => eval_atom(value, env),
+        Expr::List(exprs) => eval_list(exprs, env, scheduler, fiber_id),
+        Expr::Quote(expr) => Ok(expr_to_value(*expr)),
+    }
+}
+
+fn eval_list(
+    exprs: Vec<Expr>, 
+    env: Environment, 
+    scheduler: &mut FiberScheduler, 
+    fiber_id: FiberId
+) -> Result<Value, Error> {
+    if exprs.is_empty() {
+        return Ok(Value::Nil);
+    }
+
+    // Check for special forms first
+    if let Expr::Atom(Value::Symbol(sym)) = &exprs[0] {
+        match sym.as_ref() {
+            "if" => eval_if(&exprs[1..], env, scheduler, fiber_id),
+            "define" => eval_define(&exprs[1..], env, scheduler, fiber_id),
+            "lambda" => eval_lambda(&exprs[1..], env),
+            "quote" => eval_quote(&exprs[1..]),
+            _ => eval_application(exprs, env, scheduler, fiber_id),
+        }
+    } else {
+        eval_application(exprs, env, scheduler, fiber_id)
+    }
+}
+```
+
+### Special Forms Implementation
+
+| Special Form | Purpose | Example |
+|--------------|---------|---------|
+| **if** | Conditional execution | `(if (> x 0) 'positive 'non-positive)` |
+| **define** | Variable binding | `(define pi 3.14159)` |
+| **lambda** | Function creation | `(lambda (x) (* x x))` |
+| **quote** | Literal data | `(quote (a b c))` or `'(a b c)` |
+
+### Tail Call Optimization
+
+```rust
+fn eval_application(
+    exprs: Vec<Expr>, 
+    env: Environment, 
+    scheduler: &mut FiberScheduler, 
+    fiber_id: FiberId
+) -> Result<Value, Error> {
+    let func = eval(exprs[0].clone(), env.clone(), scheduler, fiber_id)?;
+    let args = eval_args(&exprs[1..], env.clone(), scheduler, fiber_id)?;
+
+    match func {
+        Value::Procedure(proc) => match proc.as_ref() {
+            Procedure::Lambda { params, body, closure } => {
+                let new_env = closure.extend(params, &args);
+                // Tail call optimization - direct recursion
+                eval(body.clone(), new_env, scheduler, fiber_id)
+            }
+            Procedure::Builtin { func, .. } => {
+                func(&args, scheduler, fiber_id)
+            }
+        },
+        _ => Err(Error::TypeError("Not a procedure".to_string())),
+    }
+}
+```
+
+---
+
+## Asynchronous I/O Integration
+
+### I/O Architecture Principles
+
+- **Transparent Yielding**: I/O operations automatically yield current fiber
+- **Synchronous Appearance**: No async/await syntax in Scheme code
+- **Non-blocking Runtime**: Other fibers continue during I/O
+- **Automatic Resumption**: Fibers resume when I/O completes
+
+### I/O Implementation Pattern
+
+```rust
+// Internal async implementation
+async fn display_async(value: &Value) -> Result<(), Error> {
+    let output = format_scheme_value(value);
+    let mut stdout = smol::io::stdout();
+    stdout.write_all(output.as_bytes()).await?;
+    stdout.flush().await?;
+    Ok(())
+}
+
+// Fiber-yielding wrapper (appears synchronous to Scheme)
+pub fn display(
+    args: &[Value], 
+    scheduler: &mut FiberScheduler, 
+    fiber_id: FiberId
+) -> Result<Value, Error> {
+    if args.len() != 1 {
+        return Err(Error::ArityError("display expects 1 argument".into()));
+    }
+
+    let value = args[0].clone();
+    let io_future = async move {
+        display_async(&value).await.unwrap();
+    };
+
+    // Yield fiber for I/O operation
+    scheduler.yield_for_io(fiber_id, Box::pin(io_future));
+    
+    // Execution resumes here after I/O completes
+    Ok(Value::Nil)
+}
+```
+
+### Built-in I/O Procedures
+
+| Procedure | Purpose | Behavior |
+|-----------|---------|----------|
+| **display** | Output value | `(display "Hello")` - yields fiber during output |
+| **newline** | Output newline | `(newline)` - yields fiber during output |
+| **read-line** | Input line | `(read-line)` - yields fiber during input |
+
+---
+
+## Macro System
+
+### R7RS-small Macro Support
 
 ```rust
 #[derive(Debug, Clone)]
 pub enum Pattern {
-    Literal(Value),
-    Variable(String),
-    List(Vec<Pattern>),
-    Ellipsis(Box<Pattern>),
+    Literal(Value),              // Exact match: 42, #t, "hello"
+    Variable(String),            // Bind to variable: x, condition
+    List(Vec<Pattern>),          // Match list structure: (if ...)
+    Ellipsis(Box<Pattern>),      // Variable length: body ...
 }
 
 #[derive(Debug, Clone)]
 pub enum Template {
-    Literal(Value),
-    Variable(String),
-    List(Vec<Template>),
-    Substitution(String),
+    Literal(Value),              // Insert literal value
+    Variable(String),            // Substitute variable
+    List(Vec<Template>),         // Generate list structure
+    Substitution(String),        // Pattern substitution
 }
 
-#[derive(Debug, Clone)]
 pub struct MacroRule {
     pattern: Pattern,
     template: Template,
 }
 
-#[derive(Debug, Clone)]
 pub struct Macro {
     name: String,
     rules: Vec<MacroRule>,
 }
-
-impl Macro {
-    pub fn expand(&self, expr: &Expr, env: &Environment) -> Result<Expr, Error> {
-        for rule in &self.rules {
-            if let Some(bindings) = rule.pattern.match_expr(expr) {
-                return rule.template.substitute(&bindings);
-            }
-        }
-        Err(Error::MacroError("No matching macro rule".to_string()))
-    }
-}
 ```
 
-**Key Features**:
-- Pattern matching with ellipsis (`...`) support for variable-length patterns
-- Hygienic macro expansion to prevent variable capture
-- Compile-time transformation before evaluation
-- Support for `define-syntax` and `syntax-rules`
-- Standard library macros including `async` macro
+### Standard Macro Examples
 
-**Standard Macros**:
+#### when Macro
 ```scheme
-; async macro supports both simple expressions and explicit thunks
+(define-syntax when
+  (syntax-rules ()
+    ((when condition body ...)
+     (if condition (begin body ...)))))
+
+;; Usage
+(when (> x 0)
+  (display "Positive")
+  (newline))
+```
+
+#### async Macro
+```scheme
 (define-syntax async
   (syntax-rules (lambda)
     ((async (lambda () body ...))
@@ -396,363 +651,20 @@ impl Macro {
     ((async expr)
      (spawn-fiber (lambda () expr)))))
 
-; when macro for conditional execution
-(define-syntax when
-  (syntax-rules ()
-    ((when condition body ...)
-     (if condition (begin body ...)))))
+;; Usage
+(define task1 (async (+ 1 2 3)))           ; Simple expression
+(define task2 (async (lambda () 
+  (display "Working...")
+  (* 6 7))))                               ; Explicit thunk
 ```
 
-**Async Macro Flexibility**:
-The `async` macro provides syntactic flexibility similar to `define`:
-- `(async expr)` - Simple expression form, automatically wrapped in a lambda
-- `(async (lambda () body))` - Explicit thunk form for multi-statement tasks
+**Key Features**:
+- **Pattern Matching**: R7RS-small syntax-rules patterns
+- **Ellipsis Support**: Variable-length pattern matching (`...`)
+- **Hygienic Expansion**: Prevents variable capture
+- **Compile-time**: Macros expanded before evaluation
 
-Both forms expand to appropriate `spawn-fiber` calls, allowing users to choose the most convenient syntax for their use case.
-
-## Concurrency Model
-
-The Twine interpreter uses a fiber-based concurrency model built around a central fiber scheduler. All code execution occurs within fibers, with the interpreter starting execution in a single main fiber. The fiber scheduler manages the execution of multiple fibers, yielding control between them when fibers perform I/O operations or explicitly yield control.
-
-### Fiber Scheduler Architecture
-
-The concurrency model is built around a fiber scheduler with two layers:
-
-**1. Fiber Scheduler (Low-level)**
-- Manages fiber execution and yielding
-- Handles I/O suspension automatically
-- Coordinates with thread pool for parallelism
-
-**2. Async Task System (High-level)**
-- Provides task abstraction for Scheme code
-- Manages parent-child task relationships
-- Built on top of fiber scheduler
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Async Task Layer                         │
-│  ┌─────────────┐  ┌─────────────────────────────────────┐   │
-│  │ Task Tree   │  │ async macro/task-wait Builtin       │   │
-│  │ Main        │  │ - async expands to spawn-fiber      │   │
-│  │ ├─Task A    │  │ - wait for completion               │   │
-│  │ ├─Task B    │  │ - hierarchical cleanup              │   │
-│  │ └─Task C    │  │                                     │   │
-│  └─────────────┘  └─────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                   Fiber Scheduler                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ Ready Queue │  │ Suspended   │  │ Main Fiber  │         │
-│  │ [F1, F3]    │  │ [F2→IO]     │  │ [running]   │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-├─────────────────────────────────────────────────────────────┤
-│                    Smol Async Runtime                       │
-├─────────────────────────────────────────────────────────────┤
-│  Thread 1    │  Thread 2    │  Thread 3    │  Thread 4    │
-│  Running     │  Running     │  Running     │  Running     │
-│  Task A      │  Task C      │  Task E      │  (idle)      │
-│  (Fiber)     │  (Fiber)     │  (Fiber)     │              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Fiber Scheduling Process**:
-1. All code starts in the main fiber
-2. `spawn-fiber` creates independent fibers
-3. `async` macro expands to `spawn-fiber` calls for hierarchical tasks
-4. I/O operations automatically yield current fiber to scheduler
-5. Scheduler selects next ready fiber for execution
-6. I/O completion moves fiber back to ready queue
-7. Parent task completion triggers child task termination
-
-### Fiber and Task Lifecycle
-
-#### Fiber Lifecycle (Low-level)
-1. **Creation**: Fibers spawned via `spawn-fiber` or internally by async tasks
-2. **Ready**: Fiber added to scheduler's ready queue
-3. **Running**: Fiber executes on thread from thread pool
-4. **Suspended**: Fiber yields due to I/O or explicit yield
-5. **Resumption**: Fiber moved back to ready queue when I/O completes
-6. **Completion**: Fiber finishes execution and is cleaned up
-
-#### Task Lifecycle (High-level)
-1. **Creation**: Tasks spawned via `async` macro (expanding to `spawn-fiber`), immediately start executing
-2. **Parent Linking**: Task linked to current task as parent-child relationship
-3. **Execution**: Task runs synchronously from Scheme perspective
-4. **Waiting**: Other tasks can `task-wait` for completion
-5. **Completion**: Task finishes and notifies any waiting tasks
-6. **Cleanup**: Child tasks terminated when parent completes
-
-**Key Differences**:
-- **Fibers**: Independent execution units with manual lifecycle management
-- **Tasks**: Hierarchical execution with automatic parent-child cleanup
-- **I/O Handling**: Both automatically yield on I/O, appear synchronous to code
-6. **Synchronization**: `task-wait` suspends current task until target completes
-7. **Completion**: Task completes with result value
-
-**Task States**:
-- **Ready**: Waiting in scheduler queue for execution
-- **Running**: Currently executing on a thread (backed by fiber)
-- **Suspended**: Waiting for IO or other task completion
-- **Completed**: Finished with result value
-
-### Thread Safety
-
-- **Immutable Data**: All Scheme values are immutable, enabling safe sharing
-- **Arc-based Sharing**: Reference counting for memory management
-- **No Locks**: Immutability eliminates need for mutexes or locks
-- **Message Passing**: Tasks communicate through immutable value passing
-
-## Data Types and Memory Management
-
-### Immutable Value Design
-
-All Scheme values are designed for complete immutability:
-
-```rust
-// Numbers and booleans are Copy types (immutable by nature)
-pub type SchemeNumber = f64;
-pub type SchemeBoolean = bool;
-
-// Strings and symbols use Arc<str> for efficient sharing
-pub type SchemeString = Arc<str>;
-pub type SchemeSymbol = Arc<str>;
-
-// Lists use Arc<[Value]> for immutable arrays
-pub type SchemeList = Arc<[Value]>;
-
-// Procedures are wrapped in Arc for sharing
-pub type SchemeProcedure = Arc<Procedure>;
-```
-
-### Memory Management Strategy
-
-1. **Stack Allocation**: Small values (numbers, booleans) on stack
-2. **Heap Allocation**: Strings, lists, procedures on heap with reference counting
-3. **Automatic Cleanup**: Rust's ownership system handles deallocation
-4. **Sharing Optimization**: `Arc` enables efficient sharing across fibers
-5. **No GC Overhead**: No traditional garbage collector needed
-
-### List Operations and Structural Sharing
-
-Lists maintain immutability through structural sharing:
-
-```
-Original:     [1, 2, 3, 4]
-              └─Arc─┘
-
-Cons 0:       [0, 1, 2, 3, 4]
-              │   └─Arc (shared)─┘
-              └─New Arc─┘
-
-Car/Cdr operations create new views without copying data.
-```
-
-## Execution Engine
-
-### Evaluation Model
-
-The evaluator follows a standard Scheme evaluation model adapted for async execution:
-
-```rust
-pub fn eval(expr: Expr, env: Environment, scheduler: &mut TaskScheduler, task_id: TaskId) -> Result<Value, Error> {
-    match expr {
-        Expr::Atom(value) => eval_atom(value, env, scheduler, task_id),
-        Expr::List(exprs) => eval_list(exprs, env, scheduler, task_id),
-        Expr::Quote(expr) => eval_quote(*expr, env, scheduler, task_id),
-    }
-}
-
-fn eval_list(exprs: Vec<Expr>, env: Environment, scheduler: &mut TaskScheduler, task_id: TaskId) -> Result<Value, Error> {
-    if exprs.is_empty() {
-        return Ok(Value::Nil);
-    }
-
-    let first = &exprs[0];
-    match first {
-        // Special forms
-        Expr::Atom(Value::Symbol(sym)) if sym.as_ref() == "if" => {
-            eval_if(&exprs[1..], env, scheduler, task_id)
-        }
-        Expr::Atom(Value::Symbol(sym)) if sym.as_ref() == "define" => {
-            eval_define(&exprs[1..], env, scheduler, task_id)
-        }
-        Expr::Atom(Value::Symbol(sym)) if sym.as_ref() == "lambda" => {
-            eval_lambda(&exprs[1..], env, scheduler, task_id)
-        }
-        // Function application
-        _ => eval_application(exprs, env, scheduler, task_id),
-    }
-}
-```
-
-### Tail Call Optimization
-
-Implemented through async recursion and proper future handling:
-
-```rust
-fn eval_application(exprs: Vec<Expr>, env: Environment, scheduler: &mut TaskScheduler, task_id: TaskId) -> Result<Value, Error> {
-    let func = eval(exprs[0].clone(), env.clone(), scheduler, task_id)?;
-    let args = eval_args(&exprs[1..], env.clone(), scheduler, task_id)?;
-
-    match func {
-        Value::Procedure(proc) => {
-            match proc.as_ref() {
-                Procedure::Lambda { params, body, closure } => {
-                    let new_env = closure.extend(params, &args);
-                    // Tail call optimization through direct recursion
-                    eval(body.clone(), new_env, scheduler, fiber_id)
-                }
-                Procedure::Builtin { func, .. } => {
-                    func(&args, scheduler, fiber_id)
-                }
-            }
-        }
-        _ => Err(Error::TypeError("Not a procedure".to_string())),
-    }
-}
-
-fn eval_args(exprs: &[Expr], env: Environment, scheduler: &mut FiberScheduler, fiber_id: FiberId) -> Result<Vec<Value>, Error> {
-    let mut args = Vec::new();
-    for expr in exprs {
-        args.push(eval(expr.clone(), env.clone(), scheduler, fiber_id)?);
-    }
-    Ok(args)
-}
-```
-
-## Asynchronous I/O and Fiber Integration
-
-### I/O Architecture
-
-All I/O operations in Twine are asynchronous at the runtime level but appear completely synchronous to Scheme code. When a fiber performs an I/O operation, it automatically yields execution to the fiber scheduler, which then runs other fibers while the I/O operation completes in the background.
-
-**Fiber-Integrated I/O Principles:**
-- **Transparent Yielding**: I/O operations automatically yield the current fiber without explicit syntax
-- **Synchronous Appearance**: No async/await syntax - I/O looks like regular function calls
-- **Non-blocking Runtime**: Other fibers continue execution while I/O happens
-- **Automatic Resumption**: Fibers resume automatically when I/O completes
-- **Scheduler Coordination**: All I/O operations coordinate with the central fiber scheduler
-
-```rust
-pub mod io {
-    use smol::io::{AsyncWriteExt, AsyncBufReadExt};
-
-    // Internal async implementation
-    async fn display_async(value: &Value) -> Result<(), Error> {
-        let output = format_value(value);
-        let mut stdout = smol::io::stdout();
-        stdout.write_all(output.as_bytes()).await
-            .map_err(|e| Error::IoError(e.to_string()))?;
-        stdout.flush().await
-            .map_err(|e| Error::IoError(e.to_string()))?;
-        Ok(())
-    }
-
-    // Fiber-yielding wrapper - appears synchronous to Scheme
-    pub fn display(value: &Value, scheduler: &mut FiberScheduler, fiber_id: FiberId) -> Result<(), Error> {
-        let io_future = display_async(value);
-        scheduler.yield_for_io(fiber_id, Box::pin(async {
-            io_future.await.unwrap();
-        }));
-        // Execution resumes here after IO completes
-        Ok(())
-    }
-
-    pub fn read_line(scheduler: &mut FiberScheduler, fiber_id: FiberId) -> Result<String, Error> {
-        let (sender, receiver) = async_channel::bounded(1);
-        let io_future = async move {
-            let stdin = smol::io::stdin();
-            let mut reader = smol::io::BufReader::new(stdin);
-            let mut line = String::new();
-            let result = reader.read_line(&mut line).await
-                .map(|_| line.trim().to_string())
-                .map_err(|e| Error::IoError(e.to_string()));
-            sender.send(result).await.unwrap();
-        };
-        scheduler.yield_for_io(fiber_id, Box::pin(io_future));
-        // Execution resumes here with result
-        receiver.recv_blocking().unwrap()
-    }
-}
-```
-
-**Key Principles**:
-- IO operations yield fiber execution to scheduler
-- Fibers resume automatically when IO completes
-- From Scheme perspective, IO appears synchronous
-- No async/await syntax needed in Scheme code
-
-### Built-in Fiber and Task Procedures
-
-Built-in procedures integrate with the fiber scheduler for transparent I/O and task management:
-
-```rust
-pub fn create_builtin_procedures() -> HashMap<String, Procedure> {
-    let mut builtins = HashMap::new();
-
-    // I/O operations that automatically yield
-    builtins.insert("display".to_string(), Procedure::Builtin {
-        name: "display".to_string(),
-        func: |args, scheduler, fiber_id| {
-            if args.len() != 1 {
-                return Err(Error::ArityError("display expects 1 argument".to_string()));
-            }
-            io::display(&args[0], scheduler, fiber_id)?;
-            Ok(Value::Nil)
-        },
-    });
-
-    // Low-level fiber spawning (independent execution)
-    builtins.insert("spawn-fiber".to_string(), Procedure::Builtin {
-        name: "spawn-fiber".to_string(),
-        func: |args, scheduler, _fiber_id| {
-            if args.len() != 1 {
-                return Err(Error::ArityError("spawn-fiber expects 1 argument".to_string()));
-            }
-            let fiber_id = scheduler.spawn_fiber(args[0].clone(), None);
-            Ok(Value::FiberHandle(fiber_id))
-        },
-    });
-
-
-
-    // Wait for task completion (hierarchical tasks)
-    builtins.insert("task-wait".to_string(), Procedure::Builtin {
-        name: "task-wait".to_string(),
-        func: |args, scheduler, fiber_id| {
-            if args.len() != 1 {
-                return Err(Error::ArityError("task-wait expects 1 argument".to_string()));
-            }
-            if let Value::TaskHandle(task_handle) = &args[0] {
-                // Suspend current fiber until task completes
-                task_handle.wait(scheduler, fiber_id)
-            } else {
-                Err(Error::TypeError("task-wait requires a task handle".to_string()))
-            }
-        },
-    });
-
-    // Wait for fiber completion (low-level)
-    builtins.insert("fiber-wait".to_string(), Procedure::Builtin {
-        name: "fiber-wait".to_string(),
-        func: |args, scheduler, fiber_id| {
-            if args.len() != 1 {
-                return Err(Error::ArityError("fiber-wait expects 1 argument".to_string()));
-            }
-            if let Value::FiberHandle(target_fiber) = &args[0] {
-                scheduler.wait_for_fiber(fiber_id, *target_fiber);
-                // Current fiber suspended until target completes
-                Ok(scheduler.get_fiber_result(*target_fiber))
-            } else {
-                Err(Error::TypeError("Expected fiber handle".to_string()))
-            }
-        },
-    });
-
-    builtins
-}
-```
-
-
+---
 
 ## Error Handling
 
@@ -761,7 +673,7 @@ pub fn create_builtin_procedures() -> HashMap<String, Procedure> {
 ```rust
 #[derive(Debug, Clone)]
 pub enum Error {
-    // Parsing errors
+    // Parse-time errors
     SyntaxError { message: String, line: usize, column: usize },
     ParseError(String),
 
@@ -769,36 +681,14 @@ pub enum Error {
     TypeError(String),
     ArityError(String),
     UnboundVariable(String),
-
-    // Macro errors
-    MacroError(String),
-
-    // I/O errors
-    IoError(String),
-
-    // Fiber errors
-    FiberError(String),
+    DivisionByZero,
 
     // System errors
+    IoError(String),
+    FiberError(String),
+    TaskError(String),
+    MacroError(String),
     SystemError(String),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::SyntaxError { message, line, column } => {
-                write!(f, "Syntax error at line {}, column {}: {}", line, column, message)
-            }
-            Error::TypeError(msg) => write!(f, "Type error: {}", msg),
-            Error::ArityError(msg) => write!(f, "Arity error: {}", msg),
-            Error::UnboundVariable(var) => write!(f, "Unbound variable: {}", var),
-            Error::MacroError(msg) => write!(f, "Macro error: {}", msg),
-            Error::IoError(msg) => write!(f, "I/O error: {}", msg),
-            Error::FiberError(msg) => write!(f, "Fiber error: {}", msg),
-            Error::SystemError(msg) => write!(f, "System error: {}", msg),
-            _ => write!(f, "{:?}", self),
-        }
-    }
 }
 ```
 
@@ -807,209 +697,84 @@ impl std::fmt::Display for Error {
 ```rust
 pub type Result<T> = std::result::Result<T, Error>;
 
-// Error handling in fiber execution
-pub async fn execute_safely<F, T>(future: F) -> Result<T>
-where
-    F: Future<Output = Result<T>>,
-{
-    match future.await {
+// Async-safe error handling
+pub async fn execute_with_error_handling(
+    expr: Expr,
+    env: Environment,
+    scheduler: &mut FiberScheduler,
+    fiber_id: FiberId,
+) -> Result<Value> {
+    match eval(expr, env, scheduler, fiber_id) {
         Ok(value) => Ok(value),
         Err(error) => {
-            eprintln!("Error: {}", error);
+            // Log error and propagate
+            eprintln!("Error in fiber {}: {:?}", fiber_id, error);
             Err(error)
         }
     }
 }
 ```
 
-## Sequence Diagrams
+### Error Display Examples
 
-### REPL Execution Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant REPL
-    participant Parser
-    participant Evaluator
-    participant FiberScheduler
-    participant IOSystem
-
-    User->>REPL: Input expression
-    REPL->>Parser: tokenize & parse
-    Parser->>REPL: AST
-    REPL->>FiberScheduler: eval in main fiber
-    FiberScheduler->>Evaluator: execute fiber
-    Evaluator->>Evaluator: evaluate expression
-
-    alt IO Operation
-        Evaluator->>FiberScheduler: yield for IO
-        FiberScheduler->>IOSystem: start async IO
-        FiberScheduler->>FiberScheduler: schedule other fibers
-        IOSystem->>FiberScheduler: IO complete
-        FiberScheduler->>Evaluator: resume fiber
-    end
-
-    Evaluator->>FiberScheduler: return result
-    FiberScheduler->>REPL: value
-    REPL->>User: display result
+```
+Syntax error at line 5, column 12: Unexpected token ')'
+Type error: Expected number, got string in arithmetic operation
+Arity error: + expects at least 1 argument, got 0
+Unbound variable: undefined-function
+I/O error: Failed to write to stdout
+Fiber error: Fiber deadlock detected
+Task error: Parent task cancelled, terminating children
 ```
 
-### Parallel Fiber Execution
-
-```mermaid
-sequenceDiagram
-    participant MainFiber
-    participant FiberScheduler
-    participant Thread1
-    participant Thread2
-    participant IOSystem
-
-    MainFiber->>FiberScheduler: (async expr1)
-    FiberScheduler->>FiberScheduler: spawn fiber1
-    MainFiber->>FiberScheduler: (async expr2)
-    FiberScheduler->>FiberScheduler: spawn fiber2
-    MainFiber->>FiberScheduler: (fiber-wait fiber1)
-    FiberScheduler->>FiberScheduler: suspend main fiber
-
-    par Parallel Execution
-        FiberScheduler->>Thread1: run fiber1
-        and
-        FiberScheduler->>Thread2: run fiber2
-    end
-
-    alt Fiber1 does IO
-        Thread1->>FiberScheduler: yield for IO
-        FiberScheduler->>IOSystem: start async IO
-        FiberScheduler->>Thread1: run fiber2 (switch)
-        IOSystem->>FiberScheduler: IO complete
-        FiberScheduler->>Thread2: resume fiber1
-    end
-
-    Thread1->>FiberScheduler: fiber1 complete
-    Thread2->>FiberScheduler: fiber2 complete
-    FiberScheduler->>MainFiber: resume with fiber1 result
-```
-
-### Function Application with Closure
-
-```mermaid
-sequenceDiagram
-    participant Evaluator
-    participant Environment
-    participant Procedure
-    participant NewFiber
-
-    Evaluator->>Environment: lookup function
-    Environment->>Evaluator: lambda procedure
-    Evaluator->>Procedure: get closure environment
-    Procedure->>Evaluator: captured environment
-    Evaluator->>Environment: extend with parameters
-    Environment->>Evaluator: new environment
-    Evaluator->>NewFiber: eval body with new env
-    NewFiber->>Evaluator: result value
-```
+---
 
 ## Implementation Considerations
 
 ### Core Dependencies
 
-We keep project dependencies to an absolute minimum. When required, we choose alternatives that are minimal and have as few dependencies as possible. All async-related crates come from the smol ecosystem.
-
-**Rust Edition Requirement:**
-- The project **MUST** use Rust edition 2024
-- This is a critical design constraint that enables the latest language features
-- Never change the edition back to 2021 or earlier versions
-
-The following are the **CORE** dependencies that are essential to the interpreter's functionality:
-
 ```toml
-[package]
-name = "twine-scheme"
-version = "0.1.0"
-edition = "2024"  # REQUIRED - Do not change to 2021
-
 [dependencies]
-# Error handling - minimal, zero-dependency error derive macros
-thiserror = "2.0"
+# Async runtime ecosystem (all from smol)
+smol = "2.0"              # Main async runtime
+futures-lite = "2.0"      # Future utilities
+async-task = "4.7"        # Task spawning
+async-channel = "2.1"     # Message passing
+polling = "3.3"           # I/O polling
 
-# Async runtime and utilities - smol ecosystem only
-smol = "2.0"           # Main async runtime
-futures-lite = "2.6"   # Async utilities (smol ecosystem)
-async-task = "4.7"     # Task management (smol ecosystem)
-async-channel = "2.5"  # Async communication (smol ecosystem)
-polling = "3.9"        # Event polling for I/O (smol ecosystem)
+# Error handling
+thiserror = "1.0"         # Error derive macros
+
+# Optional development dependencies
+[dev-dependencies]
+criterion = "0.5"         # Benchmarking
+tokio-test = "0.4"        # Async testing
 ```
 
-**Dependency Philosophy:**
-- Only add dependencies when absolutely necessary for core functionality
-- Prefer single-purpose, minimal crates over feature-rich alternatives
-- All async functionality must use the smol ecosystem for consistency
-- Avoid dependencies that pull in large dependency trees
-- CLI parsing (`clap`) and other non-core features are added only when implementing specific phases
-- **Always maintain Rust edition 2024** - this is a non-negotiable design constraint
+### Local Dependency Management
 
-### Local Dependency Source Management
-
-To enable AI agents to reference accurate source code and documentation for all dependencies, the project maintains local copies of dependency sources and generated documentation in a gitignored directory structure.
-
-**Directory Structure:**
-```
-deps/
-├── vendor/          # Vendored dependency source code
-├── docs/            # Generated documentation for all dependencies
-└── registry/        # Local registry cache
-```
-
-**Management Commands:**
-
-**Initial Setup:**
 ```bash
-# Download all dependency sources
-cargo vendor deps/vendor
+# After any Cargo.toml changes, update local sources
+./scripts/update-deps.sh
 
-# Generate comprehensive documentation
-cargo doc --all-features --document-private-items --no-deps
-cargo doc --all-features --document-private-items --workspace
+# Verify vendored sources
+ls deps/vendor/smol/
+ls deps/docs/smol/
 
-# Copy generated docs to deps directory
-cp -r target/doc/* deps/docs/
+# Check dependency compatibility
+cargo tree | grep smol
 ```
 
-**Maintenance:**
-```bash
-# Update vendored sources when dependencies change
-cargo vendor deps/vendor --sync Cargo.toml
+### Performance Characteristics
 
-# Regenerate documentation after dependency updates
-cargo doc --all-features --document-private-items --no-deps --force-rebuild
-cp -r target/doc/* deps/docs/
-```
-
-**Benefits:**
-- AI agents have access to complete, accurate source code for all dependencies
-- Documentation includes private items and implementation details
-- Offline access to all dependency information
-- Version-locked sources ensure consistency with Cargo.lock
-- No network dependency for code analysis
-
-**Git Integration:**
-The `deps/` directory is added to `.gitignore` to avoid committing large dependency sources while maintaining local availability for development and AI assistance.
-
-### Performance Optimizations
-
-1. **Intern String/Symbols**: Use string interning for symbols to reduce memory usage
-2. **Tail Call Optimization**: Implement proper tail calls through async recursion
-3. **Structural Sharing**: Maximize sharing of immutable data structures
-4. **Lazy Evaluation**: Implement lazy sequences where beneficial
-5. **Batch I/O**: Group I/O operations for efficiency
-
-### Memory Considerations
-
-- **Arc Overhead**: Monitor reference counting overhead for small values
-- **Stack Depth**: Manage async recursion stack depth
-- **Fiber Memory**: Track memory usage per fiber
-- **Environment Chains**: Optimize environment lookups
+| Operation | Expected Performance |
+|-----------|---------------------|
+| **Simple Arithmetic** | <1ms completion |
+| **Function Calls** | <100μs overhead |
+| **Fiber Spawning** | <10μs creation |
+| **I/O Operations** | Non-blocking, <1ms yield |
+| **Memory Usage** | O(n) for data, minimal runtime overhead |
+| **Concurrency** | Scales with CPU cores |
 
 ### Testing Strategy
 
@@ -1020,68 +785,52 @@ mod tests {
 
     #[test]
     fn test_basic_arithmetic() {
-        let mut scheduler = FiberScheduler::new(1);
-        let result = eval_string("(+ 1 2 3)", &mut scheduler).unwrap();
-        assert_eq!(result, Value::Number(6.0));
+        let result = eval_string("(+ 1 2 3)");
+        assert_eq!(result, Ok(Value::Number(6.0)));
     }
 
-    #[test]
-    fn test_fiber_execution() {
+    #[smol_potat::test]
+    async fn test_fiber_execution() {
         let mut scheduler = FiberScheduler::new(4);
-        let fiber1 = scheduler.spawn_fiber_from_string("(+ 1 1)");
-        let fiber2 = scheduler.spawn_fiber_from_string("(* 2 2)");
-        let fiber3 = scheduler.spawn_fiber_from_string("(- 5 2)");
-
-        scheduler.run_scheduler();
-
-        assert_eq!(scheduler.get_fiber_result(fiber1), Ok(Value::Number(2.0)));
-        assert_eq!(scheduler.get_fiber_result(fiber2), Ok(Value::Number(4.0)));
-        assert_eq!(scheduler.get_fiber_result(fiber3), Ok(Value::Number(3.0)));
+        let fiber_id = scheduler.spawn_fiber(
+            Value::Procedure(Arc::new(Procedure::Lambda {
+                params: vec![],
+                body: Expr::Atom(Value::Number(42.0)),
+                closure: Environment::new(),
+            })),
+            None
+        );
+        
+        let result = scheduler.run_until_complete(fiber_id).await;
+        assert_eq!(result, Ok(Value::Number(42.0)));
     }
 }
 ```
 
-## Performance Characteristics
+---
 
-### Expected Performance
-
-- **Simple Arithmetic**: < 1ms per operation
-- **Function Calls**: < 10μs overhead per call
-- **Fiber Creation**: < 100μs per fiber
-- **Memory Usage**: ~1KB per active fiber
-- **Thread Scaling**: Linear scaling up to CPU core count
-
-### Benchmarking Areas
-
-1. **Recursive Functions**: Fibonacci, factorial with tail call optimization
-2. **List Operations**: Large list creation and manipulation
-3. **Parallel Execution**: CPU-bound tasks across multiple cores
-4. **I/O Performance**: Async I/O throughput and latency
-5. **Memory Usage**: Memory consumption under various workloads
-
-## Security Considerations
+## Security and Resource Management
 
 ### Memory Safety
-
-- **No Buffer Overflows**: Rust's memory safety prevents buffer overflows
-- **No Use-After-Free**: Ownership system prevents use-after-free bugs
-- **No Data Races**: Immutability eliminates data race conditions
-- **Controlled Resource Access**: No direct system call access
+- **Rust Ownership**: Automatic memory safety guarantees
+- **No Manual Memory Management**: Reference counting handles cleanup
+- **Thread Safety**: Immutable data prevents data races
+- **Bounds Checking**: Array access bounds checked automatically
 
 ### Resource Limits
 
 ```rust
 pub struct ResourceLimits {
-    max_stack_depth: usize,
-    max_fiber_count: usize,
-    max_memory_usage: usize,
-    execution_timeout: Duration,
+    max_stack_depth: usize,      // Prevent stack overflow
+    max_fiber_count: usize,      // Limit concurrent fibers
+    max_memory_usage: usize,     // Memory usage cap
+    execution_timeout: Duration, // Prevent infinite loops
 }
 
 impl ResourceLimits {
-    pub fn check_stack_depth(&self, depth: usize) -> Result<(), Error> {
-        if depth > self.max_stack_depth {
-            Err(Error::SystemError("Stack overflow".to_string()))
+    pub fn check_stack_depth(&self, current: usize) -> Result<(), Error> {
+        if current > self.max_stack_depth {
+            Err(Error::SystemError("Stack overflow".into()))
         } else {
             Ok(())
         }
@@ -1089,83 +838,43 @@ impl ResourceLimits {
 }
 ```
 
-### Sandboxing
+---
 
-- **No File System Access**: Only controlled I/O through built-in procedures
-- **No Network Access**: No built-in network operations
-- **No System Calls**: No direct operating system interaction
-- **Controlled Execution**: Resource limits prevent denial of service
+## Educational Architecture
 
-## Future Considerations
+### Learning Progression Design
 
-### Potential Extensions
+#### Phase 1: Foundation (Weeks 1-2)
+- **Core Data Types**: Numbers, booleans, strings, symbols
+- **Basic Parsing**: Tokenization and S-expression parsing
+- **Simple Evaluation**: Arithmetic and variable lookup
+- **Learning Focus**: Understanding interpreter basics
 
-1. **Module System**: Simplified module loading and namespacing
-2. **Debugging Support**: Basic debugging facilities
-3. **Profiling**: Performance profiling tools
-4. **FFI**: Foreign function interface for C library integration
-5. **Serialization**: Scheme value serialization/deserialization
+#### Phase 2: Language Features (Weeks 3-4)
+- **Functions**: Lambda creation and application
+- **Control Flow**: Conditional expressions (if)
+- **Built-ins**: Core procedure library
+- **Learning Focus**: Scheme language semantics
 
-### Scalability Improvements
+#### Phase 3: Concurrency (Weeks 5-6)
+- **Fiber Scheduler**: Low-level fiber management
+- **Task System**: High-level async abstraction
+- **I/O Integration**: Asynchronous I/O with yielding
+- **Learning Focus**: Concurrent programming patterns
 
-- **Work Stealing**: Implement work-stealing scheduler for better load balancing
-- **NUMA Awareness**: Optimize for NUMA architectures
-- **Memory Pooling**: Custom memory allocators for performance
-- **JIT Compilation**: Just-in-time compilation for hot code paths
-
-## Educational Architecture and Learning Progression
-
-### Learning-Oriented Design Philosophy
-
-The Twine architecture is specifically designed to maximize educational value while maintaining technical rigor. Each component serves dual purposes: implementing functional interpreter features and providing clear learning opportunities about specific computer science concepts.
-
-### Progressive Learning Structure
-
-#### Phase 1: Foundation Concepts
-- **Lexical Analysis**: Understanding tokenization and input processing
-- **Parsing**: Building abstract syntax trees and language grammar
-- **Basic Data Types**: Immutable value systems and memory management
-- **Core Evaluation**: Simple expression evaluation and environment handling
-
-#### Phase 2: Intermediate Concepts  
-- **Function Systems**: Closures, lexical scoping, and procedure application
-- **Built-in Operations**: Standard library implementation patterns
-- **Error Handling**: Robust error propagation in language runtimes
-- **REPL Implementation**: Interactive programming environment design
-
-#### Phase 3: Advanced Concepts
-- **Async Programming**: Fiber-based concurrency with `smol` runtime
-- **Parallel Execution**: Multi-threaded scheduling without global locks
-- **I/O Integration**: Asynchronous operations with synchronous language semantics
-- **Macro Systems**: Compile-time code transformation and metaprogramming
-
-### AI-Assisted Development Learning
-
-The project structure facilitates learning effective AI collaboration patterns:
-
-- **Incremental Development**: Each task builds understanding progressively
-- **Clear Documentation**: Extensive inline documentation supports AI context understanding
-- **Modular Architecture**: Clean separation of concerns enables focused AI assistance
-- **Test-Driven Development**: Comprehensive testing validates AI-generated implementations
-- **Iterative Refinement**: Code structure supports easy modification and improvement
-
-### Educational Code Quality Standards
-
-- **Readability First**: All code prioritizes clarity over performance optimization
-- **Extensive Documentation**: Every module includes educational comments explaining design decisions
-- **Simple Patterns**: Basic Rust features used effectively without unnecessary complexity
-- **Learning Scaffolding**: Code structure guides understanding of interpreter concepts
-- **Concept Reinforcement**: Each implementation reinforces previously learned material
+#### Phase 4: Advanced Features (Weeks 7-8)
+- **Macro System**: R7RS-small macro support
+- **Optimization**: Tail-call optimization
+- **Polish**: Error handling and performance
+- **Learning Focus**: Advanced language features
 
 ### Knowledge Transfer Goals
 
-By completing this project, developers will gain practical experience with:
+- **Practical Skills**: Building interpreters from scratch
+- **Theoretical Understanding**: Language design principles
+- **Tool Mastery**: Effective AI collaboration patterns
+- **System Design**: Balancing simplicity with functionality
 
-1. **Language Implementation**: Complete understanding of interpreter architecture
-2. **Async Rust**: Hands-on experience with async programming patterns and `smol` ecosystem
-3. **Concurrency Models**: Alternative approaches to parallel execution beyond traditional threading
-4. **Functional Programming**: Immutable data structures and functional evaluation models
-5. **AI Collaboration**: Effective patterns for working with AI coding agents
-6. **Software Architecture**: Balancing technical requirements with maintainability and learning value
+---
 
-This design document provides the foundation for implementing the Twine Scheme interpreter with the specified requirements for immutability, async I/O, and parallel fiber execution using the `smol` runtime, while maximizing educational value and learning opportunities throughout the development process.
+This design document serves as the technical blueprint for Twine's implementation. All development decisions should align with these specifications while maintaining the educational focus and technical rigor outlined here.
