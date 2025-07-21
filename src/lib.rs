@@ -11,6 +11,9 @@ pub mod types;
 // Re-export error types for convenience
 pub use error::{Error, Result};
 
+// Re-export parser types for convenience
+pub use parser::{Expression, PositionedExpression};
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -90,5 +93,35 @@ mod tests {
                 "deps/docs/ should contain generated documentation"
             );
         }
+    }
+
+    #[test]
+    fn test_parser_type_reexports() {
+        use crate::lexer::Position;
+        use crate::types::Value;
+        use crate::{Expression, PositionedExpression};
+
+        // Test that re-exported parser types work correctly
+        let expr = Expression::atom(Value::number(42.0));
+        assert!(expr.is_atom());
+        assert_eq!(expr.type_name(), "atom");
+
+        let list = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
+            Expression::atom(Value::number(2.0)),
+        ]);
+        assert!(list.is_list());
+        assert_eq!(list.type_name(), "list");
+
+        let quoted = Expression::quote(Expression::atom(Value::symbol("x")));
+        assert!(quoted.is_quoted());
+        assert_eq!(quoted.type_name(), "quote");
+
+        // Test positioned expression
+        let position = Position::new(1, 5);
+        let positioned = PositionedExpression::new(expr, position);
+        assert_eq!(positioned.position.line, 1);
+        assert_eq!(positioned.position.column, 5);
     }
 }

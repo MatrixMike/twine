@@ -275,8 +275,8 @@ cargo bench              # Benchmarks must run (when applicable)
 - `Debug` and `Clone` traits
 
 **Compliance**: FR-2 (Syntactic Analysis)
-**Tests**: 9 passing parser tests
-**Completed**: AST foundation with three core expression types
+**Tests**: 13 passing parser tests + 5 doctests
+**Completed**: AST foundation with `Expression` and `PositionedExpression` types
 
 #### T2.1.2: Implement `Parser` struct
 **Deliverables**:
@@ -839,7 +839,7 @@ cargo fmt --check            # Formatting verification
 - ✅ T1.3.3: Implement token recognition
 - ✅ T1.3.4: Add lexer error handling
 - ✅ T1.3.5: Create comprehensive lexer tests
-- ✅ T2.1.1: Implement `Expr` enum (FR-2 compliance)
+- ✅ T2.1.1: Implement `Expression` enum (FR-2 compliance)
 
 ### Immediate Next Steps
 1. **T2.1.2**: Implement `Parser` struct (🔥 Priority - Continue Phase 2)

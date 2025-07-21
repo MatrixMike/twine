@@ -22,25 +22,25 @@
 //! ## Usage Examples
 //!
 //! ```rust
-//! use twine_scheme::parser::Expr;
+//! use twine_scheme::parser::Expression;
 //! use twine_scheme::types::Value;
 //!
 //! // Simple atoms
-//! let number = Expr::atom(Value::number(42.0));
-//! let symbol = Expr::atom(Value::symbol("x"));
+//! let number = Expression::atom(Value::number(42.0));
+//! let symbol = Expression::atom(Value::symbol("x"));
 //!
 //! // S-expression: (+ 1 2)
-//! let addition = Expr::list(vec![
-//!     Expr::atom(Value::symbol("+")),
-//!     Expr::atom(Value::number(1.0)),
-//!     Expr::atom(Value::number(2.0)),
+//! let addition = Expression::list(vec![
+//!     Expression::atom(Value::symbol("+")),
+//!     Expression::atom(Value::number(1.0)),
+//!     Expression::atom(Value::number(2.0)),
 //! ]);
 //!
 //! // Quoted expression: '(a b c)
-//! let quoted_list = Expr::quote(Expr::list(vec![
-//!     Expr::atom(Value::symbol("a")),
-//!     Expr::atom(Value::symbol("b")),
-//!     Expr::atom(Value::symbol("c")),
+//! let quoted_list = Expression::quote(Expression::list(vec![
+//!     Expression::atom(Value::symbol("a")),
+//!     Expression::atom(Value::symbol("b")),
+//!     Expression::atom(Value::symbol("c")),
 //! ]));
 //! ```
 
@@ -79,14 +79,14 @@ use crate::types::Value;
 ///
 /// | Scheme Code | AST Representation |
 /// |-------------|-------------------|
-/// | `42` | `Expr::Atom(Value::Number(42.0))` |
-/// | `"hello"` | `Expr::Atom(Value::String("hello"))` |
-/// | `x` | `Expr::Atom(Value::Symbol("x"))` |
-/// | `(+ 1 2)` | `Expr::List([Atom(+), Atom(1), Atom(2)])` |
-/// | `'x` | `Expr::Quote(Box::new(Atom(Symbol("x"))))` |
-/// | `'(a b)` | `Expr::Quote(Box::new(List([Atom(a), Atom(b)])))` |
+/// | `42` | `Expression::Atom(Value::Number(42.0))` |
+/// | `"hello"` | `Expression::Atom(Value::String("hello"))` |
+/// | `x` | `Expression::Atom(Value::Symbol("x"))` |
+/// | `(+ 1 2)` | `Expression::List([Atom(+), Atom(1), Atom(2)])` |
+/// | `'x` | `Expression::Quote(Box::new(Atom(Symbol("x"))))` |
+/// | `'(a b)` | `Expression::Quote(Box::new(List([Atom(a), Atom(b)])))` |
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
+pub enum Expression {
     /// Atomic expressions (primitive values)
     ///
     /// Represents all primitive Scheme values including numbers, strings,
@@ -109,7 +109,7 @@ pub enum Expr {
     /// - `(+ 1 2)` → `List([Atom(Symbol("+")), Atom(Number(1)), Atom(Number(2))])`
     /// - `(define x 42)` → `List([Atom(Symbol("define")), Atom(Symbol("x")), Atom(Number(42))])`
     /// - `()` → `List([])`
-    List(Vec<Expr>),
+    List(Vec<Expression>),
 
     /// Quoted expressions (prevent evaluation)
     ///
@@ -122,12 +122,12 @@ pub enum Expr {
     /// - `'(+ 1 2)` → `Quote(Box::new(List([...])))`
     ///
     /// Note: Uses Box for heap allocation to prevent stack overflow with deeply
-    /// nested quotes and to optimize memory layout. While Quote(Expr) would work,
+    /// nested quotes and to optimize memory layout. While Quote(Expression) would work,
     /// Box provides better performance characteristics for recursive structures.
-    Quote(Box<Expr>),
+    Quote(Box<Expression>),
 }
 
-impl Expr {
+impl Expression {
     /// Create an atomic expression from a Value.
     ///
     /// This convenience constructor makes it easy to create atomic expressions
@@ -135,14 +135,14 @@ impl Expr {
     ///
     /// # Examples
     /// ```
-    /// use twine_scheme::parser::Expr;
+    /// use twine_scheme::parser::Expression;
     /// use twine_scheme::types::Value;
     ///
-    /// let expr = Expr::atom(Value::number(42.0));
-    /// assert!(matches!(expr, Expr::Atom(_)));
+    /// let expr = Expression::atom(Value::number(42.0));
+    /// assert!(matches!(expr, Expression::Atom(_)));
     /// ```
     pub fn atom(value: Value) -> Self {
-        Expr::Atom(value)
+        Expression::Atom(value)
     }
 
     /// Create a list expression from a vector of expressions.
@@ -152,18 +152,18 @@ impl Expr {
     ///
     /// # Examples
     /// ```
-    /// use twine_scheme::parser::Expr;
+    /// use twine_scheme::parser::Expression;
     /// use twine_scheme::types::Value;
     ///
-    /// let expr = Expr::list(vec![
-    ///     Expr::atom(Value::symbol("+")),
-    ///     Expr::atom(Value::number(1.0)),
-    ///     Expr::atom(Value::number(2.0)),
+    /// let expr = Expression::list(vec![
+    ///     Expression::atom(Value::symbol("+")),
+    ///     Expression::atom(Value::number(1.0)),
+    ///     Expression::atom(Value::number(2.0)),
     /// ]);
-    /// assert!(matches!(expr, Expr::List(_)));
+    /// assert!(matches!(expr, Expression::List(_)));
     /// ```
-    pub fn list(exprs: Vec<Expr>) -> Self {
-        Expr::List(exprs)
+    pub fn list(exprs: Vec<Expression>) -> Self {
+        Expression::List(exprs)
     }
 
     /// Create a quoted expression.
@@ -173,29 +173,29 @@ impl Expr {
     ///
     /// # Examples
     /// ```
-    /// use twine_scheme::parser::Expr;
+    /// use twine_scheme::parser::Expression;
     /// use twine_scheme::types::Value;
     ///
-    /// let expr = Expr::quote(Expr::atom(Value::symbol("x")));
-    /// assert!(matches!(expr, Expr::Quote(_)));
+    /// let expr = Expression::quote(Expression::atom(Value::symbol("x")));
+    /// assert!(matches!(expr, Expression::Quote(_)));
     /// ```
-    pub fn quote(expr: Expr) -> Self {
-        Expr::Quote(Box::new(expr))
+    pub fn quote(expr: Expression) -> Self {
+        Expression::Quote(Box::new(expr))
     }
 
     /// Check if this expression is an atom.
     pub fn is_atom(&self) -> bool {
-        matches!(self, Expr::Atom(_))
+        matches!(self, Expression::Atom(_))
     }
 
     /// Check if this expression is a list.
     pub fn is_list(&self) -> bool {
-        matches!(self, Expr::List(_))
+        matches!(self, Expression::List(_))
     }
 
     /// Check if this expression is quoted.
     pub fn is_quoted(&self) -> bool {
-        matches!(self, Expr::Quote(_))
+        matches!(self, Expression::Quote(_))
     }
 
     /// Get the value if this expression is an atom.
@@ -203,7 +203,7 @@ impl Expr {
     /// Returns `Some(value)` if this is an `Atom`, `None` otherwise.
     pub fn as_atom(&self) -> Option<&Value> {
         match self {
-            Expr::Atom(value) => Some(value),
+            Expression::Atom(value) => Some(value),
             _ => None,
         }
     }
@@ -211,9 +211,9 @@ impl Expr {
     /// Get the list of expressions if this expression is a list.
     ///
     /// Returns `Some(expressions)` if this is a `List`, `None` otherwise.
-    pub fn as_list(&self) -> Option<&Vec<Expr>> {
+    pub fn as_list(&self) -> Option<&Vec<Expression>> {
         match self {
-            Expr::List(exprs) => Some(exprs),
+            Expression::List(exprs) => Some(exprs),
             _ => None,
         }
     }
@@ -221,9 +221,9 @@ impl Expr {
     /// Get the quoted expression if this expression is quoted.
     ///
     /// Returns `Some(expression)` if this is a `Quote`, `None` otherwise.
-    pub fn as_quoted(&self) -> Option<&Expr> {
+    pub fn as_quoted(&self) -> Option<&Expression> {
         match self {
-            Expr::Quote(expr) => Some(expr),
+            Expression::Quote(expr) => Some(expr),
             _ => None,
         }
     }
@@ -234,18 +234,18 @@ impl Expr {
     ///
     /// # Examples
     /// ```
-    /// use twine_scheme::parser::Expr;
+    /// use twine_scheme::parser::Expression;
     /// use twine_scheme::types::Value;
     ///
-    /// assert_eq!(Expr::atom(Value::number(42.0)).type_name(), "atom");
-    /// assert_eq!(Expr::list(vec![]).type_name(), "list");
-    /// assert_eq!(Expr::quote(Expr::atom(Value::symbol("x"))).type_name(), "quote");
+    /// assert_eq!(Expression::atom(Value::number(42.0)).type_name(), "atom");
+    /// assert_eq!(Expression::list(vec![]).type_name(), "list");
+    /// assert_eq!(Expression::quote(Expression::atom(Value::symbol("x"))).type_name(), "quote");
     /// ```
     pub fn type_name(&self) -> &'static str {
         match self {
-            Expr::Atom(_) => "atom",
-            Expr::List(_) => "list",
-            Expr::Quote(_) => "quote",
+            Expression::Atom(_) => "atom",
+            Expression::List(_) => "list",
+            Expression::Quote(_) => "quote",
         }
     }
 }
@@ -258,21 +258,21 @@ impl Expr {
 /// This is essential for educational use, as clear error messages
 /// significantly improve the learning experience.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PositionedExpr {
+pub struct PositionedExpression {
     /// The expression itself
-    pub expr: Expr,
+    pub expr: Expression,
     /// Position in source code where this expression was parsed
     pub position: Position,
 }
 
-impl PositionedExpr {
+impl PositionedExpression {
     /// Create a new positioned expression.
-    pub fn new(expr: Expr, position: Position) -> Self {
+    pub fn new(expr: Expression, position: Position) -> Self {
         Self { expr, position }
     }
 
     /// Get the expression without position information.
-    pub fn into_expr(self) -> Expr {
+    pub fn into_expr(self) -> Expression {
         self.expr
     }
 }
@@ -282,11 +282,11 @@ impl PositionedExpr {
 /// Provides readable string representation of AST nodes, useful for
 /// debugging and educational purposes. The output closely matches
 /// Scheme syntax to maintain familiarity.
-impl std::fmt::Display for Expr {
+impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expr::Atom(value) => write!(f, "{}", value),
-            Expr::List(exprs) => {
+            Expression::Atom(value) => write!(f, "{}", value),
+            Expression::List(exprs) => {
                 write!(f, "(")?;
                 for (i, expr) in exprs.iter().enumerate() {
                     if i > 0 {
@@ -296,7 +296,7 @@ impl std::fmt::Display for Expr {
                 }
                 write!(f, ")")
             }
-            Expr::Quote(expr) => write!(f, "'{}", expr),
+            Expression::Quote(expr) => write!(f, "'{}", expr),
         }
     }
 }
@@ -309,36 +309,36 @@ mod tests {
     #[test]
     fn test_expr_creation() {
         // Test atomic expressions
-        let number_expr = Expr::atom(Value::number(42.0));
+        let number_expr = Expression::atom(Value::number(42.0));
         assert!(number_expr.is_atom());
         assert!(!number_expr.is_list());
         assert!(!number_expr.is_quoted());
 
-        let string_expr = Expr::atom(Value::string("hello"));
+        let string_expr = Expression::atom(Value::string("hello"));
         assert!(string_expr.is_atom());
 
-        let symbol_expr = Expr::atom(Value::symbol("x"));
+        let symbol_expr = Expression::atom(Value::symbol("x"));
         assert!(symbol_expr.is_atom());
 
-        let boolean_expr = Expr::atom(Value::boolean(true));
+        let boolean_expr = Expression::atom(Value::boolean(true));
         assert!(boolean_expr.is_atom());
 
         // Test list expressions
-        let list_expr = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(1.0)),
-            Expr::atom(Value::number(2.0)),
+        let list_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
+            Expression::atom(Value::number(2.0)),
         ]);
         assert!(!list_expr.is_atom());
         assert!(list_expr.is_list());
         assert!(!list_expr.is_quoted());
 
         // Test empty list
-        let empty_list = Expr::list(vec![]);
+        let empty_list = Expression::list(vec![]);
         assert!(empty_list.is_list());
 
         // Test quoted expressions
-        let quoted_expr = Expr::quote(Expr::atom(Value::symbol("x")));
+        let quoted_expr = Expression::quote(Expression::atom(Value::symbol("x")));
         assert!(!quoted_expr.is_atom());
         assert!(!quoted_expr.is_list());
         assert!(quoted_expr.is_quoted());
@@ -348,24 +348,24 @@ mod tests {
     fn test_expr_access_methods() {
         // Test atom access
         let value = Value::number(42.0);
-        let atom_expr = Expr::atom(value.clone());
+        let atom_expr = Expression::atom(value.clone());
         assert_eq!(atom_expr.as_atom(), Some(&value));
         assert_eq!(atom_expr.as_list(), None);
         assert_eq!(atom_expr.as_quoted(), None);
 
         // Test list access
         let exprs = vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(1.0)),
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
         ];
-        let list_expr = Expr::list(exprs.clone());
+        let list_expr = Expression::list(exprs.clone());
         assert_eq!(list_expr.as_atom(), None);
         assert_eq!(list_expr.as_list(), Some(&exprs));
         assert_eq!(list_expr.as_quoted(), None);
 
         // Test quote access
-        let inner_expr = Expr::atom(Value::symbol("x"));
-        let quoted_expr = Expr::quote(inner_expr.clone());
+        let inner_expr = Expression::atom(Value::symbol("x"));
+        let quoted_expr = Expression::quote(inner_expr.clone());
         assert_eq!(quoted_expr.as_atom(), None);
         assert_eq!(quoted_expr.as_list(), None);
         assert_eq!(quoted_expr.as_quoted(), Some(&inner_expr));
@@ -374,32 +374,32 @@ mod tests {
     #[test]
     fn test_expr_equality() {
         // Test atom equality
-        let atom1 = Expr::atom(Value::number(42.0));
-        let atom2 = Expr::atom(Value::number(42.0));
-        let atom3 = Expr::atom(Value::number(43.0));
+        let atom1 = Expression::atom(Value::number(42.0));
+        let atom2 = Expression::atom(Value::number(42.0));
+        let atom3 = Expression::atom(Value::number(43.0));
         assert_eq!(atom1, atom2);
         assert_ne!(atom1, atom3);
 
         // Test list equality
-        let list1 = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(1.0)),
+        let list1 = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
         ]);
-        let list2 = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(1.0)),
+        let list2 = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
         ]);
-        let list3 = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(2.0)),
+        let list3 = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(2.0)),
         ]);
         assert_eq!(list1, list2);
         assert_ne!(list1, list3);
 
         // Test quote equality
-        let quote1 = Expr::quote(Expr::atom(Value::symbol("x")));
-        let quote2 = Expr::quote(Expr::atom(Value::symbol("x")));
-        let quote3 = Expr::quote(Expr::atom(Value::symbol("y")));
+        let quote1 = Expression::quote(Expression::atom(Value::symbol("x")));
+        let quote2 = Expression::quote(Expression::atom(Value::symbol("x")));
+        let quote3 = Expression::quote(Expression::atom(Value::symbol("y")));
         assert_eq!(quote1, quote2);
         assert_ne!(quote1, quote3);
     }
@@ -407,24 +407,24 @@ mod tests {
     #[test]
     fn test_expr_cloning() {
         // Test that expressions can be cloned
-        let original = Expr::list(vec![
-            Expr::atom(Value::symbol("define")),
-            Expr::atom(Value::symbol("x")),
-            Expr::atom(Value::number(42.0)),
+        let original = Expression::list(vec![
+            Expression::atom(Value::symbol("define")),
+            Expression::atom(Value::symbol("x")),
+            Expression::atom(Value::number(42.0)),
         ]);
 
         let cloned = original.clone();
         assert_eq!(original, cloned);
 
         // Verify that the clone is independent (structural test)
-        assert!(matches!(cloned, Expr::List(_)));
+        assert!(matches!(cloned, Expression::List(_)));
     }
 
     #[test]
     fn test_positioned_expr() {
-        let expr = Expr::atom(Value::number(42.0));
+        let expr = Expression::atom(Value::number(42.0));
         let position = Position::new(1, 5);
-        let positioned = PositionedExpr::new(expr.clone(), position.clone());
+        let positioned = PositionedExpression::new(expr.clone(), position.clone());
 
         assert_eq!(positioned.expr, expr);
         assert_eq!(positioned.position, position);
@@ -437,37 +437,37 @@ mod tests {
     #[test]
     fn test_expr_display() {
         // Test atom display
-        assert_eq!(format!("{}", Expr::atom(Value::number(42.0))), "42");
+        assert_eq!(format!("{}", Expression::atom(Value::number(42.0))), "42");
         assert_eq!(
-            format!("{}", Expr::atom(Value::string("hello"))),
+            format!("{}", Expression::atom(Value::string("hello"))),
             "\"hello\""
         );
-        assert_eq!(format!("{}", Expr::atom(Value::symbol("x"))), "x");
-        assert_eq!(format!("{}", Expr::atom(Value::boolean(true))), "#t");
+        assert_eq!(format!("{}", Expression::atom(Value::symbol("x"))), "x");
+        assert_eq!(format!("{}", Expression::atom(Value::boolean(true))), "#t");
 
         // Test list display
-        let list_expr = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(1.0)),
-            Expr::atom(Value::number(2.0)),
+        let list_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
+            Expression::atom(Value::number(2.0)),
         ]);
         assert_eq!(format!("{}", list_expr), "(+ 1 2)");
 
         // Test empty list display
-        let empty_list = Expr::list(vec![]);
+        let empty_list = Expression::list(vec![]);
         assert_eq!(format!("{}", empty_list), "()");
 
         // Test quote display
-        let quoted_expr = Expr::quote(Expr::atom(Value::symbol("x")));
+        let quoted_expr = Expression::quote(Expression::atom(Value::symbol("x")));
         assert_eq!(format!("{}", quoted_expr), "'x");
 
         // Test nested structures
-        let nested = Expr::list(vec![
-            Expr::atom(Value::symbol("quote")),
-            Expr::list(vec![
-                Expr::atom(Value::symbol("+")),
-                Expr::atom(Value::number(1.0)),
-                Expr::atom(Value::number(2.0)),
+        let nested = Expression::list(vec![
+            Expression::atom(Value::symbol("quote")),
+            Expression::list(vec![
+                Expression::atom(Value::symbol("+")),
+                Expression::atom(Value::number(1.0)),
+                Expression::atom(Value::number(2.0)),
             ]),
         ]);
         assert_eq!(format!("{}", nested), "(quote (+ 1 2))");
@@ -476,9 +476,9 @@ mod tests {
     #[test]
     fn test_expr_debug_output() {
         // Verify that Debug trait is implemented and produces reasonable output
-        let expr = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(1.0)),
+        let expr = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
         ]);
 
         let debug_output = format!("{:?}", expr);
@@ -490,15 +490,15 @@ mod tests {
     #[test]
     fn test_nested_expressions() {
         // Test deeply nested structures
-        let nested_expr = Expr::list(vec![
-            Expr::atom(Value::symbol("if")),
-            Expr::list(vec![
-                Expr::atom(Value::symbol(">")),
-                Expr::atom(Value::symbol("x")),
-                Expr::atom(Value::number(0.0)),
+        let nested_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::list(vec![
+                Expression::atom(Value::symbol(">")),
+                Expression::atom(Value::symbol("x")),
+                Expression::atom(Value::number(0.0)),
             ]),
-            Expr::quote(Expr::atom(Value::symbol("positive"))),
-            Expr::quote(Expr::atom(Value::symbol("non-positive"))),
+            Expression::quote(Expression::atom(Value::symbol("positive"))),
+            Expression::quote(Expression::atom(Value::symbol("non-positive"))),
         ]);
 
         // Verify structure
@@ -523,27 +523,29 @@ mod tests {
         use std::mem;
 
         // Check enum size - should be reasonable for stack allocation
-        let expr_size = mem::size_of::<Expr>();
+        let expr_size = mem::size_of::<Expression>();
         let pointer_size = mem::size_of::<usize>();
 
-        // Expr size should be manageable (typically 32-40 bytes on 64-bit)
+        // Expression size should be manageable (typically 32-40 bytes on 64-bit)
         assert!(
             expr_size <= 64,
-            "Expr size should be reasonable: {} bytes",
+            "Expression size should be reasonable: {} bytes",
             expr_size
         );
 
-        // Box<Expr> is exactly pointer-sized
-        assert_eq!(mem::size_of::<Box<Expr>>(), pointer_size);
+        // Box<Expression> is exactly pointer-sized
+        assert_eq!(mem::size_of::<Box<Expression>>(), pointer_size);
 
-        // Vec<Expr> has reasonable overhead (3 pointers: ptr, len, capacity)
-        assert_eq!(mem::size_of::<Vec<Expr>>(), pointer_size * 3);
+        // Vec<Expression> has reasonable overhead (3 pointers: ptr, len, capacity)
+        assert_eq!(mem::size_of::<Vec<Expression>>(), pointer_size * 3);
 
         // Demonstrate why Box helps with recursive structures:
         // Without Box, deeply nested quotes would consume stack space proportional to depth
         // With Box, each quote level is just one pointer (8 bytes on 64-bit)
-        let shallow_quote = Expr::quote(Expr::atom(Value::number(42.0)));
-        let deep_quote = Expr::quote(Expr::quote(Expr::quote(Expr::atom(Value::number(42.0)))));
+        let shallow_quote = Expression::quote(Expression::atom(Value::number(42.0)));
+        let deep_quote = Expression::quote(Expression::quote(Expression::quote(Expression::atom(
+            Value::number(42.0),
+        ))));
 
         // Both consume the same stack space (just the enum discriminant + Box pointer)
         assert_eq!(
@@ -555,15 +557,15 @@ mod tests {
     #[test]
     fn test_type_name_method() {
         // Test type name reporting
-        assert_eq!(Expr::atom(Value::number(42.0)).type_name(), "atom");
-        assert_eq!(Expr::list(vec![]).type_name(), "list");
+        assert_eq!(Expression::atom(Value::number(42.0)).type_name(), "atom");
+        assert_eq!(Expression::list(vec![]).type_name(), "list");
         assert_eq!(
-            Expr::quote(Expr::atom(Value::symbol("x"))).type_name(),
+            Expression::quote(Expression::atom(Value::symbol("x"))).type_name(),
             "quote"
         );
 
         // Verify consistency
-        let expr = Expr::list(vec![Expr::atom(Value::symbol("+"))]);
+        let expr = Expression::list(vec![Expression::atom(Value::symbol("+"))]);
         assert_eq!(expr.type_name(), "list");
         assert!(expr.is_list());
     }
@@ -574,25 +576,25 @@ mod tests {
         // Requirement: Build AST from S-expressions
 
         // Basic S-expression: (+ 1 2)
-        let addition = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::atom(Value::number(1.0)),
-            Expr::atom(Value::number(2.0)),
+        let addition = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::number(1.0)),
+            Expression::atom(Value::number(2.0)),
         ]);
         assert!(addition.is_list());
         assert_eq!(addition.as_list().unwrap().len(), 3);
 
         // Nested S-expression: (define f (lambda (x) (* x x)))
-        let lambda_def = Expr::list(vec![
-            Expr::atom(Value::symbol("define")),
-            Expr::atom(Value::symbol("f")),
-            Expr::list(vec![
-                Expr::atom(Value::symbol("lambda")),
-                Expr::list(vec![Expr::atom(Value::symbol("x"))]),
-                Expr::list(vec![
-                    Expr::atom(Value::symbol("*")),
-                    Expr::atom(Value::symbol("x")),
-                    Expr::atom(Value::symbol("x")),
+        let lambda_def = Expression::list(vec![
+            Expression::atom(Value::symbol("define")),
+            Expression::atom(Value::symbol("f")),
+            Expression::list(vec![
+                Expression::atom(Value::symbol("lambda")),
+                Expression::list(vec![Expression::atom(Value::symbol("x"))]),
+                Expression::list(vec![
+                    Expression::atom(Value::symbol("*")),
+                    Expression::atom(Value::symbol("x")),
+                    Expression::atom(Value::symbol("x")),
                 ]),
             ]),
         ]);
@@ -610,10 +612,10 @@ mod tests {
         }
 
         // Quote handling: '(a b c)
-        let quoted = Expr::quote(Expr::list(vec![
-            Expr::atom(Value::symbol("a")),
-            Expr::atom(Value::symbol("b")),
-            Expr::atom(Value::symbol("c")),
+        let quoted = Expression::quote(Expression::list(vec![
+            Expression::atom(Value::symbol("a")),
+            Expression::atom(Value::symbol("b")),
+            Expression::atom(Value::symbol("c")),
         ]));
         assert!(quoted.is_quoted());
         if let Some(inner) = quoted.as_quoted() {
@@ -627,27 +629,27 @@ mod tests {
         // Examples that demonstrate core concepts
 
         // Arithmetic expression: (+ (* 2 3) 4)
-        let arithmetic = Expr::list(vec![
-            Expr::atom(Value::symbol("+")),
-            Expr::list(vec![
-                Expr::atom(Value::symbol("*")),
-                Expr::atom(Value::number(2.0)),
-                Expr::atom(Value::number(3.0)),
+        let arithmetic = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::list(vec![
+                Expression::atom(Value::symbol("*")),
+                Expression::atom(Value::number(2.0)),
+                Expression::atom(Value::number(3.0)),
             ]),
-            Expr::atom(Value::number(4.0)),
+            Expression::atom(Value::number(4.0)),
         ]);
         assert_eq!(format!("{}", arithmetic), "(+ (* 2 3) 4)");
 
         // Conditional: (if (> x 0) "positive" "non-positive")
-        let conditional = Expr::list(vec![
-            Expr::atom(Value::symbol("if")),
-            Expr::list(vec![
-                Expr::atom(Value::symbol(">")),
-                Expr::atom(Value::symbol("x")),
-                Expr::atom(Value::number(0.0)),
+        let conditional = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::list(vec![
+                Expression::atom(Value::symbol(">")),
+                Expression::atom(Value::symbol("x")),
+                Expression::atom(Value::number(0.0)),
             ]),
-            Expr::atom(Value::string("positive")),
-            Expr::atom(Value::string("non-positive")),
+            Expression::atom(Value::string("positive")),
+            Expression::atom(Value::string("non-positive")),
         ]);
         assert_eq!(
             format!("{}", conditional),
@@ -655,49 +657,49 @@ mod tests {
         );
 
         // Data as code: '(define x 42)
-        let quoted_define = Expr::quote(Expr::list(vec![
-            Expr::atom(Value::symbol("define")),
-            Expr::atom(Value::symbol("x")),
-            Expr::atom(Value::number(42.0)),
+        let quoted_define = Expression::quote(Expression::list(vec![
+            Expression::atom(Value::symbol("define")),
+            Expression::atom(Value::symbol("x")),
+            Expression::atom(Value::number(42.0)),
         ]));
         assert_eq!(format!("{}", quoted_define), "'(define x 42)");
     }
 
     #[test]
     fn test_box_vs_direct_recursion_analysis() {
-        // Demonstrate the benefits of Box<Expr> vs direct Expr recursion
+        // Demonstrate the benefits of Box<Expression> vs direct Expression recursion
         //
-        // Key insight: With Quote(Box<Expr>), all nested quotes have the same
+        // Key insight: With Quote(Box<Expression>), all nested quotes have the same
         // memory footprint because Box provides heap indirection. This prevents
         // stack growth proportional to nesting depth.
 
         use std::mem;
 
         // Create truly nested quote structure: ''''x (not just separate quotes)
-        let x = Expr::atom(Value::symbol("x"));
-        let quote1 = Expr::quote(x); // 'x
-        let quote2 = Expr::quote(quote1.clone()); // ''x
-        let quote3 = Expr::quote(quote2.clone()); // '''x
-        let quote4 = Expr::quote(quote3.clone()); // ''''x
+        let x = Expression::atom(Value::symbol("x"));
+        let quote1 = Expression::quote(x); // 'x
+        let quote2 = Expression::quote(quote1.clone()); // ''x
+        let quote3 = Expression::quote(quote2.clone()); // '''x
+        let quote4 = Expression::quote(quote3.clone()); // ''''x
 
         // Critical test: All nested quote levels consume identical stack space
-        // This is the key benefit of Box<Expr> - fixed size regardless of nesting depth
-        let base_size = mem::size_of::<Expr>();
+        // This is the key benefit of Box<Expression> - fixed size regardless of nesting depth
+        let base_size = mem::size_of::<Expression>();
         assert_eq!(mem::size_of_val(&quote1), base_size);
         assert_eq!(mem::size_of_val(&quote2), base_size); // Same as quote1!
         assert_eq!(mem::size_of_val(&quote3), base_size); // Same as quote1!
         assert_eq!(mem::size_of_val(&quote4), base_size); // Same as quote1!
 
         // Stress test: Create 100 levels of nested quotes
-        // With Quote(Expr), this would consume 100x the stack space
-        // With Quote(Box<Expr>), it's still just one Expr worth of stack space
-        let mut nested = Expr::atom(Value::symbol("deeply-nested"));
+        // With Quote(Expression), this would consume 100x the stack space
+        // With Quote(Box<Expression>), it's still just one Expression worth of stack space
+        let mut nested = Expression::atom(Value::symbol("deeply-nested"));
         for _ in 0..100 {
-            nested = Expr::quote(nested);
+            nested = Expression::quote(nested);
         }
 
         // Critical assertion: Even 100 levels deep, same stack footprint!
-        // This demonstrates Box<Expr> prevents stack overflow with deep nesting
+        // This demonstrates Box<Expression> prevents stack overflow with deep nesting
         assert_eq!(mem::size_of_val(&nested), base_size);
 
         // Verify we can safely navigate the structure
