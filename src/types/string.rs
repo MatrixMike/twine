@@ -1,15 +1,13 @@
 //! String type implementation for Scheme
 //!
-//! This module implements the String type that represents immutable string values
-//! in Scheme. Provides efficient string handling with proper abstraction.
+//! Immutable string type with efficient sharing via Arc.
 
 use std::sync::Arc;
 
 /// Immutable string type for Scheme
 ///
-/// Wraps a thread-safe reference-counted string to enable efficient sharing
-/// across multiple threads while maintaining immutability guarantees required
-/// by Scheme semantics.
+/// Wraps Arc<String> to enable efficient sharing across multiple threads
+/// while maintaining immutability guarantees required by Scheme semantics.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ArcString(Arc<String>);
 

@@ -1,15 +1,13 @@
 //! Numeric type implementation for Scheme
 //!
-//! This module implements the Number type that represents all numeric values
-//! in Scheme. Currently supports floating-point numbers with special handling
-//! for infinity and NaN values.
+//! Wraps f64 with Scheme-specific numeric behavior and validation.
 
 use std::str::FromStr;
 
 /// Numeric value type for Scheme
 ///
 /// Wraps f64 to provide Scheme-specific numeric behavior and validation.
-/// Supports all standard numeric operations and special values like infinity.
+/// Supports special values like infinity and NaN for mathematical operations.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Number(f64);
 

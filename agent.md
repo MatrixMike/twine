@@ -207,6 +207,39 @@ This document (`agent.md`) serves as **living memory** for all agent behavioral 
 
 ---
 
+## Code Style Guidelines
+
+### Commenting Style
+- **Focus on Functionality**: Comments should describe what code does and why technical decisions were made
+- **Include Important "Why"**: Explain technical rationale, performance considerations, safety concerns, and non-obvious design choices
+- **Avoid Requirements Fluff**: Remove references to requirements compliance (FR-X, NFR-X), design principles, or educational goals from code comments
+- **Keep Practical**: Include usage examples, doctests, and functional descriptions
+- **Module Documentation**: Keep module docs concise - describe what the module provides, not architectural rationale
+
+#### Examples of Good Comments
+```rust
+/// Lexical analyzer for Scheme source code.
+/// Maintains line and column tracking for precise error reporting.
+pub struct Lexer { ... }
+
+/// Uses Box because recursive enum variants would have infinite size.
+/// Box provides heap allocation to break the recursion.
+Quote(Box<Expression>),
+
+/// Wraps Arc<String> to enable efficient sharing across multiple threads
+/// while maintaining immutability guarantees required by Scheme semantics.
+pub struct ArcString(Arc<String>);
+```
+
+#### Examples to Avoid
+```rust
+/// Lexical analyzer following FR-2 requirements and educational principles...
+/// This design prioritizes learning value by implementing...
+/// Requirements Compliance: ✅ FR-2 (Syntactic Analysis)...
+```
+
+---
+
 ## Communication Guidelines
 
 ### Reference Standards (MANDATORY)

@@ -1,7 +1,6 @@
 //! List type implementation for Scheme
 //!
-//! This module implements the List type that represents immutable list values
-//! in Scheme. Lists are the fundamental compound data structure in Scheme.
+//! Immutable list values using Arc for efficient sharing.
 
 use std::sync::Arc;
 
@@ -12,9 +11,9 @@ type Value = crate::types::Value;
 
 /// Immutable list type for Scheme
 ///
-/// Wraps a thread-safe reference-counted vector to enable efficient sharing
-/// across multiple threads while maintaining immutability guarantees required
-/// by Scheme semantics. Lists are the primary compound data structure in Scheme.
+/// Wraps Arc<Vec<Value>> to enable efficient sharing across multiple threads
+/// while maintaining immutability guarantees. Lists are the primary compound
+/// data structure in Scheme.
 #[derive(Debug, Clone, PartialEq)]
 pub struct List(Arc<Vec<Value>>);
 

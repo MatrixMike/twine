@@ -1,15 +1,15 @@
 //! Core Value type for Scheme data representation
 //!
-//! This module implements the main Value enum that represents all possible
-//! Scheme values, along with construction and extraction methods.
+//! Implements the main Value enum with construction and extraction methods.
 
 use super::{ArcString, List, Number, Symbol};
 use smol_str::SmolStr;
 
 /// The core value type for all Scheme data
 ///
-/// Represents all possible values in the Scheme language. This implementation
-/// focuses on immutability and thread-safe sharing of data.
+/// Represents all possible values in the Scheme language. Uses Arc-based types
+/// for strings, symbols, and lists to enable efficient sharing across threads
+/// while maintaining immutability.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     /// Numeric values using SchemeNumber wrapper
@@ -18,31 +18,29 @@ pub enum Value {
     /// would support exact/inexact numbers, rationals, and complex numbers.
     Number(Number),
 
-    /// Boolean values (true/false)
+    /// Boolean values
     Boolean(bool),
 
     /// Immutable string values
     ///
-    /// Using ArcString provides proper abstraction and efficient sharing
-    /// of string data across multiple Value instances.
+    /// Uses ArcString for efficient sharing across multiple Value instances.
     String(ArcString),
 
     /// Symbol values (identifiers)
     ///
     /// Symbols are like strings but represent identifiers in Scheme.
-    /// Using Symbol provides proper abstraction for identifier handling.
     Symbol(Symbol),
 
     /// List values (compound data)
     ///
-    /// Represents Scheme lists using List wrapper around `Vec<Value>`.
-    /// Lists are the fundamental compound data structure in Scheme.
+    /// Uses List wrapper around Arc<Vec<Value>> for efficient sharing
+    /// while maintaining immutability.
     List(List),
 
     /// The nil/null value
     ///
-    /// Represents both the empty list '() and null/undefined values.
-    /// This dual nature is common in Lisp-family languages.
+    /// Represents both the empty list '() and null/undefined values,
+    /// following Lisp tradition.
     Nil,
 }
 

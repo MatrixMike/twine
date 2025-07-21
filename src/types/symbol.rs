@@ -1,26 +1,15 @@
 //! Symbol type implementation for Scheme
 //!
-//! This module implements the Symbol type that represents identifiers and
-//! symbol values in Scheme. Symbols are like strings but represent identifiers.
-//!
-//! ## Performance Features
-//! - **SmolStr optimization**: Stack allocation for symbols ≤23 bytes
-//! - **Zero-copy construction**: Direct SmolStr → Symbol conversion
-//! - **Efficient cloning**: O(1) clone operations for most symbols
-//! - **Thread-safe sharing**: Works seamlessly across fiber boundaries
+//! Wraps SmolStr for efficient storage and sharing of symbol names.
+//! Most symbols (≤23 bytes) are stack-allocated with O(1) clone operations.
 
 use smol_str::SmolStr;
 
 /// Symbol type for Scheme identifiers
 ///
 /// Wraps SmolStr to enable efficient storage and sharing of symbol names.
-/// Most symbols (≤23 bytes) are stack-allocated with O(1) clone operations.
-/// Symbols are used for identifiers, variable names, and symbolic data in Scheme.
-///
-/// ## Construction Methods
-/// - `new(s: &str)` - Create from string slice
-/// - `from_string(s: String)` - Create from owned String
-/// - `from_smol_str(s: SmolStr)` - Zero-copy from SmolStr (most efficient)
+/// SmolStr optimizes for short strings by storing them on the stack when
+/// they fit in 23 bytes, making most symbols very efficient to clone.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol(SmolStr);
 

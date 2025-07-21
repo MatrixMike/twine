@@ -1,25 +1,6 @@
 //! Parser module for the Twine Scheme interpreter.
 //!
-//! This module provides the Abstract Syntax Tree (AST) representation and
-//! parsing functionality for Scheme expressions. It converts tokens from
-//! the lexer into a structured tree representation that can be evaluated.
-//!
-//! ## Requirements Compliance
-//!
-//! **FR-2 (Syntactic Analysis)**: Build AST from S-expressions; validate parentheses; report syntax errors
-//! - ✅ AST representation with `Expr` enum
-//! - ✅ S-expression structure via `List` variant
-//! - ✅ Position tracking for error reporting
-//! - ✅ Immutable AST nodes with `Clone` semantics
-//!
-//! ## Design Principles
-//!
-//! - **Minimal AST**: Three core expression types following educational simplicity
-//! - **Position Tracking**: Error reporting with precise source locations
-//! - **Immutable Structure**: All AST nodes are immutable after creation
-//! - **Educational Focus**: Clear, readable implementation over optimization
-//!
-//! ## Usage Examples
+//! Converts tokens from the lexer into a structured AST representation.
 //!
 //! ```rust
 //! use twine_scheme::parser::Expression;
@@ -49,33 +30,12 @@ use crate::types::Value;
 
 /// Abstract Syntax Tree node for Scheme expressions.
 ///
-/// The AST represents the hierarchical structure of Scheme code after parsing.
-/// This design follows the core principle of simplicity, providing only the
-/// essential expression types needed for the educational subset of Scheme.
+/// Represents the hierarchical structure of parsed Scheme code.
 ///
-/// ## Requirements Compliance
-///
-/// Implements **FR-2 (Syntactic Analysis)** requirements:
-/// - ✅ Builds AST from S-expressions using recursive List structure
-/// - ✅ Supports all essential Scheme syntax elements
-/// - ✅ Provides foundation for syntax validation
-/// - ✅ Enables precise error reporting with position tracking
-///
-/// ## Expression Types
-///
+/// Expression types:
 /// - **Atom**: Primitive values (numbers, strings, symbols, booleans)
 /// - **List**: Compound expressions for function calls and special forms
 /// - **Quote**: Quoted expressions that prevent evaluation
-///
-/// ## Design Rationale
-///
-/// This minimal AST design prioritizes learning value:
-/// - Students understand the fundamental distinction between atoms and lists
-/// - Quote handling demonstrates meta-programming concepts
-/// - Simple structure makes evaluation logic clear and comprehensible
-/// - Direct mapping to Scheme's syntactic structure
-///
-/// ## Scheme Syntax Mapping
 ///
 /// | Scheme Code | AST Representation |
 /// |-------------|-------------------|
@@ -88,97 +48,33 @@ use crate::types::Value;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// Atomic expressions (primitive values)
-    ///
-    /// Represents all primitive Scheme values including numbers, strings,
-    /// symbols, and booleans. Uses the existing Value type for consistency
-    /// with the evaluation engine.
-    ///
-    /// # Examples
-    /// - `42` → `Atom(Value::Number(42.0))`
-    /// - `"hello"` → `Atom(Value::String("hello"))`
-    /// - `x` → `Atom(Value::Symbol("x"))`
-    /// - `#t` → `Atom(Value::Boolean(true))`
     Atom(Value),
 
     /// List expressions (compound structures)
-    ///
-    /// Represents S-expressions which form the core of Scheme syntax.
-    /// Lists can represent function calls, special forms, or data structures.
-    ///
-    /// # Examples
-    /// - `(+ 1 2)` → `List([Atom(Symbol("+")), Atom(Number(1)), Atom(Number(2))])`
-    /// - `(define x 42)` → `List([Atom(Symbol("define")), Atom(Symbol("x")), Atom(Number(42))])`
-    /// - `()` → `List([])`
     List(Vec<Expression>),
 
     /// Quoted expressions (prevent evaluation)
     ///
-    /// Represents expressions that should be treated as data rather than code.
-    /// The quote prevents the normal evaluation process, allowing manipulation
-    /// of code as data (a key Lisp concept).
-    ///
-    /// # Examples
-    /// - `'x` → `Quote(Box::new(Atom(Symbol("x"))))`
-    /// - `'(+ 1 2)` → `Quote(Box::new(List([...])))`
-    ///
-    /// Note: Uses Box for heap allocation to prevent stack overflow with deeply
-    /// nested quotes and to optimize memory layout. While Quote(Expression) would work,
-    /// Box provides better performance characteristics for recursive structures.
+    /// Uses Box because recursive enum variants would have infinite size.
+    /// Box provides heap allocation to break the recursion and enables
+    /// arbitrarily deep nesting without stack overflow.
     Quote(Box<Expression>),
 }
 
 impl Expression {
     /// Create an atomic expression from a Value.
-    ///
-    /// This convenience constructor makes it easy to create atomic expressions
-    /// from the existing Value types used throughout the interpreter.
-    ///
-    /// # Examples
-    /// ```
-    /// use twine_scheme::parser::Expression;
-    /// use twine_scheme::types::Value;
-    ///
-    /// let expr = Expression::atom(Value::number(42.0));
-    /// assert!(matches!(expr, Expression::Atom(_)));
-    /// ```
     pub fn atom(value: Value) -> Self {
         Expression::Atom(value)
     }
 
     /// Create a list expression from a vector of expressions.
-    ///
-    /// This convenience constructor simplifies creation of list expressions,
-    /// which are the most common compound form in Scheme.
-    ///
-    /// # Examples
-    /// ```
-    /// use twine_scheme::parser::Expression;
-    /// use twine_scheme::types::Value;
-    ///
-    /// let expr = Expression::list(vec![
-    ///     Expression::atom(Value::symbol("+")),
-    ///     Expression::atom(Value::number(1.0)),
-    ///     Expression::atom(Value::number(2.0)),
-    /// ]);
-    /// assert!(matches!(expr, Expression::List(_)));
-    /// ```
     pub fn list(exprs: Vec<Expression>) -> Self {
         Expression::List(exprs)
     }
 
     /// Create a quoted expression.
     ///
-    /// This convenience constructor handles the Box allocation required
-    /// for quoted expressions, making the API more ergonomic.
-    ///
-    /// # Examples
-    /// ```
-    /// use twine_scheme::parser::Expression;
-    /// use twine_scheme::types::Value;
-    ///
-    /// let expr = Expression::quote(Expression::atom(Value::symbol("x")));
-    /// assert!(matches!(expr, Expression::Quote(_)));
-    /// ```
+    /// Handles the Box allocation required for the recursive structure.
     pub fn quote(expr: Expression) -> Self {
         Expression::Quote(Box::new(expr))
     }
@@ -199,8 +95,6 @@ impl Expression {
     }
 
     /// Get the value if this expression is an atom.
-    ///
-    /// Returns `Some(value)` if this is an `Atom`, `None` otherwise.
     pub fn as_atom(&self) -> Option<&Value> {
         match self {
             Expression::Atom(value) => Some(value),
@@ -209,8 +103,6 @@ impl Expression {
     }
 
     /// Get the list of expressions if this expression is a list.
-    ///
-    /// Returns `Some(expressions)` if this is a `List`, `None` otherwise.
     pub fn as_list(&self) -> Option<&Vec<Expression>> {
         match self {
             Expression::List(exprs) => Some(exprs),
@@ -219,8 +111,6 @@ impl Expression {
     }
 
     /// Get the quoted expression if this expression is quoted.
-    ///
-    /// Returns `Some(expression)` if this is a `Quote`, `None` otherwise.
     pub fn as_quoted(&self) -> Option<&Expression> {
         match self {
             Expression::Quote(expr) => Some(expr),
@@ -231,16 +121,6 @@ impl Expression {
     /// Get a human-readable description of the expression type.
     ///
     /// Useful for error messages and debugging output.
-    ///
-    /// # Examples
-    /// ```
-    /// use twine_scheme::parser::Expression;
-    /// use twine_scheme::types::Value;
-    ///
-    /// assert_eq!(Expression::atom(Value::number(42.0)).type_name(), "atom");
-    /// assert_eq!(Expression::list(vec![]).type_name(), "list");
-    /// assert_eq!(Expression::quote(Expression::atom(Value::symbol("x"))).type_name(), "quote");
-    /// ```
     pub fn type_name(&self) -> &'static str {
         match self {
             Expression::Atom(_) => "atom",
@@ -250,18 +130,10 @@ impl Expression {
     }
 }
 
-/// Position-aware expression for error reporting.
-///
-/// Combines an expression with its source location to enable precise
-/// error messages that help users identify exactly where problems occur.
-///
-/// This is essential for educational use, as clear error messages
-/// significantly improve the learning experience.
+/// Expression with source position information for error reporting.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PositionedExpression {
-    /// The expression itself
     pub expr: Expression,
-    /// Position in source code where this expression was parsed
     pub position: Position,
 }
 
@@ -271,7 +143,7 @@ impl PositionedExpression {
         Self { expr, position }
     }
 
-    /// Get the expression without position information.
+    /// Extract the expression without position information.
     pub fn into_expr(self) -> Expression {
         self.expr
     }
@@ -279,9 +151,7 @@ impl PositionedExpression {
 
 /// Display formatting for expressions.
 ///
-/// Provides readable string representation of AST nodes, useful for
-/// debugging and educational purposes. The output closely matches
-/// Scheme syntax to maintain familiarity.
+/// Provides readable string representation that closely matches Scheme syntax.
 impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

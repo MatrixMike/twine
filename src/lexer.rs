@@ -1,8 +1,7 @@
-//! Lexical analysis module for the Twine Scheme interpreter.
+//! Lexical analysis module for tokenizing Scheme source code.
 //!
-//! This module provides tokenization of Scheme source code, converting raw text
-//! into a stream of tokens that can be consumed by the parser. It includes
-//! position tracking for error reporting and supports all essential Scheme tokens.
+//! Converts raw text into tokens with position tracking for error reporting.
+//! Handles comments, whitespace, and all essential Scheme syntax elements.
 
 use crate::Result;
 
@@ -41,8 +40,7 @@ impl PositionedToken {
 
 /// Lexical tokens for Scheme source code.
 ///
-/// This enum represents all the different types of tokens that can appear in
-/// Scheme source code, following the R7RS-small specification subset.
+/// Represents all token types that can appear in Scheme source code.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // Delimiters
@@ -90,9 +88,8 @@ impl Token {
 
 /// Lexical analyzer for Scheme source code.
 ///
-/// The lexer converts raw source code into a stream of tokens with position
-/// information for error reporting. It handles comments, whitespace, and all
-/// essential Scheme syntax elements.
+/// Converts raw source code into a stream of tokens with position information.
+/// Maintains line and column tracking for precise error reporting.
 pub struct Lexer {
     input: String,
     position: usize,
