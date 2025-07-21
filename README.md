@@ -27,6 +27,15 @@ This project serves as a comprehensive learning platform for understanding AI ag
 - **Concurrency Models**: Implementing fiber-based scheduling and multi-threaded execution
 - **Functional Programming**: Exploring Scheme and immutable data structures
 
+## Key Documentation
+
+For detailed project information, see:
+
+- [`requirements.md`](requirements.md) - Functional requirements, user stories, and acceptance criteria
+- [`design.md`](design.md) - Technical architecture and implementation details
+- [`tasks.md`](tasks.md) - Structured implementation plan and task dependencies
+- [`agent.md`](agent.md) - AI agent development guidelines and workflow
+
 ## Features
 
 - Interactive REPL and file execution
