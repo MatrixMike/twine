@@ -7,7 +7,7 @@ This document captures the functional and non-functional requirements for the Tw
 ## Key Design Principles
 
 ### Principle 1: Fiber Scheduler and Async Task System
-**PRIORITY: HIGH** - The interpreter SHALL use a fiber scheduler to manage execution of all code within fibers, with automatic I/O yielding that appears synchronous to Scheme code. The interpreter SHALL provide a two-layer system: low-level fiber management via `spawn-fiber`, and high-level async tasks via the `async` builtin that creates hierarchical parent-child relationships. The `async` builtin SHALL spawn tasks that execute immediately and return task handles, while `task-wait` SHALL provide task synchronization. Multiple fibers SHALL execute concurrently across CPU cores via a thread pool without a Global Interpreter Lock (GIL).
+**PRIORITY: HIGH** - The interpreter SHALL use a fiber scheduler to manage execution of all code within fibers, with automatic I/O yielding that appears synchronous to Scheme code. The interpreter SHALL provide a two-layer system: low-level fiber management via `spawn-fiber`, and high-level async tasks via the `async` macro that creates hierarchical parent-child relationships. The `async` macro SHALL support both simple expressions `(async expr)` and explicit thunks `(async (lambda () body))`, expanding to appropriate `spawn-fiber` calls that spawn tasks immediately and return task handles, while `task-wait` SHALL provide task synchronization. Multiple fibers SHALL execute concurrently across CPU cores via a thread pool without a Global Interpreter Lock (GIL).
 
 ### Principle 2: Asynchronous IO
 **PRIORITY: HIGH** - All IO operations SHALL be asynchronous in the context of the entire runtime through fiber yielding. The interpreter SHALL make IO operations appear synchronous to Scheme code while internally yielding fiber execution to the scheduler. No async/await syntax SHALL be exposed to Scheme programmers.
@@ -147,7 +147,7 @@ This document captures the functional and non-functional requirements for the Tw
 **AND** the system SHALL provide fiber-compatible error handling for I/O operations
 
 ### FR-15: Async Task System and Fiber Management
-**WHEN** tasks are spawned using the `async` builtin
+**WHEN** tasks are spawned using the `async` macro
 **THEN** the system SHALL create hierarchical tasks with parent-child relationships
 **AND** the system SHALL start task execution immediately
 **AND** the system SHALL return a task handle for synchronization
@@ -159,7 +159,16 @@ This document captures the functional and non-functional requirements for the Tw
 **AND** the system SHALL provide `task-wait` for task synchronization and `fiber-wait` for fiber synchronization
 **AND** the system SHALL terminate child tasks automatically when parent tasks complete
 
-### FR-16: Minimal Language Subset
+### FR-16: Macro System
+**WHEN** the interpreter processes macro definitions and expansions
+**THEN** the system SHALL support R7RS-small `define-syntax` and `syntax-rules` macros
+**AND** the system SHALL expand macros at compile time before evaluation
+**AND** the system SHALL support pattern matching in macro rules
+**AND** the system SHALL support ellipsis (`...`) for variable-length patterns
+**AND** the system SHALL provide hygenic macro expansion to prevent variable capture
+**AND** the system SHALL allow macros to generate new syntax forms
+
+### FR-17: Minimal Language Subset
 **WHEN** language features are implemented
 **THEN** the system SHALL include only essential R7RS-small constructs
 **AND** the system SHALL prioritize core functionality over comprehensive feature coverage
@@ -281,7 +290,7 @@ Hello, World!
 fib
 > (define task1 (async (fib 35)))
 task1
-> (define task2 (async (fib 36)))
+> (define task2 (async (lambda () (fib 36))))
 task2
 > (task-wait task1)
 9227465
@@ -307,7 +316,7 @@ factorial
     (display "Slow task complete\n")
     42))
 slow-task
-> (define task1 (async (slow-task)))
+> (define task1 (async (lambda () (slow-task))))
 Starting slow task
 task1
 > (define task2 (async (+ 10 20)))
@@ -334,12 +343,38 @@ result
 ```
 *Note: spawn-fiber creates independent fibers without parent-child relationships, managed separately from async tasks*
 
+### AC-12: Basic Macro Usage
+```scheme
+> (define-syntax when
+    (syntax-rules ()
+      ((when condition body ...)
+       (if condition (begin body ...)))))
+when
+> (when #t (display "Hello") (display " World"))
+Hello World
+> (define-syntax async
+    (syntax-rules (lambda)
+      ((async (lambda () body ...))
+       (spawn-fiber (lambda () body ...)))
+      ((async expr)
+       (spawn-fiber (lambda () expr)))))
+async
+> (define task1 (async (+ 1 2 3)))
+task1
+> (define task2 (async (lambda () (* 4 5))))
+task2
+> (fiber-wait task1)
+6
+> (fiber-wait task2)
+20
+```
+*Note: Macros provide compile-time syntax transformation using R7RS-small pattern matching*
+
 ## Out of Scope
 
 The following R7RS-small features are explicitly out of scope to maintain simplicity:
 
 ### Complex Language Features (Simplicity Principle)
-- Macros and syntax transformation (define-syntax, syntax-rules)
 - Continuations and call/cc
 - Module system (define-library, import, export)
 - Exception handling (guard, raise) - async-compatible error handling will be implemented instead

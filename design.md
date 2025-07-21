@@ -9,11 +9,12 @@
 5. [Data Types and Memory Management](#data-types-and-memory-management)
 6. [Execution Engine](#execution-engine)
 7. [Asynchronous I/O](#asynchronous-io)
-8. [Error Handling](#error-handling)
-9. [Sequence Diagrams](#sequence-diagrams)
-10. [Implementation Considerations](#implementation-considerations)
-11. [Performance Characteristics](#performance-characteristics)
-12. [Security Considerations](#security-considerations)
+8. [Macro System](#macro-system)
+9. [Error Handling](#error-handling)
+10. [Sequence Diagrams](#sequence-diagrams)
+11. [Implementation Considerations](#implementation-considerations)
+12. [Performance Characteristics](#performance-characteristics)
+13. [Security Considerations](#security-considerations)
 
 ## System Overview
 
@@ -22,7 +23,7 @@ Twine is a functional Scheme interpreter written in Rust that emphasizes asynchr
 1. **Fiber Scheduler and Async Task System**: Lightweight fiber management with high-level task abstraction executed on a thread pool using `smol` async runtime
 2. **Asynchronous I/O**: All I/O operations are asynchronous with fiber yielding, appearing synchronous to Scheme code
 3. **Immutability**: All data structures are immutable after creation
-4. **Simplicity and Minimalism**: Essential R7RS-small subset for maintainability and reduced complexity
+4. **Simplicity and Minimalism**: Essential R7RS-small subset including macro support for maintainability and reduced complexity
 
 ### Key Design Decisions
 
@@ -293,6 +294,82 @@ impl TaskHandle {
 
 **Important Distinction**: Fibers are independent execution units by default. The hierarchy and parent-child relationships exist at the **task level**, not the fiber level. Fibers only become connected when they are associated with tasks that have hierarchical relationships.
 
+### 6. Macro System (`interpreter/macros.rs`)
+
+**Responsibility**: Compile-time code transformation using R7RS-small macros
+
+```rust
+#[derive(Debug, Clone)]
+pub enum Pattern {
+    Literal(Value),
+    Variable(String),
+    List(Vec<Pattern>),
+    Ellipsis(Box<Pattern>),
+}
+
+#[derive(Debug, Clone)]
+pub enum Template {
+    Literal(Value),
+    Variable(String),
+    List(Vec<Template>),
+    Substitution(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct MacroRule {
+    pattern: Pattern,
+    template: Template,
+}
+
+#[derive(Debug, Clone)]
+pub struct Macro {
+    name: String,
+    rules: Vec<MacroRule>,
+}
+
+impl Macro {
+    pub fn expand(&self, expr: &Expr, env: &Environment) -> Result<Expr, Error> {
+        for rule in &self.rules {
+            if let Some(bindings) = rule.pattern.match_expr(expr) {
+                return rule.template.substitute(&bindings);
+            }
+        }
+        Err(Error::MacroError("No matching macro rule".to_string()))
+    }
+}
+```
+
+**Key Features**:
+- Pattern matching with ellipsis (`...`) support for variable-length patterns
+- Hygienic macro expansion to prevent variable capture
+- Compile-time transformation before evaluation
+- Support for `define-syntax` and `syntax-rules`
+- Standard library macros including `async` macro
+
+**Standard Macros**:
+```scheme
+; async macro supports both simple expressions and explicit thunks
+(define-syntax async
+  (syntax-rules (lambda)
+    ((async (lambda () body ...))
+     (spawn-fiber (lambda () body ...)))
+    ((async expr)
+     (spawn-fiber (lambda () expr)))))
+
+; when macro for conditional execution
+(define-syntax when
+  (syntax-rules ()
+    ((when condition body ...)
+     (if condition (begin body ...)))))
+```
+
+**Async Macro Flexibility**:
+The `async` macro provides syntactic flexibility similar to `define`:
+- `(async expr)` - Simple expression form, automatically wrapped in a lambda
+- `(async (lambda () body))` - Explicit thunk form for multi-statement tasks
+
+Both forms expand to appropriate `spawn-fiber` calls, allowing users to choose the most convenient syntax for their use case.
+
 ## Concurrency Model
 
 The Twine interpreter uses a fiber-based concurrency model built around a central fiber scheduler. All code execution occurs within fibers, with the interpreter starting execution in a single main fiber. The fiber scheduler manages the execution of multiple fibers, yielding control between them when fibers perform I/O operations or explicitly yield control.
@@ -315,8 +392,8 @@ The concurrency model is built around a fiber scheduler with two layers:
 ┌─────────────────────────────────────────────────────────────┐
 │                    Async Task Layer                         │
 │  ┌─────────────┐  ┌─────────────────────────────────────┐   │
-│  │ Task Tree   │  │ async/task-wait Builtins            │   │
-│  │ Main        │  │ - spawn tasks                       │   │
+│  │ Task Tree   │  │ async macro/task-wait Builtin       │   │
+│  │ Main        │  │ - async expands to spawn-fiber      │   │
 │  │ ├─Task A    │  │ - wait for completion               │   │
 │  │ ├─Task B    │  │ - hierarchical cleanup              │   │
 │  │ └─Task C    │  │                                     │   │
@@ -340,7 +417,7 @@ The concurrency model is built around a fiber scheduler with two layers:
 **Fiber Scheduling Process**:
 1. All code starts in the main fiber
 2. `spawn-fiber` creates independent fibers
-3. `async` builtin creates hierarchical tasks (built on fibers)
+3. `async` macro expands to `spawn-fiber` calls for hierarchical tasks
 4. I/O operations automatically yield current fiber to scheduler
 5. Scheduler selects next ready fiber for execution
 6. I/O completion moves fiber back to ready queue
@@ -357,7 +434,7 @@ The concurrency model is built around a fiber scheduler with two layers:
 6. **Completion**: Fiber finishes execution and is cleaned up
 
 #### Task Lifecycle (High-level)
-1. **Creation**: Tasks spawned via `async` builtin, immediately start executing
+1. **Creation**: Tasks spawned via `async` macro (expanding to `spawn-fiber`), immediately start executing
 2. **Parent Linking**: Task linked to current task as parent-child relationship
 3. **Execution**: Task runs synchronously from Scheme perspective
 4. **Waiting**: Other tasks can `task-wait` for completion
@@ -596,18 +673,7 @@ pub fn create_builtin_procedures() -> HashMap<String, Procedure> {
         },
     });
 
-    // High-level task spawning (hierarchical with parent-child relationship)
-    builtins.insert("async".to_string(), Procedure::Builtin {
-        name: "async".to_string(),
-        func: |args, scheduler, current_fiber_id| {
-            if args.len() != 1 {
-                return Err(Error::ArityError("async expects 1 argument".to_string()));
-            }
-            // Create task linked to current task as parent
-            let task_handle = scheduler.spawn_task(args[0].clone(), Some(current_fiber_id));
-            Ok(Value::TaskHandle(task_handle))
-        },
-    });
+
 
     // Wait for task completion (hierarchical tasks)
     builtins.insert("task-wait".to_string(), Procedure::Builtin {
@@ -646,6 +712,8 @@ pub fn create_builtin_procedures() -> HashMap<String, Procedure> {
 }
 ```
 
+
+
 ## Error Handling
 
 ### Error Type Hierarchy
@@ -661,6 +729,9 @@ pub enum Error {
     TypeError(String),
     ArityError(String),
     UnboundVariable(String),
+
+    // Macro errors
+    MacroError(String),
 
     // I/O errors
     IoError(String),
@@ -681,6 +752,7 @@ impl std::fmt::Display for Error {
             Error::TypeError(msg) => write!(f, "Type error: {}", msg),
             Error::ArityError(msg) => write!(f, "Arity error: {}", msg),
             Error::UnboundVariable(var) => write!(f, "Unbound variable: {}", var),
+            Error::MacroError(msg) => write!(f, "Macro error: {}", msg),
             Error::IoError(msg) => write!(f, "I/O error: {}", msg),
             Error::FiberError(msg) => write!(f, "Fiber error: {}", msg),
             Error::SystemError(msg) => write!(f, "System error: {}", msg),
