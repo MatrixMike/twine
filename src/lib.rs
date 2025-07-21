@@ -5,6 +5,7 @@
 
 pub mod error;
 pub mod lexer;
+pub mod parser;
 pub mod types;
 
 // Re-export error types for convenience
