@@ -17,7 +17,7 @@
 
 ## System Overview
 
-Twine is a purely functional Scheme interpreter written in Rust that emphasizes immutability, asynchronous I/O, and parallel execution. The system is built around three core principles:
+Twine is a functional Scheme interpreter written in Rust that emphasizes immutability, asynchronous I/O, and parallel execution. While the language supports side effects such as I/O operations, it maintains strict immutability of all data structures and prevents mutation of function inputs or global state. The system is built around three core principles:
 
 1. **Complete Immutability**: All data structures are immutable after creation
 2. **Fiber-based Concurrency**: Lightweight tasks executed on a thread pool using `smol` async runtime
@@ -30,6 +30,7 @@ Twine is a purely functional Scheme interpreter written in Rust that emphasizes 
 - **Memory Management**: Rust's ownership system + reference counting for shared immutable data
 - **Thread Pool**: Multi-threaded execution pool managed by `smol`
 - **Error Handling**: Result-based error propagation with async-compatible patterns
+- **Side Effects**: Side effects (I/O, network) are permitted while maintaining data immutability
 
 ## Architecture
 
@@ -156,6 +157,7 @@ pub enum Value {
     Symbol(Arc<str>),
     List(Arc<[Value]>),
     Procedure(Arc<Procedure>),
+    TaskHandle(TaskId),
     Nil,
 }
 
@@ -163,7 +165,7 @@ pub enum Value {
 pub enum Procedure {
     Builtin {
         name: String,
-        func: fn(&[Value]) -> Result<Value, Error>,
+        func: fn(&[Value], &mut TaskScheduler, TaskId) -> Result<Value, Error>,
     },
     Lambda {
         params: Vec<String>,
@@ -205,73 +207,179 @@ impl Environment {
 - Closure capture support
 - Thread-safe sharing via `Arc`
 
-### 5. Fiber Execution Engine (`runtime/`)
+### 5. Fiber Scheduler and Task System (`runtime/`)
 
-**Responsibility**: Manage parallel execution of Scheme computations
+**Responsibility**: Manage fiber execution and provide async task abstraction for Scheme code
+
+The runtime consists of two layers:
+1. **Fiber Scheduler**: Low-level fiber management with automatic I/O yielding
+2. **Async Task System**: High-level task abstraction built on fibers
+
+#### Fiber Scheduler
 
 ```rust
 pub struct Fiber {
     id: FiberId,
-    task: Pin<Box<dyn Future<Output = Result<Value, Error>> + Send>>,
+    state: FiberState,
+    continuation: Pin<Box<dyn Future<Output = Result<Value, Error>> + Send>>,
+    parent: Option<FiberId>,
 }
 
-pub struct FiberExecutor {
+pub enum FiberState {
+    Ready,
+    Running,
+    Suspended(SuspendReason),
+    Completed(Result<Value, Error>),
+}
+
+pub enum SuspendReason {
+    IoOperation(Pin<Box<dyn Future<Output = ()> + Send>>),
+    WaitingForTask(TaskHandle),
+    Yielded,
+}
+
+pub struct FiberScheduler {
+    ready_queue: VecDeque<FiberId>,
+    fibers: HashMap<FiberId, Fiber>,
     runtime: smol::Executor<'static>,
     thread_pool: Vec<std::thread::JoinHandle<()>>,
+    main_fiber: FiberId,
 }
 
-impl FiberExecutor {
+impl FiberScheduler {
     pub fn new(thread_count: usize) -> Self { /* ... */ }
-    pub async fn spawn_fiber(&self, expr: Expr, env: Environment) -> FiberId { /* ... */ }
-    pub async fn await_fiber(&self, id: FiberId) -> Result<Value, Error> { /* ... */ }
-    pub fn shutdown(self) { /* ... */ }
+    pub fn spawn_fiber(&mut self, thunk: Value, parent: Option<FiberId>) -> FiberId { /* ... */ }
+    pub fn yield_for_io(&mut self, fiber_id: FiberId, io_op: impl Future<Output = ()> + Send + 'static) { /* ... */ }
+    pub fn yield_current(&mut self) { /* ... */ }
+    pub fn resume_fiber(&mut self, fiber_id: FiberId) { /* ... */ }
+    pub fn run_scheduler(&mut self) { /* ... */ }
+}
+```
+
+#### Async Task System
+
+Built on top of fibers, tasks provide hierarchical execution with parent-child relationships:
+
+```rust
+pub struct Task {
+    handle: TaskHandle,
+    fiber_id: FiberId,
+    parent_task: Option<TaskHandle>,
+    child_tasks: HashSet<TaskHandle>,
+    result: Option<Result<Value, Error>>,
+}
+
+pub struct TaskHandle {
+    id: TaskId,
+    // Internal reference to task in scheduler
+}
+
+impl TaskHandle {
+    pub fn wait(&self, scheduler: &mut FiberScheduler) -> Result<Value, Error> { /* ... */ }
+    pub fn is_finished(&self) -> bool { /* ... */ }
+    pub fn cancel(&self, scheduler: &mut FiberScheduler) { /* ... */ }
 }
 ```
 
 **Key Features**:
-- Lightweight fiber creation and management
-- Thread pool for parallel execution
-- No GIL - true parallelism
-- Async-compatible with `smol` runtime
+- **Main Fiber**: All execution starts in a single main fiber
+- **Transparent I/O**: I/O operations automatically yield without explicit syntax
+- **Fiber Hierarchy**: Parent-child relationships for resource management  
+- **Task Abstraction**: High-level async tasks for Scheme programmers
+- **Automatic Cleanup**: Child tasks terminated when parent completes
+- **Synchronous Semantics**: All operations appear synchronous to Scheme code
+- **True Parallelism**: Thread pool enables multi-core execution without GIL
 
 ## Concurrency Model
 
-### Fiber Architecture
+The Twine interpreter uses a fiber-based concurrency model built around a central fiber scheduler. All code execution occurs within fibers, with the interpreter starting execution in a single main fiber. The fiber scheduler manages the execution of multiple fibers, yielding control between them when fibers perform I/O operations or explicitly yield control.
 
-The concurrency model is built around fibers (lightweight tasks) that execute on a thread pool managed by the `smol` async runtime:
+### Fiber Scheduler Architecture
+
+The concurrency model is built around a fiber scheduler with two layers:
+
+**1. Fiber Scheduler (Low-level)**
+- Manages fiber execution and yielding
+- Handles I/O suspension automatically
+- Coordinates with thread pool for parallelism
+
+**2. Async Task System (High-level)**
+- Provides task abstraction for Scheme code
+- Manages parent-child task relationships  
+- Built on top of fiber scheduler
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
+│                    Async Task Layer                         │
+│  ┌─────────────┐  ┌─────────────────────────────────────┐   │
+│  │ Task Tree   │  │ async/task-wait Builtins            │   │
+│  │ Main        │  │ - spawn tasks                       │   │
+│  │ ├─Task A    │  │ - wait for completion               │   │
+│  │ ├─Task B    │  │ - hierarchical cleanup              │   │
+│  │ └─Task C    │  │                                     │   │
+│  └─────────────┘  └─────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────┤
+│                   Fiber Scheduler                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ Ready Queue │  │ Suspended   │  │ Main Fiber  │         │
+│  │ [F1, F3]    │  │ [F2→IO]     │  │ [running]   │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+├─────────────────────────────────────────────────────────────┤
 │                    Smol Async Runtime                       │
 ├─────────────────────────────────────────────────────────────┤
 │  Thread 1    │  Thread 2    │  Thread 3    │  Thread 4    │
-├─────────────────────────────────────────────────────────────┤
-│ Fiber Pool   │ Fiber Pool   │ Fiber Pool   │ Fiber Pool   │
-│  ┌─────┐     │  ┌─────┐     │  ┌─────┐     │  ┌─────┐     │
-│  │Fiber│     │  │Fiber│     │  │Fiber│     │  │Fiber│     │
-│  │ A   │     │  │ C   │     │  │ E   │     │  │ G   │     │
-│  └─────┘     │  └─────┘     │  └─────┘     │  └─────┘     │
-│  ┌─────┐     │  ┌─────┐     │  ┌─────┐     │  ┌─────┐     │
-│  │Fiber│     │  │Fiber│     │  │Fiber│     │  │Fiber│     │
-│  │ B   │     │  │ D   │     │  │ F   │     │  │ H   │     │
-│  └─────┘     │  └─────┘     │  └─────┘     │  └─────┘     │
+│  Running     │  Running     │  Running     │  Running     │
+│  Task A      │  Task C      │  Task E      │  (idle)      │
+│  (Fiber)     │  (Fiber)     │  (Fiber)     │              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Fiber Lifecycle
+**Fiber Scheduling Process**:
+1. All code starts in the main fiber
+2. `spawn-fiber` creates independent fibers  
+3. `async` builtin creates hierarchical tasks (built on fibers)
+4. I/O operations automatically yield current fiber to scheduler
+5. Scheduler selects next ready fiber for execution
+6. I/O completion moves fiber back to ready queue
+7. Parent task completion triggers child task termination
 
-1. **Creation**: Fibers are spawned from Scheme expressions
-2. **Scheduling**: `smol` executor distributes fibers across threads
-3. **Execution**: Independent evaluation with immutable data sharing
-4. **Synchronization**: Fibers can await other fibers for coordination
-5. **Completion**: Results are collected and returned to caller
+### Fiber and Task Lifecycle
+
+#### Fiber Lifecycle (Low-level)
+1. **Creation**: Fibers spawned via `spawn-fiber` or internally by async tasks
+2. **Ready**: Fiber added to scheduler's ready queue
+3. **Running**: Fiber executes on thread from thread pool
+4. **Suspended**: Fiber yields due to I/O or explicit yield
+5. **Resumption**: Fiber moved back to ready queue when I/O completes
+6. **Completion**: Fiber finishes execution and is cleaned up
+
+#### Task Lifecycle (High-level)
+1. **Creation**: Tasks spawned via `async` builtin, immediately start executing
+2. **Parent Linking**: Task linked to current task as parent-child relationship
+3. **Execution**: Task runs synchronously from Scheme perspective
+4. **Waiting**: Other tasks can `task-wait` for completion
+5. **Completion**: Task finishes and notifies any waiting tasks
+6. **Cleanup**: Child tasks terminated when parent completes
+
+**Key Differences**:
+- **Fibers**: Independent execution units with manual lifecycle management
+- **Tasks**: Hierarchical execution with automatic parent-child cleanup
+- **I/O Handling**: Both automatically yield on I/O, appear synchronous to code
+6. **Synchronization**: `task-wait` suspends current task until target completes
+7. **Completion**: Task completes with result value
+
+**Task States**:
+- **Ready**: Waiting in scheduler queue for execution
+- **Running**: Currently executing on a thread (backed by fiber)
+- **Suspended**: Waiting for IO or other task completion
+- **Completed**: Finished with result value
 
 ### Thread Safety
 
 - **Immutable Data**: All Scheme values are immutable, enabling safe sharing
 - **Arc-based Sharing**: Reference counting for memory management
 - **No Locks**: Immutability eliminates need for mutexes or locks
-- **Message Passing**: Fibers communicate through immutable value passing
+- **Message Passing**: Tasks communicate through immutable value passing
 
 ## Data Types and Memory Management
 
@@ -325,15 +433,15 @@ Car/Cdr operations create new views without copying data.
 The evaluator follows a standard Scheme evaluation model adapted for async execution:
 
 ```rust
-pub async fn eval(expr: Expr, env: Environment) -> Result<Value, Error> {
+pub fn eval(expr: Expr, env: Environment, scheduler: &mut TaskScheduler, task_id: TaskId) -> Result<Value, Error> {
     match expr {
-        Expr::Atom(value) => eval_atom(value, env).await,
-        Expr::List(exprs) => eval_list(exprs, env).await,
-        Expr::Quote(expr) => eval_quote(*expr, env).await,
+        Expr::Atom(value) => eval_atom(value, env, scheduler, task_id),
+        Expr::List(exprs) => eval_list(exprs, env, scheduler, task_id),
+        Expr::Quote(expr) => eval_quote(*expr, env, scheduler, task_id),
     }
 }
 
-async fn eval_list(exprs: Vec<Expr>, env: Environment) -> Result<Value, Error> {
+fn eval_list(exprs: Vec<Expr>, env: Environment, scheduler: &mut TaskScheduler, task_id: TaskId) -> Result<Value, Error> {
     if exprs.is_empty() {
         return Ok(Value::Nil);
     }
@@ -342,16 +450,16 @@ async fn eval_list(exprs: Vec<Expr>, env: Environment) -> Result<Value, Error> {
     match first {
         // Special forms
         Expr::Atom(Value::Symbol(sym)) if sym.as_ref() == "if" => {
-            eval_if(&exprs[1..], env).await
+            eval_if(&exprs[1..], env, scheduler, task_id)
         }
         Expr::Atom(Value::Symbol(sym)) if sym.as_ref() == "define" => {
-            eval_define(&exprs[1..], env).await
+            eval_define(&exprs[1..], env, scheduler, task_id)
         }
         Expr::Atom(Value::Symbol(sym)) if sym.as_ref() == "lambda" => {
-            eval_lambda(&exprs[1..], env).await
+            eval_lambda(&exprs[1..], env, scheduler, task_id)
         }
         // Function application
-        _ => eval_application(exprs, env).await,
+        _ => eval_application(exprs, env, scheduler, task_id),
     }
 }
 ```
@@ -361,39 +469,55 @@ async fn eval_list(exprs: Vec<Expr>, env: Environment) -> Result<Value, Error> {
 Implemented through async recursion and proper future handling:
 
 ```rust
-async fn eval_application(exprs: Vec<Expr>, env: Environment) -> Result<Value, Error> {
-    let func = eval(exprs[0].clone(), env.clone()).await?;
-    let args = eval_args(&exprs[1..], env.clone()).await?;
+fn eval_application(exprs: Vec<Expr>, env: Environment, scheduler: &mut TaskScheduler, task_id: TaskId) -> Result<Value, Error> {
+    let func = eval(exprs[0].clone(), env.clone(), scheduler, task_id)?;
+    let args = eval_args(&exprs[1..], env.clone(), scheduler, task_id)?;
 
     match func {
         Value::Procedure(proc) => {
             match proc.as_ref() {
                 Procedure::Lambda { params, body, closure } => {
                     let new_env = closure.extend(params, &args);
-                    // Tail call optimization through async recursion
-                    Box::pin(eval(body.clone(), new_env)).await
+                    // Tail call optimization through direct recursion
+                    eval(body.clone(), new_env, scheduler, fiber_id)
                 }
                 Procedure::Builtin { func, .. } => {
-                    func(&args)
+                    func(&args, scheduler, fiber_id)
                 }
             }
         }
         _ => Err(Error::TypeError("Not a procedure".to_string())),
     }
 }
+
+fn eval_args(exprs: &[Expr], env: Environment, scheduler: &mut FiberScheduler, fiber_id: FiberId) -> Result<Vec<Value>, Error> {
+    let mut args = Vec::new();
+    for expr in exprs {
+        args.push(eval(expr.clone(), env.clone(), scheduler, fiber_id)?);
+    }
+    Ok(args)
+}
 ```
 
-## Asynchronous I/O
+## Asynchronous I/O and Fiber Integration
 
 ### I/O Architecture
 
-All I/O operations are implemented as async functions using `smol`:
+All I/O operations in Twine are asynchronous at the runtime level but appear completely synchronous to Scheme code. When a fiber performs an I/O operation, it automatically yields execution to the fiber scheduler, which then runs other fibers while the I/O operation completes in the background.
+
+**Fiber-Integrated I/O Principles:**
+- **Transparent Yielding**: I/O operations automatically yield the current fiber without explicit syntax
+- **Synchronous Appearance**: No async/await syntax - I/O looks like regular function calls
+- **Non-blocking Runtime**: Other fibers continue execution while I/O happens
+- **Automatic Resumption**: Fibers resume automatically when I/O completes
+- **Scheduler Coordination**: All I/O operations coordinate with the central fiber scheduler
 
 ```rust
 pub mod io {
     use smol::io::{AsyncWriteExt, AsyncBufReadExt};
 
-    pub async fn display(value: &Value) -> Result<(), Error> {
+    // Internal async implementation
+    async fn display_async(value: &Value) -> Result<(), Error> {
         let output = format_value(value);
         let mut stdout = smol::io::stdout();
         stdout.write_all(output.as_bytes()).await
@@ -403,38 +527,119 @@ pub mod io {
         Ok(())
     }
 
-    pub async fn read_line() -> Result<String, Error> {
-        let stdin = smol::io::stdin();
-        let mut reader = smol::io::BufReader::new(stdin);
-        let mut line = String::new();
-        reader.read_line(&mut line).await
-            .map_err(|e| Error::IoError(e.to_string()))?;
-        Ok(line)
+    // Fiber-yielding wrapper - appears synchronous to Scheme
+    pub fn display(value: &Value, scheduler: &mut FiberScheduler, fiber_id: FiberId) -> Result<(), Error> {
+        let io_future = display_async(value);
+        scheduler.yield_for_io(fiber_id, Box::pin(async {
+            io_future.await.unwrap();
+        }));
+        // Execution resumes here after IO completes
+        Ok(())
+    }
+
+    pub fn read_line(scheduler: &mut FiberScheduler, fiber_id: FiberId) -> Result<String, Error> {
+        let (sender, receiver) = async_channel::bounded(1);
+        let io_future = async move {
+            let stdin = smol::io::stdin();
+            let mut reader = smol::io::BufReader::new(stdin);
+            let mut line = String::new();
+            let result = reader.read_line(&mut line).await
+                .map(|_| line.trim().to_string())
+                .map_err(|e| Error::IoError(e.to_string()));
+            sender.send(result).await.unwrap();
+        };
+        scheduler.yield_for_io(fiber_id, Box::pin(io_future));
+        // Execution resumes here with result
+        receiver.recv_blocking().unwrap()
     }
 }
 ```
 
-### Built-in Async Procedures
+**Key Principles**:
+- IO operations yield fiber execution to scheduler
+- Fibers resume automatically when IO completes
+- From Scheme perspective, IO appears synchronous
+- No async/await syntax needed in Scheme code
+
+### Built-in Fiber and Task Procedures
+
+Built-in procedures integrate with the fiber scheduler for transparent I/O and task management:
 
 ```rust
-pub fn create_builtin_procedures() -> HashMap<String, Value> {
-    let mut procs = HashMap::new();
+pub fn create_builtin_procedures() -> HashMap<String, Procedure> {
+    let mut builtins = HashMap::new();
 
-    // Async display procedure
-    procs.insert("display".to_string(), Value::Procedure(Arc::new(
-        Procedure::AsyncBuiltin {
-            name: "display".to_string(),
-            func: |args| Box::pin(async move {
-                if args.len() != 1 {
-                    return Err(Error::ArityError("display expects 1 argument".to_string()));
-                }
-                io::display(&args[0]).await?;
-                Ok(Value::Nil)
-            }),
-        }
-    )));
+    // I/O operations that automatically yield
+    builtins.insert("display".to_string(), Procedure::Builtin {
+        name: "display".to_string(),
+        func: |args, scheduler, fiber_id| {
+            if args.len() != 1 {
+                return Err(Error::ArityError("display expects 1 argument".to_string()));
+            }
+            io::display(&args[0], scheduler, fiber_id)?;
+            Ok(Value::Nil)
+        },
+    });
 
-    procs
+    // Low-level fiber spawning (independent execution)
+    builtins.insert("spawn-fiber".to_string(), Procedure::Builtin {
+        name: "spawn-fiber".to_string(),
+        func: |args, scheduler, _fiber_id| {
+            if args.len() != 1 {
+                return Err(Error::ArityError("spawn-fiber expects 1 argument".to_string()));
+            }
+            let fiber_id = scheduler.spawn_fiber(args[0].clone(), None);
+            Ok(Value::FiberHandle(fiber_id))
+        },
+    });
+
+    // High-level task spawning (hierarchical with parent-child relationship)
+    builtins.insert("async".to_string(), Procedure::Builtin {
+        name: "async".to_string(),
+        func: |args, scheduler, current_fiber_id| {
+            if args.len() != 1 {
+                return Err(Error::ArityError("async expects 1 argument".to_string()));
+            }
+            // Create task linked to current task as parent
+            let task_handle = scheduler.spawn_task(args[0].clone(), Some(current_fiber_id));
+            Ok(Value::TaskHandle(task_handle))
+        },
+    });
+
+    // Wait for task completion (hierarchical tasks)
+    builtins.insert("task-wait".to_string(), Procedure::Builtin {
+        name: "task-wait".to_string(),
+        func: |args, scheduler, fiber_id| {
+            if args.len() != 1 {
+                return Err(Error::ArityError("task-wait expects 1 argument".to_string()));
+            }
+            if let Value::TaskHandle(task_handle) = &args[0] {
+                // Suspend current fiber until task completes
+                task_handle.wait(scheduler, fiber_id)
+            } else {
+                Err(Error::TypeError("task-wait requires a task handle".to_string()))
+            }
+        },
+    });
+
+    // Wait for fiber completion (low-level)
+    builtins.insert("fiber-wait".to_string(), Procedure::Builtin {
+        name: "fiber-wait".to_string(),
+        func: |args, scheduler, fiber_id| {
+            if args.len() != 1 {
+                return Err(Error::ArityError("fiber-wait expects 1 argument".to_string()));
+            }
+            if let Value::FiberHandle(target_fiber) = &args[0] {
+                scheduler.wait_for_fiber(fiber_id, *target_fiber);
+                // Current fiber suspended until target completes
+                Ok(scheduler.get_fiber_result(*target_fiber))
+            } else {
+                Err(Error::TypeError("Expected fiber handle".to_string()))
+            }
+        },
+    });
+
+    builtins
 }
 ```
 
@@ -512,18 +717,26 @@ sequenceDiagram
     participant REPL
     participant Parser
     participant Evaluator
-    participant FiberExecutor
-    participant SmolRuntime
+    participant FiberScheduler
+    participant IOSystem
 
     User->>REPL: Input expression
     REPL->>Parser: tokenize & parse
     Parser->>REPL: AST
-    REPL->>Evaluator: eval(ast, env)
-    Evaluator->>FiberExecutor: spawn_fiber
-    FiberExecutor->>SmolRuntime: create task
-    SmolRuntime->>FiberExecutor: execute on thread pool
-    FiberExecutor->>Evaluator: result
-    Evaluator->>REPL: value
+    REPL->>FiberScheduler: eval in main fiber
+    FiberScheduler->>Evaluator: execute fiber
+    Evaluator->>Evaluator: evaluate expression
+
+    alt IO Operation
+        Evaluator->>FiberScheduler: yield for IO
+        FiberScheduler->>IOSystem: start async IO
+        FiberScheduler->>FiberScheduler: schedule other fibers
+        IOSystem->>FiberScheduler: IO complete
+        FiberScheduler->>Evaluator: resume fiber
+    end
+
+    Evaluator->>FiberScheduler: return result
+    FiberScheduler->>REPL: value
     REPL->>User: display result
 ```
 
@@ -531,29 +744,36 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Main
-    participant FiberExecutor
+    participant MainFiber
+    participant FiberScheduler
     participant Thread1
     participant Thread2
-    participant Thread3
+    participant IOSystem
 
-    Main->>FiberExecutor: spawn_fiber(expr1)
-    Main->>FiberExecutor: spawn_fiber(expr2)
-    Main->>FiberExecutor: spawn_fiber(expr3)
+    MainFiber->>FiberScheduler: (async expr1)
+    FiberScheduler->>FiberScheduler: spawn fiber1
+    MainFiber->>FiberScheduler: (async expr2)
+    FiberScheduler->>FiberScheduler: spawn fiber2
+    MainFiber->>FiberScheduler: (fiber-wait fiber1)
+    FiberScheduler->>FiberScheduler: suspend main fiber
 
     par Parallel Execution
-        FiberExecutor->>Thread1: execute fiber1
+        FiberScheduler->>Thread1: run fiber1
         and
-        FiberExecutor->>Thread2: execute fiber2
-        and
-        FiberExecutor->>Thread3: execute fiber3
+        FiberScheduler->>Thread2: run fiber2
     end
 
-    Thread1->>FiberExecutor: result1
-    Thread2->>FiberExecutor: result2
-    Thread3->>FiberExecutor: result3
+    alt Fiber1 does IO
+        Thread1->>FiberScheduler: yield for IO
+        FiberScheduler->>IOSystem: start async IO
+        FiberScheduler->>Thread1: run fiber2 (switch)
+        IOSystem->>FiberScheduler: IO complete
+        FiberScheduler->>Thread2: resume fiber1
+    end
 
-    FiberExecutor->>Main: collect results
+    Thread1->>FiberScheduler: fiber1 complete
+    Thread2->>FiberScheduler: fiber2 complete
+    FiberScheduler->>MainFiber: resume with fiber1 result
 ```
 
 ### Function Application with Closure
@@ -611,25 +831,25 @@ clap = "4.0"
 mod tests {
     use super::*;
 
-    #[smol_potat::test]
-    async fn test_basic_arithmetic() {
-        let result = eval_string("(+ 1 2 3)").await.unwrap();
+    #[test]
+    fn test_basic_arithmetic() {
+        let mut scheduler = FiberScheduler::new(1);
+        let result = eval_string("(+ 1 2 3)", &mut scheduler).unwrap();
         assert_eq!(result, Value::Number(6.0));
     }
 
-    #[smol_potat::test]
-    async fn test_parallel_execution() {
-        let results = eval_parallel(vec![
-            "(+ 1 1)",
-            "(* 2 2)",
-            "(- 5 2)"
-        ]).await.unwrap();
+    #[test]
+    fn test_fiber_execution() {
+        let mut scheduler = FiberScheduler::new(4);
+        let fiber1 = scheduler.spawn_fiber_from_string("(+ 1 1)");
+        let fiber2 = scheduler.spawn_fiber_from_string("(* 2 2)");
+        let fiber3 = scheduler.spawn_fiber_from_string("(- 5 2)");
 
-        assert_eq!(results, vec![
-            Value::Number(2.0),
-            Value::Number(4.0),
-            Value::Number(3.0)
-        ]);
+        scheduler.run_scheduler();
+
+        assert_eq!(scheduler.get_fiber_result(fiber1), Ok(Value::Number(2.0)));
+        assert_eq!(scheduler.get_fiber_result(fiber2), Ok(Value::Number(4.0)));
+        assert_eq!(scheduler.get_fiber_result(fiber3), Ok(Value::Number(3.0)));
     }
 }
 ```
