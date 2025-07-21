@@ -38,6 +38,7 @@ For detailed project information, see:
 
 ## Features
 
+- Lexical analysis with position tracking and comprehensive tokenization
 - Interactive REPL and file execution
 - Fiber scheduler with automatic I/O yielding
 - Two-layer concurrency: low-level fibers and high-level async tasks
@@ -74,7 +75,7 @@ For detailed project information, see:
 
 Twine uses a fiber scheduler built on `smol`, allowing multiple fibers to execute concurrently across CPU cores. The codebase is organized into modules that reflect interpreter concepts:
 
-- `lexer/` - Input tokenization
+- `lexer/` - Input tokenization with position tracking and error reporting
 - `parser/` - S-expression parsing and AST construction
 - `types/` - Immutable Scheme data types
 - `interpreter/` - Core evaluation engine and environment management

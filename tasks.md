@@ -190,13 +190,15 @@ cargo bench              # Benchmarks must run (when applicable)
 
 ### 1.3 Lexical Analysis
 
-#### T1.3.1: Implement `Token` enum
+#### T1.3.1: Implement `Token` enum ✅
 **Prerequisites**: Value system complete
 **Deliverables**:
 - Create `src/lexer.rs` module
 - Token types: `LeftParen`, `RightParen`, `Quote`, `Number`, `String`, `Symbol`, `Boolean`, `EOF`
 - Add position tracking (line, column)
 - Implement `Debug` and `PartialEq` traits
+
+**Educational Note**: Uses owned `String` types for simplicity and learning focus. Zero-copy optimization with `&str` slices will be implemented in T5.3.1a for performance learning.
 
 **Tests Required**:
 ```rust
@@ -583,6 +585,8 @@ cargo bench              # Benchmarks must run (when applicable)
 
 ## Phase 5: Macro System and Polish
 
+**Educational Focus**: This phase emphasizes learning advanced language features (macros) and performance optimization techniques. Earlier phases prioritized simplicity and learning core interpreter concepts, while Phase 5 demonstrates real-world optimization strategies including zero-copy parsing, memory management, and performance measurement.
+
 ### 5.1 Macro System Infrastructure
 
 #### T5.1.1: Implement pattern matching system
@@ -637,9 +641,32 @@ cargo bench              # Benchmarks must run (when applicable)
 #### T5.3.1: Implement performance optimizations
 **Prerequisites**: Macro system complete
 **Deliverables**:
-- Tail call optimization improvements
 - Symbol interning for faster comparisons
-- Memory pool allocation
+- Tail call optimization improvements
+- Memory pool allocation for reduced GC pressure
+
+#### T5.3.1a: Zero-copy lexing optimization
+**Prerequisites**: T5.3.1
+**Deliverables**:
+- Convert `Token` enum to use `&str` slices instead of owned `String`
+- Add lifetime parameters: `Token<'a>`, `PositionedToken<'a>`, `Lexer<'a>`
+- Implement `Cow<str>` for tokens requiring escape sequence processing
+- Update parser and all downstream components for lifetime compatibility
+- Benchmark memory allocation reduction and tokenization speed improvements
+- Maintain API compatibility through careful lifetime design
+
+**Performance Targets**:
+- Reduce lexer memory allocations by >90%
+- Improve tokenization speed by 2-5x
+- Measure impact on overall parsing performance
+
+**Tests Required**:
+```rust
+#[test] fn test_zero_copy_tokenization()
+#[test] fn test_lifetime_correctness()
+#[test] fn test_performance_benchmarks()
+#[test] fn test_escape_sequence_processing()
+```
 
 #### T5.3.2: Add resource management and limits
 **Deliverables**:
@@ -782,15 +809,15 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 1 (Foundation)
-**Overall Progress**: 11% (9/81 tasks completed)
+**Overall Progress**: 12% (10/82 tasks completed)
 **Estimated Completion**: 13-17 weeks
 
 ### Phase Progress
-- **Phase 1**: 🔄 64% (9/14 tasks) - Foundation
+- **Phase 1**: 🔄 71% (10/14 tasks) - Foundation
 - **Phase 2**: ☐ 0% (0/20 tasks) - Basic Interpreter
 - **Phase 3**: ☐ 0% (0/20 tasks) - Advanced Features
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
-- **Phase 5**: ☐ 0% (0/11 tasks) - Polish & Macros
+- **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
 ### Recently Completed
 - ✅ T1.1.1: Initialize Rust project structure
@@ -802,11 +829,12 @@ cargo fmt --check            # Formatting verification
 - ✅ T1.2.3: Implement immutable string and symbol types
 - ✅ T1.2.4: Implement immutable list type
 - ✅ T1.2.5: Add comprehensive value system tests
+- ✅ T1.3.1: Implement `Token` enum
 
 ### Immediate Next Steps
-1. **T1.3.1**: Implement `Token` enum (🔥 Priority)
-2. **T1.3.2**: Implement `Lexer` struct
-3. **T1.3.3**: Implement token recognition
+1. **T1.3.2**: Implement `Lexer` struct (🔥 Priority)
+2. **T1.3.3**: Implement token recognition
+3. **T1.3.4**: Add lexer error handling
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

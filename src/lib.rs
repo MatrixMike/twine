@@ -3,6 +3,7 @@
 //! A minimalist Scheme interpreter written in Rust that implements a functional
 //! subset of R7RS-small Scheme with fiber-based concurrency and strict immutability.
 
+pub mod lexer;
 pub mod types;
 
 use thiserror::Error;
@@ -25,6 +26,22 @@ pub enum Error {
 
 /// Result type alias for Twine operations
 pub type Result<T> = std::result::Result<T, Error>;
+
+impl Error {
+    /// Create a syntax error with position information
+    pub fn syntax_error(message: &str, line: usize, column: usize) -> Self {
+        Self::SyntaxError {
+            message: message.to_string(),
+            line,
+            column,
+        }
+    }
+
+    /// Create a general parse error
+    pub fn parse_error(message: &str) -> Self {
+        Self::ParseError(message.to_string())
+    }
+}
 
 #[cfg(test)]
 mod tests {
