@@ -19,6 +19,8 @@ Twine is a [Scheme](https://en.wikipedia.org/wiki/Scheme_(programming_language))
 
 ## Educational Goals
 
+This project serves as a comprehensive learning platform for understanding AI agent development workflows, interpreter design, and modern systems programming concepts.
+
 - **AI Agent Development**: Learning to work with AI coding agents
 - **Interpreter Implementation**: Understanding lexing, parsing, evaluation, and runtime systems
 - **Async I/O and Parallelism**: Hands-on experience with Rust's async ecosystem
