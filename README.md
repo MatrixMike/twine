@@ -2,7 +2,7 @@
   <h1>🧵 twine</h1>
   <p>
     <strong>
-        A minimalist Scheme with fiber-based concurrency and async I/O
+      Scheme with fiber-based concurrency and async I/O
     </strong>
   </p>
 </div>
