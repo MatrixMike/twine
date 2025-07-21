@@ -872,16 +872,19 @@ sequenceDiagram
 
 ## Implementation Considerations
 
-### Dependencies
+### Possible Dependencies
+
+This is not an exhaustive list. Just some possible dependecies we could use.
 
 ```toml
 [dependencies]
 smol = "2.0"
-futures = "0.3"
-async-channel = "2.0"
-arc-swap = "1.6"
-thiserror = "1.0"
-clap = "4.0"
+futures-lite = "2.6"
+thiserror = "2.0"
+clap = "4.5"
+polling = "3.9"
+async-task = "4.7"
+async-channel = "2.5"
 ```
 
 ### Performance Optimizations

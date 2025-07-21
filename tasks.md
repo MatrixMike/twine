@@ -18,6 +18,27 @@ Each task includes:
 - Dependencies on other tasks
 - Test requirements
 
+## Task Implementation Guidelines
+
+### Minimal Implementation Principle
+Each task should implement **ONLY** the features explicitly described in that task. Do not implement functionality that belongs to future tasks, even if it seems related or convenient to add. This ensures:
+- Clear progress tracking
+- Incremental testing and validation
+- Easier debugging and rollback
+- Proper dependency management
+
+### Dependency Management
+- Add Rust dependencies **only when they are actually needed** for a specific task
+- Do not add all dependencies at once in the initial setup
+- Each dependency addition should be justified by the current task requirements
+- Update `Cargo.toml` incrementally as features are implemented
+
+### Implementation Constraints
+- **No forward implementation**: Don't add stubs, placeholder code, or partial implementations for future features
+- **No premature optimization**: Implement the simplest solution that works for the current task
+- **Minimal viable feature**: Each task should produce the smallest working implementation of its described functionality
+- **Test-driven**: Write tests for the current task only, not for future functionality
+
 ---
 
 ## Phase 1: Core Language Foundation
@@ -25,62 +46,79 @@ Each task includes:
 ### 1.1 Project Setup and Infrastructure
 
 - [ ] **T1.1.1**: Initialize Rust project structure
-  - Create `Cargo.toml` with dependencies from `design.md` (smol, futures, async-channel, arc-swap, thiserror, clap)
-  - Set up module structure: `lexer/`, `parser/`, `types/`, `interpreter/`, `runtime/`
-  - Configure development dependencies (test frameworks, benchmarking)
+  - Create basic `Cargo.toml` with project metadata (name, version, edition)
+  - DO NOT add any external dependencies yet - add them only when needed
+  - Create basic `src/main.rs` and `src/lib.rs` files
+  - DO NOT create module directories yet - create them when implementing specific components
   - **Ref**: Design Section "Dependencies"
+  - **Constraint**: Minimal project setup only, no premature module structure
 
 - [ ] **T1.1.2**: Set up basic error handling infrastructure
-  - Implement `Error` enum from `design.md` Section "Error Type Hierarchy"
-  - Implement `Display` trait for error types
+  - Add `thiserror` dependency to `Cargo.toml` (first external dependency)
+  - Implement basic `Error` enum with only essential variants needed for Phase 1: `SyntaxError`, `ParseError`
+  - DO NOT implement all error types from design.md - add them when needed
+  - Implement `Display` trait for current error types only
   - Create `Result<T>` type alias
   - **Ref**: FR-12, Design Section "Error Handling"
+  - **Constraint**: Only implement error types needed for current phase
 
 - [ ] **T1.1.3**: Create basic test framework structure
-  - Set up integration test directory
-  - Create test utilities for common operations
-  - Implement basic assertion helpers
+  - Create `tests/` directory for integration tests
+  - Add basic unit test setup in `src/lib.rs`
+  - DO NOT create test utilities yet - add them when specific tests need them
   - **Ref**: Design Section "Testing Strategy"
+  - **Constraint**: Minimal test setup only, no premature utilities
 
 ### 1.2 Core Data Types and Value System
 
 - [ ] **T1.2.1**: Implement basic `Value` enum
-  - Create `Value` enum with Number, Boolean, String, Symbol, Nil variants
+  - Create `src/types.rs` module
+  - Create `Value` enum with Number, Boolean, String, Symbol, Nil variants ONLY
+  - DO NOT add List, Procedure, TaskHandle variants yet - these belong to future tasks
   - Implement `Clone`, `Debug`, `PartialEq` traits
-  - Add basic constructor methods
+  - Add basic constructor methods for current variants only
   - **Ref**: FR-3, Design Section "Value System"
+  - **Constraint**: Only implement Value variants needed for lexer/parser phases
 
 - [ ] **T1.2.2**: Implement immutable number type
   - Define `SchemeNumber` type (f64 wrapper)
-  - Implement arithmetic operations
-  - Add number parsing and formatting
+  - DO NOT implement arithmetic operations yet - these belong to evaluation phase
+  - Add only number parsing and basic formatting for display
   - **Ref**: FR-4, Design Section "Immutable Value Design"
+  - **Constraint**: Only implement what's needed for lexer number token creation
 
 - [ ] **T1.2.3**: Implement immutable string and symbol types
-  - Define `SchemeString` and `SchemeSymbol` types
-  - Implement string operations and symbol interning
-  - Add proper equality and hashing
+  - Define `SchemeString` and `SchemeSymbol` types as simple wrappers
+  - DO NOT implement symbol interning yet - use simple String storage for now
+  - Add basic equality and hashing
+  - DO NOT implement string operations - only basic construction and display
   - **Ref**: FR-3, Design Section "Immutable Value Design"
+  - **Constraint**: Minimal types for lexer/parser needs only
 
 - [ ] **T1.2.4**: Implement immutable list type
-  - Define `SchemeList` using `Arc<Vec<Value>>`
-  - Implement basic list operations (car, cdr, cons)
-  - Add structural sharing for efficiency
+  - Define `SchemeList` using simple `Vec<Value>` (no Arc yet)
+  - DO NOT implement list operations (car, cdr, cons) - these belong to evaluation phase
+  - DO NOT add structural sharing - implement basic version first
+  - Add only basic construction and display
   - **Ref**: FR-5, Design Section "List Operations and Structural Sharing"
+  - **Constraint**: Basic list type for parser AST only, no operations yet
 
 - [ ] **T1.2.5**: Add comprehensive value system tests
-  - Test all basic data type operations
-  - Test immutability guarantees
-  - Test memory sharing for lists
-  - Benchmark list operations performance
+  - Test basic data type construction and display
+  - Test equality and basic properties
+  - DO NOT test operations that haven't been implemented yet
+  - DO NOT add performance benchmarks yet - focus on correctness
+  - **Constraint**: Test only the minimal functionality implemented so far
 
 ### 1.3 Lexical Analysis
 
 - [ ] **T1.3.1**: Implement `Token` enum
+  - Create `src/lexer.rs` module
   - Create token types from `design.md`: LeftParen, RightParen, Quote, Number, String, Symbol, Boolean, EOF
   - Add position tracking (line, column)
   - Implement `Debug` and `PartialEq` traits
   - **Ref**: FR-1, Design Section "Lexer"
+  - **Constraint**: Token definition only, no lexer logic yet
 
 - [ ] **T1.3.2**: Implement `Lexer` struct
   - Create lexer with input, position, line, column fields
@@ -343,16 +381,21 @@ Each task includes:
 ### 4.1 Fiber Scheduler Infrastructure
 
 - [ ] **T4.1.1**: Implement `Fiber` struct
+  - Add async dependencies: `smol`, `futures-lite`, `async-channel` to `Cargo.toml`
+  - Create `src/runtime/` module directory
   - Create fiber with id, state, continuation, parent fields
   - Implement `FiberState` enum (Ready, Running, Suspended, Completed)
   - Add `SuspendReason` enum (IoOperation, WaitingForTask, Yielded)
   - **Ref**: FR-14, Design Section "Fiber Scheduler"
+  - **Constraint**: Data structures only, no scheduler logic yet
 
 - [ ] **T4.1.2**: Implement `FiberScheduler` struct
+  - Add `polling` and `async-task` dependencies to `Cargo.toml` for scheduler operations
   - Create scheduler with ready queue, fiber map, runtime, thread pool
   - Add main fiber management
-  - Implement basic scheduling algorithms
+  - DO NOT implement scheduling algorithms yet - just the data structure
   - **Ref**: FR-14, Design Section "Fiber Scheduler Architecture"
+  - **Constraint**: Scheduler structure only, no execution logic yet
 
 - [ ] **T4.1.3**: Implement fiber lifecycle management
   - Add `spawn_fiber()`, `yield_current()`, `resume_fiber()` methods
@@ -541,6 +584,7 @@ Each task includes:
   - **Ref**: All AC-* requirements
 
 - [ ] **T5.4.2**: Add documentation and examples
+  - Add `clap` dependency for command-line interface (final dependency)
   - Create user documentation and examples
   - Add API documentation for all modules
   - Create tutorial and getting started guide
@@ -588,13 +632,16 @@ Each acceptance criteria (AC-1 through AC-12) should have corresponding automate
 
 ## Dependencies and References
 
-### External Dependencies
-- `smol` - Async runtime
-- `futures` - Async utilities  
-- `async-channel` - Async communication
-- `arc-swap` - Atomic reference counting
-- `thiserror` - Error handling
-- `clap` - Command line parsing
+### External Dependencies (Add Only When Needed)
+- `thiserror` - Error handling (Phase 1)
+- `smol` - Async runtime (Phase 4)
+- `futures-lite` - Async utilities (Phase 4)
+- `async-channel` - Async communication (Phase 4)
+- `polling` - Event polling for I/O (Phase 4)
+- `async-task` - Task management (Phase 4)
+- `clap` - Command line parsing (Phase 5)
+
+**Important**: Each dependency should be added to `Cargo.toml` only when the task specifically requires it. Do not add all dependencies at project initialization.
 
 ### Internal References
 - **Requirements**: See `requirements.md` for FR-* and NFR-* specifications
