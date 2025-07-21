@@ -35,6 +35,7 @@ This document (`agent.md`) serves as the **living memory** for all agent behavio
 2. **Documentation Requirement**: All behavioral changes MUST be added to the appropriate section of this document
 3. **Integration Principle**: New instructions should be integrated with existing guidelines, resolving any conflicts explicitly
 4. **Persistence Guarantee**: By updating this document, instructions persist across all future interactions
+5. **Automatic Updates**: When the user provides new behavioral instructions, I MUST automatically update this document without being asked
 
 ### Types of Behavioral Instructions
 - **Development Approach**: Changes to coding style, architecture preferences, or implementation strategies
@@ -276,5 +277,17 @@ As you implement features and make changes, ensure these files remain current:
 - **`requirements.md`**: Functional requirements, acceptance criteria, design principles  
 - **`design.md`**: Technical architecture, component specifications, implementation details
 - **`tasks.md`**: Implementation progress, completed tasks, current status
+- **`agent.md`**: Agent behavioral instructions and preferences (THIS FILE - update automatically when given new instructions)
+
+### Critical File Maintenance Rules
+
+**MANDATORY - Progress Tracking Maintenance**: When updating tasks in `tasks.md`, you MUST always update the "Progress Tracking" section at the bottom of the document. This section must reflect:
+- Current completion status for each phase
+- Accurate count of completed vs total tasks
+- List of completed tasks
+- Current status of active subsections
+- Next priority task to work on
+
+**MANDATORY - Agent Instructions**: When given new behavioral instructions, you MUST automatically update this `agent.md` file without being asked to ensure instructions persist across conversations.
 
 Remember: These documents are not just reference material - they are living specifications that should evolve with the project. Keep them accurate and up-to-date as the foundation for all development decisions.
