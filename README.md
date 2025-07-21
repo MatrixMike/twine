@@ -9,12 +9,13 @@
 
 ## Overview
 
-Twine implements a functional subset of R7RS-small Scheme including macro support with four core design principles:
+Twine implements a functional subset of R7RS-small Scheme including macro support with five core design principles:
 
 - **Fiber-based Concurrency**: Lightweight fiber scheduler with multi-threaded execution and no Global Interpreter Lock
 - **Asynchronous I/O**: All I/O operations are async with fiber yielding, appearing synchronous to Scheme code
 - **Strict Immutability**: All data structures are immutable after creation (side effects like I/O are still supported)
 - **Macro System**: R7RS-small macro support with `define-syntax` and `syntax-rules` for compile-time code transformation
+- **Implementation Simplicity**: Simple, readable code using basic Rust features, organized into logical modules that reflect domain concepts
 - **Minimalism**: Essential language features only for maintainability and simplicity
 
 ## Features
@@ -55,6 +56,16 @@ Twine implements a functional subset of R7RS-small Scheme including macro suppor
 ## Architecture
 
 Twine uses a fiber scheduler built on the `smol` async runtime, allowing multiple fibers to execute concurrently across CPU cores. The interpreter provides both low-level fiber management (`spawn-fiber`) and high-level task abstraction (via the `async` macro and `task-wait` builtin) for different concurrency needs. The `async` macro supports both simple expressions `(async expr)` and explicit thunks `(async (lambda () body))`, expanding to appropriate `spawn-fiber` calls for convenient task creation.
+
+The codebase is organized into logical modules that reflect the interpreter's domain concepts:
+- `lexer/` - Input tokenization with clear token definitions
+- `parser/` - S-expression parsing and AST construction  
+- `types/` - Immutable Scheme data types and values
+- `interpreter/` - Core evaluation engine and environment management
+- `runtime/` - Fiber scheduler, task system, and async I/O
+- `repl/` - Interactive interface and user interaction
+
+Each module maintains a single responsibility with simple, readable implementations that prioritize clarity over complex optimizations.
 
 ## License
 

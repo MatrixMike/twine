@@ -33,6 +33,9 @@ Twine is a functional Scheme interpreter written in Rust that emphasizes asynchr
 - **Thread Pool**: Multi-threaded execution pool managed by `smol`
 - **Error Handling**: Result-based error propagation with async-compatible patterns
 - **Side Effects**: Side effects (I/O, network) are permitted while maintaining data immutability
+- **Implementation Simplicity**: Straightforward, readable code over advanced Rust features or complex abstractions
+- **Module Organization**: Clear, logical module structure reflecting domain concepts with single responsibilities
+- **Code Clarity**: Explicit, verbose implementations over implicit, clever solutions
 
 ## Architecture
 
@@ -58,34 +61,44 @@ Twine is a functional Scheme interpreter written in Rust that emphasizes asynchr
 
 ### Module Structure
 
+The codebase is organized into logical modules that reflect domain concepts and maintain clear separation of concerns. Each module has a single, well-defined responsibility with minimal cross-module dependencies.
+
+#### Design Principles for Module Organization
+- **Single Responsibility**: Each module focuses on one aspect of the interpreter
+- **Clear Boundaries**: Minimal public APIs between modules
+- **Domain Alignment**: Module structure reflects Scheme interpreter concepts
+- **Simple Interfaces**: Straightforward function signatures and data flow
+- **Explicit Dependencies**: Clear import relationships without circular dependencies
+
 ```
 twine/
 ├── src/
 │   ├── main.rs              # Entry point and CLI
 │   ├── lib.rs               # Library root
-│   ├── lexer/
-│   │   ├── mod.rs           # Tokenization
+│   ├── lexer/               # Input tokenization
+│   │   ├── mod.rs           # Tokenization logic
 │   │   └── token.rs         # Token definitions
-│   ├── parser/
+│   ├── parser/              # Syntax analysis
 │   │   ├── mod.rs           # S-expression parsing
 │   │   └── ast.rs           # Abstract syntax tree
-│   ├── interpreter/
+│   ├── interpreter/         # Core evaluation engine
 │   │   ├── mod.rs           # Evaluation engine
-│   │   ├── environment.rs   # Variable binding
+│   │   ├── environment.rs   # Variable binding and scope
 │   │   ├── procedures.rs    # Built-in functions
-│   │   └── fiber.rs         # Fiber management
-│   ├── types/
+│   │   └── macros.rs        # Macro system
+│   ├── types/               # Core data types
 │   │   ├── mod.rs           # Core data types
 │   │   ├── value.rs         # Scheme values
 │   │   └── immutable.rs     # Immutable collections
-│   ├── runtime/
+│   ├── runtime/             # Concurrency and execution
 │   │   ├── mod.rs           # Async runtime management
-│   │   ├── executor.rs      # Fiber executor
+│   │   ├── fiber.rs         # Fiber scheduler
+│   │   ├── task.rs          # Task system
 │   │   └── io.rs            # Async I/O operations
-│   ├── repl/
+│   ├── repl/                # Interactive interface
 │   │   ├── mod.rs           # REPL implementation
 │   │   └── prompt.rs        # User interaction
-│   └── error/
+│   └── error/               # Error handling
 │       ├── mod.rs           # Error types
 │       └── reporting.rs     # Error formatting
 ```

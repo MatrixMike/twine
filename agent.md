@@ -12,6 +12,39 @@ You are working on **Twine**, a minimalist Scheme interpreter written in Rust th
 
 The project uses the `smol` async runtime for concurrency and provides both low-level fiber management and high-level async task abstraction.
 
+## Agent Behavioral Instructions Management
+
+### Incorporating User Instructions
+This document (`agent.md`) serves as the **living memory** for all agent behavioral instructions and preferences. When you provide instructions to change how I should behave, work, or approach tasks, these instructions MUST be incorporated into this document to ensure they are remembered and consistently applied.
+
+### Process for Behavioral Updates
+1. **Immediate Application**: New behavioral instructions take effect immediately for the current conversation
+2. **Documentation Requirement**: All behavioral changes MUST be added to the appropriate section of this document
+3. **Integration Principle**: New instructions should be integrated with existing guidelines, resolving any conflicts explicitly
+4. **Persistence Guarantee**: By updating this document, instructions persist across all future interactions
+
+### Types of Behavioral Instructions
+- **Development Approach**: Changes to coding style, architecture preferences, or implementation strategies
+- **Communication Style**: Modifications to how I should explain, document, or interact
+- **Workflow Adjustments**: Updates to development processes, testing approaches, or task management
+- **Tool Usage**: Preferences for specific tools, dependencies, or development environments
+- **Quality Standards**: Changes to code quality expectations, documentation requirements, or testing standards
+
+### Conflict Resolution
+When new instructions conflict with existing guidelines:
+1. **Explicit Override**: New instructions explicitly override conflicting existing ones
+2. **Contextual Application**: Specify when different approaches should be used
+3. **Priority Clarification**: Establish clear precedence rules for conflicting guidance
+4. **Documentation Update**: Update this document to reflect the resolved approach
+
+### Instruction Categories
+- **MANDATORY**: Must always be followed (marked with bold and imperative language)
+- **PREFERRED**: Default approach unless circumstances require otherwise
+- **CONTEXTUAL**: Applied in specific situations or phases
+- **DEPRECATED**: Previous instructions that have been superseded
+
+Remember: This document is not just a reference - it is my behavioral specification that evolves with your preferences and project needs.
+
 ## Core Documentation - ALWAYS CONSULT THESE
 
 Before responding to any development request, you MUST:
@@ -24,6 +57,22 @@ Before responding to any development request, you MUST:
 These documents are the single source of truth for the project. All implementation decisions must align with their specifications.
 
 ## Implementation Philosophy
+
+### Simplicity and Clarity
+- **Keep implementation simple and easy to understand**
+- **Avoid unnecessary usage of advanced Rust features or abstractions**
+- **Prefer straightforward, readable code over clever optimizations**
+- Use Rust's basic features effectively: structs, enums, pattern matching, ownership
+- Avoid complex trait hierarchies, excessive generics, or advanced lifetime patterns unless absolutely necessary
+- Write code that a Rust beginner could understand and maintain
+
+### Logical Module Organization
+- **Break up implementation logic into logical modules/folders where it makes sense**
+- Each module should have a clear, single responsibility
+- Group related functionality together (e.g., lexer/, parser/, types/, runtime/)
+- Use simple file and folder structures that reflect the domain concepts
+- Keep module interfaces clean with minimal public APIs
+- Organize code to minimize cross-module dependencies
 
 ### Incremental Development
 - Follow the phase-based approach outlined in `tasks.md`
@@ -48,10 +97,13 @@ These documents are the single source of truth for the project. All implementati
 
 ### Code Quality Standards
 - Write comprehensive tests for each implemented feature
-- Follow Rust best practices and idiomatic code patterns
+- Follow Rust best practices and idiomatic code patterns, but prioritize simplicity
 - Ensure all tests pass before marking a task complete
-- Maintain clear separation between core components
+- Maintain clear separation between core components through logical module boundaries
 - Document complex algorithms and design decisions
+- **Favor explicit, verbose code over implicit, clever code**
+- **Use descriptive names for functions, variables, and modules**
+- **Keep functions and modules small and focused on single responsibilities**
 
 ## Key Technical Constraints
 
@@ -72,6 +124,8 @@ These documents are the single source of truth for the project. All implementati
 - Focus on essential features: arithmetic, lists, functions, conditionals, macros
 - Support lexical scoping with closures
 - Provide both REPL and file execution modes
+- **Implement features in the most straightforward way possible**
+- **Avoid premature optimization or complex implementation patterns**
 
 ### Dependency Management (CRITICAL)
 - **MANDATORY**: Always use local vendored sources in `deps/vendor/` for dependency analysis
@@ -92,12 +146,15 @@ These documents are the single source of truth for the project. All implementati
 
 ### When Implementing Features
 1. Follow the minimal implementation principle
-2. Write tests first when possible (TDD approach)
-3. Implement only the current task's functionality
-4. **CHECK DEPENDENCIES LOCALLY**: Before using any third-party APIs, check `deps/vendor/` for source code and `deps/docs/` for documentation
-5. **UPDATE DEPENDENCIES**: If adding/changing dependencies, run `./scripts/update-deps.sh` immediately
-6. Ensure all existing tests continue to pass
-7. Update documentation if the implementation affects user-facing behavior
+2. **Start with the simplest possible implementation that works**
+3. **Organize code into logical modules/files based on functionality**
+4. Write tests first when possible (TDD approach)
+5. Implement only the current task's functionality
+6. **CHECK DEPENDENCIES LOCALLY**: Before using any third-party APIs, check `deps/vendor/` for source code and `deps/docs/` for documentation
+7. **UPDATE DEPENDENCIES**: If adding/changing dependencies, run `./scripts/update-deps.sh` immediately
+8. Ensure all existing tests continue to pass
+9. Update documentation if the implementation affects user-facing behavior
+10. **Refactor for clarity and simplicity, not performance**
 
 ### When Completing Tasks
 1. Verify all acceptance criteria are met
@@ -123,6 +180,8 @@ These documents are the single source of truth for the project. All implementati
 - Update the core documents when requirements or design change
 - **CITE LOCAL SOURCES**: When discussing third-party dependencies, reference specific files in `deps/vendor/` and `deps/docs/`
 - **DEPENDENCY UPDATES**: Always mention when `./scripts/update-deps.sh` needs to be run
+- **SIMPLICITY FOCUS**: Explain why simple solutions were chosen over complex alternatives
+- **MODULE ORGANIZATION**: Describe how code organization supports maintainability and understanding
 
 ## Dependency Management Workflow
 

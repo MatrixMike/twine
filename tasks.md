@@ -4,6 +4,8 @@
 
 This document provides a detailed implementation plan for the Twine Scheme interpreter, based on the specifications in `requirements.md` and technical design in `design.md`. Tasks are organized incrementally to allow for a minimal working interpreter that gradually adds features.
 
+**Simplicity First**: Throughout all phases, prioritize simple, readable implementations over complex or advanced Rust features. Every task should produce code that is easy to understand, maintain, and debug. Organize implementation logic into logical modules and folders that reflect the domain concepts clearly.
+
 ## Task Organization
 
 - **Phase 1**: Core Language Foundation
@@ -28,6 +30,24 @@ Each task should implement **ONLY** the features explicitly described in that ta
 - Easier debugging and rollback
 - Proper dependency management
 
+### Implementation Simplicity and Module Organization
+**Keep implementation simple and easy to understand**:
+- Avoid unnecessary usage of advanced Rust features or abstractions
+- Prefer straightforward, readable code over clever optimizations
+- Use Rust's basic features effectively: structs, enums, pattern matching, ownership
+- Avoid complex trait hierarchies, excessive generics, or advanced lifetime patterns unless absolutely necessary
+- Write code that a Rust beginner could understand and maintain
+- Favor explicit, verbose code over implicit, clever code
+
+**Break up implementation logic into logical modules/folders where it makes sense**:
+- Each module should have a clear, single responsibility
+- Group related functionality together (e.g., lexer/, parser/, types/, runtime/)
+- Use simple file and folder structures that reflect the domain concepts
+- Keep module interfaces clean with minimal public APIs
+- Organize code to minimize cross-module dependencies
+- Use descriptive names for functions, variables, and modules
+- Keep functions and modules small and focused on single responsibilities
+
 ### Dependency Management
 - Keep project dependencies to an **absolute minimum**
 - When required, choose alternatives that are minimal and have as few dependencies as possible
@@ -43,6 +63,11 @@ Each task should implement **ONLY** the features explicitly described in that ta
 - **No premature optimization**: Implement the simplest solution that works for the current task
 - **Minimal viable feature**: Each task should produce the smallest working implementation of its described functionality
 - **Test-driven**: Write tests for the current task only, not for future functionality
+- **Simplicity first**: Always choose the most straightforward implementation approach
+- **Avoid advanced patterns**: Don't use complex Rust features unless absolutely necessary
+- **Clear organization**: Structure code into logical modules that reflect the problem domain
+- **Readable over clever**: Write explicit, verbose code rather than implicit, clever solutions
+- **Beginner-friendly**: Code should be understandable by developers at all experience levels
 
 ### Testing Requirements
 Each task must include comprehensive testing that validates:
@@ -76,10 +101,15 @@ This constraint ensures:
   - DO NOT add any external dependencies yet - add them only when needed
   - Create basic `src/main.rs` and `src/lib.rs` files
   - DO NOT create module directories yet - create them when implementing specific components
+  - **Module Organization**: When creating modules in later tasks, organize them logically:
+    - Each module should have a single, clear responsibility
+    - Use descriptive names that reflect domain concepts (lexer/, parser/, types/, runtime/)
+    - Keep module interfaces minimal with clean public APIs
+    - Structure directories to mirror the interpreter's logical components
   - **Ref**: Design Section "Dependencies"
   - **Tests**: Create basic test infrastructure in `src/lib.rs`, verify project compiles with `cargo check`
   - **All tests must pass**: `cargo test` should run successfully (even if no tests exist yet)
-  - **Constraint**: Minimal project setup only, no premature module structure
+  - **Constraint**: Minimal project setup only, no premature module structure, prioritize simplicity
 
 - [x] **T1.1.2**: Set up basic error handling infrastructure
   - Add `thiserror` dependency to `Cargo.toml` (first external dependency - chosen for its minimal footprint and zero dependencies)

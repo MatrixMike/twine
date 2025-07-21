@@ -18,6 +18,10 @@ This document captures the functional and non-functional requirements for the Tw
 ### Principle 4: Simplicity and Minimalism
 **PRIORITY: HIGH** - The interpreter SHALL prioritize simple implementation and minimal syntax. Only the essential subset of R7RS-small SHALL be implemented to maintain code clarity, reduce complexity, and ensure maintainability.
 
+**Implementation Simplicity**: The codebase SHALL favor straightforward, readable implementations over advanced Rust features or complex abstractions. Code SHALL be written to be easily understood and maintained by developers at all experience levels.
+
+**Logical Module Organization**: The implementation SHALL be organized into clear, logical modules and folders that reflect the domain concepts. Each module SHALL have a single, well-defined responsibility with minimal cross-module dependencies.
+
 ## User Stories
 
 ### Story 1: Basic Expression Evaluation
@@ -210,6 +214,12 @@ This document captures the functional and non-functional requirements for the Tw
 **AND** the system SHALL prioritize code simplicity over feature completeness
 **AND** the system SHALL keep implementation complexity minimal
 **AND** the system SHALL prefer straightforward solutions over optimized complex ones
+**AND** the system SHALL avoid unnecessary usage of advanced Rust features or abstractions
+**AND** the system SHALL organize implementation logic into logical modules/folders based on functionality
+**AND** the system SHALL use descriptive names for functions, variables, and modules
+**AND** the system SHALL keep functions and modules small and focused on single responsibilities
+**AND** the system SHALL favor explicit, verbose code over implicit, clever code
+**AND** the system SHALL write code that is easily understood by developers at all experience levels
 
 ### NFR-6: Standards Compliance and Subset Focus
 **WHEN** Scheme features are implemented
