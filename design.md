@@ -225,8 +225,8 @@ pub struct Fiber {
     continuation: Pin<Box<dyn Future<Output = Result<Value, Error>> + Send>>,
     parent: Option<FiberId>, // Only used when fiber is associated with a task; fibers are independent by default
 }
-```
 
+```rust
 pub enum FiberState {
     Ready,
     Running,
