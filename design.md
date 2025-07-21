@@ -226,7 +226,6 @@ pub struct Fiber {
     parent: Option<FiberId>, // Only used when fiber is associated with a task; fibers are independent by default
 }
 
-```rust
 pub enum FiberState {
     Ready,
     Running,
@@ -286,7 +285,7 @@ impl TaskHandle {
 **Key Features**:
 - **Main Fiber**: All execution starts in a single main fiber
 - **Transparent I/O**: I/O operations automatically yield without explicit syntax
-- **Task Hierarchy**: Parent-child relationships for resource management  
+- **Task Hierarchy**: Parent-child relationships for resource management
 - **Task Abstraction**: High-level async tasks for Scheme programmers
 - **Automatic Cleanup**: Child tasks terminated when parent completes
 - **Synchronous Semantics**: All operations appear synchronous to Scheme code
@@ -309,7 +308,7 @@ The concurrency model is built around a fiber scheduler with two layers:
 
 **2. Async Task System (High-level)**
 - Provides task abstraction for Scheme code
-- Manages parent-child task relationships  
+- Manages parent-child task relationships
 - Built on top of fiber scheduler
 
 ```
@@ -340,7 +339,7 @@ The concurrency model is built around a fiber scheduler with two layers:
 
 **Fiber Scheduling Process**:
 1. All code starts in the main fiber
-2. `spawn-fiber` creates independent fibers  
+2. `spawn-fiber` creates independent fibers
 3. `async` builtin creates hierarchical tasks (built on fibers)
 4. I/O operations automatically yield current fiber to scheduler
 5. Scheduler selects next ready fiber for execution
