@@ -898,6 +898,53 @@ polling = "3.9"        # Event polling for I/O (smol ecosystem)
 - Avoid dependencies that pull in large dependency trees
 - CLI parsing (`clap`) and other non-core features are added only when implementing specific phases
 
+### Local Dependency Source Management
+
+To enable AI agents to reference accurate source code and documentation for all dependencies, the project maintains local copies of dependency sources and generated documentation in a gitignored directory structure.
+
+**Directory Structure:**
+```
+deps/
+├── vendor/          # Vendored dependency source code
+├── docs/            # Generated documentation for all dependencies
+└── registry/        # Local registry cache
+```
+
+**Management Commands:**
+
+**Initial Setup:**
+```bash
+# Download all dependency sources
+cargo vendor deps/vendor
+
+# Generate comprehensive documentation
+cargo doc --all-features --document-private-items --no-deps
+cargo doc --all-features --document-private-items --workspace
+
+# Copy generated docs to deps directory
+cp -r target/doc/* deps/docs/
+```
+
+**Maintenance:**
+```bash
+# Update vendored sources when dependencies change
+cargo vendor deps/vendor --sync Cargo.toml
+
+# Regenerate documentation after dependency updates
+cargo doc --all-features --document-private-items --no-deps --force-rebuild
+cp -r target/doc/* deps/docs/
+```
+
+**Benefits:**
+- AI agents have access to complete, accurate source code for all dependencies
+- Documentation includes private items and implementation details
+- Offline access to all dependency information
+- Version-locked sources ensure consistency with Cargo.lock
+- No network dependency for code analysis
+
+**Git Integration:**
+The `deps/` directory is added to `.gitignore` to avoid committing large dependency sources while maintaining local availability for development and AI assistance.
+
 ### Performance Optimizations
 
 1. **Intern String/Symbols**: Use string interning for symbols to reduce memory usage

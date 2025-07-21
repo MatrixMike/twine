@@ -92,7 +92,19 @@ This constraint ensures:
   - **All tests must pass**: `cargo test` should run successfully with all error handling tests
   - **Constraint**: Only implement error types needed for current phase
 
-- [ ] **T1.1.3**: Create basic test framework structure
+- [ ] **T1.1.3**: Set up local dependency source management
+  - Create `deps/` directory structure: `deps/vendor/`, `deps/docs/`, `deps/registry/`
+  - Add `deps/` to `.gitignore` to prevent committing dependency sources
+  - Set up vendor management with `cargo vendor deps/vendor`
+  - Generate comprehensive documentation with `cargo doc --all-features --document-private-items`
+  - Copy generated docs to `deps/docs/` directory
+  - Create maintenance script or document commands for updating vendored sources
+  - **Ref**: Design Section "Local Dependency Source Management"
+  - **Tests**: Verify `deps/` directories exist, `.gitignore` excludes them, and documentation is generated
+  - **All tests must pass**: Basic project structure tests should still pass
+  - **Constraint**: Set up infrastructure for AI agent dependency access
+
+- [ ] **T1.1.4**: Create basic test framework structure
   - Create `tests/` directory for integration tests
   - Add basic unit test setup in `src/lib.rs`
   - DO NOT create test utilities yet - add them when specific tests need them
@@ -847,6 +859,31 @@ cargo bench                  # Benchmarks must run without errors (when applicab
 - Remove non-smol async crates from consideration
 
 **Important**: Each dependency should be added to `Cargo.toml` only when the task specifically requires it. Do not add all dependencies at project initialization.
+
+### Local Dependency Source Management
+
+**Purpose**: Enable AI agents to access accurate source code and documentation for all project dependencies without network access.
+
+**Setup Commands**:
+```bash
+# Initial setup
+mkdir -p deps/{vendor,docs,registry}
+echo "deps/" >> .gitignore
+cargo vendor deps/vendor
+cargo doc --all-features --document-private-items --workspace
+cp -r target/doc/* deps/docs/
+
+# Maintenance (run after Cargo.toml changes)
+cargo vendor deps/vendor --sync Cargo.toml
+cargo doc --all-features --document-private-items --workspace --force-rebuild
+cp -r target/doc/* deps/docs/
+```
+
+**Benefits**:
+- Complete offline access to dependency source code for AI analysis
+- Version-locked sources ensure consistency with Cargo.lock
+- Generated documentation includes private implementation details
+- No network dependency during development or AI assistance
 
 ### Internal References
 - **Requirements**: See `requirements.md` for FR-* and NFR-* specifications
