@@ -1129,4 +1129,168 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token, Token::String("Hello, 世界! 🌍".to_string()));
     }
+
+    #[test]
+    fn test_multiline_string_tokenization() {
+        // Test string spanning multiple lines
+        let mut lexer = Lexer::new("\"line1\nline2\nline3\"".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(
+            token.token,
+            Token::String("line1\nline2\nline3".to_string())
+        );
+        assert_eq!(token.position, Position::new(1, 1));
+    }
+
+    #[test]
+    fn test_number_edge_cases() {
+        // Test very large numbers
+        let mut lexer = Lexer::new("123456789.987654321".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(123456789.987654321));
+
+        // Test numbers with leading zeros
+        let mut lexer = Lexer::new("007".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(7.0));
+
+        // Test decimal with trailing zeros
+        let mut lexer = Lexer::new("3.1400".to_string());
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(3.14));
+    }
+
+    #[test]
+    fn test_comprehensive_escape_sequences() {
+        // Test all supported escape sequences
+        let test_cases = vec![
+            ("\\n", "\n"),
+            ("\\t", "\t"),
+            ("\\r", "\r"),
+            ("\\\"", "\""),
+            ("\\\\", "\\"),
+        ];
+
+        for (input_escape, expected_char) in test_cases {
+            let input = format!("\"{}\"", input_escape);
+            let mut lexer = Lexer::new(input);
+            let token = lexer.next_token().unwrap();
+            assert_eq!(token.token, Token::String(expected_char.to_string()));
+        }
+    }
+
+    #[test]
+    fn test_mixed_token_sequences() {
+        // Test various combinations of tokens in sequence
+        let test_cases = vec![
+            ("'42", vec![Token::Quote, Token::Number(42.0)]),
+            ("()", vec![Token::LeftParen, Token::RightParen]),
+            ("#t#f", vec![Token::Boolean(true), Token::Boolean(false)]),
+            ("abc123", vec![Token::Symbol("abc123".to_string())]),
+            (
+                "\"str\"sym",
+                vec![
+                    Token::String("str".to_string()),
+                    Token::Symbol("sym".to_string()),
+                ],
+            ),
+        ];
+
+        for (input, expected_tokens) in test_cases {
+            let mut lexer = Lexer::new(input.to_string());
+            let mut actual_tokens = Vec::new();
+
+            loop {
+                let token = lexer.next_token().unwrap();
+                if token.token == Token::Eof {
+                    break;
+                }
+                actual_tokens.push(token.token);
+            }
+
+            assert_eq!(
+                actual_tokens, expected_tokens,
+                "Failed for input: {}",
+                input
+            );
+        }
+    }
+
+    #[test]
+    fn test_comment_variations() {
+        // Test different comment formats and positions
+        let test_cases = vec![
+            "; simple comment",
+            ";; double semicolon comment",
+            ";comment without space",
+            "; comment with spaces   ",
+        ];
+
+        for comment in test_cases {
+            let input = format!("{}\n42", comment);
+            let mut lexer = Lexer::new(input);
+            let token = lexer.next_token().unwrap();
+            assert_eq!(
+                token.token,
+                Token::Number(42.0),
+                "Failed for comment: {}",
+                comment
+            );
+        }
+
+        // Test multiline input with comment (comments only go to end of line)
+        let input = ";comment\nwith\n42".to_string();
+        let mut lexer = Lexer::new(input);
+        let token1 = lexer.next_token().unwrap();
+        assert_eq!(token1.token, Token::Symbol("with".to_string()));
+        let token2 = lexer.next_token().unwrap();
+        assert_eq!(token2.token, Token::Number(42.0));
+    }
+
+    #[test]
+    fn test_whitespace_variations() {
+        // Test different whitespace combinations
+        let whitespace_chars = vec![" ", "\t", "\n", "\r"];
+
+        for ws in &whitespace_chars {
+            let input = format!("{}42", ws);
+            let mut lexer = Lexer::new(input);
+            let token = lexer.next_token().unwrap();
+            assert_eq!(token.token, Token::Number(42.0));
+        }
+
+        // Test mixed whitespace - position should be on line 2 after \n\r
+        let input = " \t\n\r 42".to_string();
+        let mut lexer = Lexer::new(input);
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token, Token::Number(42.0));
+        assert_eq!(token.position.line, 2); // After one newline
+    }
+
+    #[test]
+    fn test_position_accuracy_complex() {
+        // Test position tracking in complex scenarios
+        let input = "  ; comment\n  (+ 1\n   2)".to_string();
+        let mut lexer = Lexer::new(input);
+
+        let token1 = lexer.next_token().unwrap();
+        assert_eq!(token1.token, Token::LeftParen);
+        assert_eq!(token1.position, Position::new(2, 3));
+
+        let token2 = lexer.next_token().unwrap();
+        assert_eq!(token2.token, Token::Symbol("+".to_string()));
+        assert_eq!(token2.position, Position::new(2, 4));
+
+        let token3 = lexer.next_token().unwrap();
+        assert_eq!(token3.token, Token::Number(1.0));
+        assert_eq!(token3.position, Position::new(2, 6));
+
+        let token4 = lexer.next_token().unwrap();
+        assert_eq!(token4.token, Token::Number(2.0));
+        assert_eq!(token4.position, Position::new(3, 4));
+
+        let token5 = lexer.next_token().unwrap();
+        assert_eq!(token5.token, Token::RightParen);
+        assert_eq!(token5.position, Position::new(3, 5));
+    }
 }
