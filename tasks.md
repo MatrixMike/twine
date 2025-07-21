@@ -4,7 +4,7 @@
 
 ### Current Status
 - **Phase 1.1**: ✅ **COMPLETE** (4/4 tasks) - Project Setup
-- **Phase 1.2**: ☐ Not Started (0/5 tasks) - Core Data Types  
+- **Phase 1.2**: ☐ Not Started (0/5 tasks) - Core Data Types
 - **Overall Progress**: 5% (4/81 tasks completed)
 
 ### Next Priority
@@ -24,26 +24,6 @@
 - ⚠️ **Minimal implementation** - only current task features
 - 📦 **Add dependencies only when needed** - not all at once
 - 🧪 **smol ecosystem only** for async dependencies
-
----
-
-## Project Overview
-
-**Twine** is an educational Scheme interpreter designed to maximize learning value through AI-assisted development. Each task builds understanding progressively while creating a functional interpreter.
-
-### Educational Goals
-- **AI Collaboration**: Learn effective patterns for working with coding agents
-- **Interpreter Implementation**: Understand complete language pipeline
-- **Async Programming**: Master fiber-based concurrency with `smol`
-- **Functional Programming**: Explore immutability and Scheme concepts
-- **Software Architecture**: Balance technical requirements with learning value
-
-### Implementation Philosophy
-- **Simplicity First**: Readable code over clever optimizations
-- **Educational Value**: Every decision prioritizes learning opportunities
-- **Progressive Complexity**: Build understanding incrementally
-- **Minimal Dependencies**: Add only when absolutely necessary
-- **Complete Testing**: All tests pass after every task
 
 ---
 
@@ -70,6 +50,24 @@ cargo bench              # Benchmarks must run (when applicable)
 - **All async crates MUST be from smol ecosystem**
 - **Justify each dependency** with task requirements
 - **Update `./scripts/update-deps.sh`** after any Cargo.toml changes
+
+#### Documentation Compliance (MANDATORY)
+- ✅ **ALWAYS** read and follow `requirements.md` for functional requirements
+- ✅ **ALWAYS** read and follow `design.md` for technical architecture
+- ✅ **VERIFY** all implementations align with documented specifications
+- ✅ **REFERENCE** specific requirement numbers (FR-X, NFR-X) in task completion
+- ✅ **CHECK** acceptance criteria (AC-X) before marking tasks complete
+- ⚠️ **NO DEVIATIONS** from documented specifications without explicit approval
+- 📋 **CITE** relevant requirement/design sections when implementing features
+
+```bash
+# Before starting ANY task:
+1. Read relevant sections in requirements.md
+2. Read relevant sections in design.md
+3. Understand acceptance criteria
+4. Verify task dependencies are satisfied
+5. Implement according to specifications
+```
 
 ### Module Organization Principles
 - **Single Responsibility**: Each module has one clear purpose
@@ -756,7 +754,7 @@ cargo fmt --check            # Formatting verification
 
 ### Dependency Addition Rules
 1. **Add ONLY when task requires** - no bulk additions
-2. **Justify each dependency** with specific task needs  
+2. **Justify each dependency** with specific task needs
 3. **Prefer minimal alternatives** - avoid feature-rich crates
 4. **Update local sources** with `./scripts/update-deps.sh`
 
@@ -782,20 +780,20 @@ cargo fmt --check            # Formatting verification
 ## Progress Tracking
 
 ### Overall Status
-**Current Phase**: Phase 1 (Foundation)  
-**Overall Progress**: 5% (4/81 tasks completed)  
+**Current Phase**: Phase 1 (Foundation)
+**Overall Progress**: 5% (4/81 tasks completed)
 **Estimated Completion**: 13-17 weeks
 
 ### Phase Progress
 - **Phase 1**: 🔄 29% (4/14 tasks) - Foundation
-- **Phase 2**: ☐ 0% (0/20 tasks) - Basic Interpreter  
+- **Phase 2**: ☐ 0% (0/20 tasks) - Basic Interpreter
 - **Phase 3**: ☐ 0% (0/20 tasks) - Advanced Features
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/11 tasks) - Polish & Macros
 
 ### Recently Completed
 - ✅ T1.1.1: Initialize Rust project structure
-- ✅ T1.1.2: Set up basic error handling infrastructure  
+- ✅ T1.1.2: Set up basic error handling infrastructure
 - ✅ T1.1.3: Set up local dependency source management
 - ✅ T1.1.4: Create basic test framework structure
 

@@ -52,6 +52,20 @@ These documents are the single source of truth. ALL implementation decisions mus
 | `tasks.md` | Structured implementation plan, phases, dependencies | Before starting new tasks |
 | `README.md` | Project status and capabilities | Keep updated with new features |
 
+### CRITICAL COMPLIANCE RULES
+- ⚠️ **ZERO DEVIATIONS** permitted from documented specifications
+- ✅ **ALWAYS** reference specific requirement numbers (FR-X, NFR-X, AC-X)
+- ✅ **VERIFY** every implementation against design.md architecture
+- ✅ **CHECK** acceptance criteria before marking any task complete
+- 📋 **CITE** relevant sections when making implementation decisions
+- 🚫 **NO ASSUMPTIONS** - if specification is unclear, ask for clarification
+
+### Before Every Implementation Task
+1. **Read requirements.md** - understand functional requirements and constraints
+2. **Read design.md** - follow technical architecture and component specifications  
+3. **Check tasks.md** - verify dependencies and acceptance criteria
+4. **Reference throughout** - cite specific sections during implementation
+
 ---
 
 ## Implementation Philosophy
@@ -142,9 +156,12 @@ These documents are the single source of truth. ALL implementation decisions mus
 
 ### Starting New Work
 1. **Read Documentation**: Review relevant sections of core docs
+   - **MANDATORY**: Read `requirements.md` for functional requirements (FR-X, NFR-X)
+   - **MANDATORY**: Read `design.md` for technical architecture and component specs
+   - **MANDATORY**: Read `tasks.md` for current phase and task dependencies
 2. **Identify Current Task**: Check `tasks.md` for current phase and requirements
 3. **Verify Dependencies**: Ensure task dependencies are satisfied
-4. **Understand Acceptance Criteria**: Know what success looks like
+4. **Understand Acceptance Criteria**: Know what success looks like (AC-X criteria)
 5. **Check Local Dependencies**: Ensure `deps/` structure is current
 
 ### Implementation Process
@@ -156,7 +173,7 @@ These documents are the single source of truth. ALL implementation decisions mus
 6. **Document Decisions**: Explain educational value and design choices
 
 ### Completing Tasks
-1. **Verify Acceptance Criteria**: Ensure all requirements met
+1. **Verify Acceptance Criteria**: Ensure all requirements met (cite specific AC-X numbers)
 2. **Run Full Test Suite**: Confirm no regressions
 3. **Update Documentation**: Reflect new capabilities in README.md
 4. **Mark Progress**: Update `tasks.md` with completion status
@@ -192,11 +209,12 @@ This document (`agent.md`) serves as **living memory** for all agent behavioral 
 
 ## Communication Guidelines
 
-### Reference Standards
-- **Requirements**: Cite specific requirement numbers (FR-X, NFR-X)
-- **Design**: Reference relevant sections from design.md
-- **Acceptance Criteria**: Quote specific criteria (AC-X) when validating
-- **Core Principles**: Explain alignment with four core principles
+### Reference Standards (MANDATORY)
+- **Requirements**: ALWAYS cite specific requirement numbers (FR-X, NFR-X)
+- **Design**: ALWAYS reference relevant sections from design.md
+- **Acceptance Criteria**: ALWAYS quote specific criteria (AC-X) when validating
+- **Core Principles**: ALWAYS explain alignment with four core principles
+- **Documentation Compliance**: NEVER implement without citing source specifications
 
 ### Dependency Communication
 - **Local Sources**: Reference specific files in `deps/vendor/` and `deps/docs/`
