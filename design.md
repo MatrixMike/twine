@@ -916,9 +916,19 @@ sequenceDiagram
 
 We keep project dependencies to an absolute minimum. When required, we choose alternatives that are minimal and have as few dependencies as possible. All async-related crates come from the smol ecosystem.
 
+**Rust Edition Requirement:**
+- The project **MUST** use Rust edition 2024
+- This is a critical design constraint that enables the latest language features
+- Never change the edition back to 2021 or earlier versions
+
 The following are the **CORE** dependencies that are essential to the interpreter's functionality:
 
 ```toml
+[package]
+name = "twine-scheme"
+version = "0.1.0"
+edition = "2024"  # REQUIRED - Do not change to 2021
+
 [dependencies]
 # Error handling - minimal, zero-dependency error derive macros
 thiserror = "2.0"
@@ -937,6 +947,7 @@ polling = "3.9"        # Event polling for I/O (smol ecosystem)
 - All async functionality must use the smol ecosystem for consistency
 - Avoid dependencies that pull in large dependency trees
 - CLI parsing (`clap`) and other non-core features are added only when implementing specific phases
+- **Always maintain Rust edition 2024** - this is a non-negotiable design constraint
 
 ### Local Dependency Source Management
 
