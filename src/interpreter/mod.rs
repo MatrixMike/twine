@@ -6,4 +6,4 @@
 pub mod environment;
 
 // Re-export key types for convenience
-pub use environment::{Environment, EnvironmentHandle};
+pub use environment::Environment;

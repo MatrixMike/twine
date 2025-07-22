@@ -3,6 +3,7 @@
 //! Converts raw text into tokens with position tracking for error reporting.
 //! Handles comments, whitespace, and all essential Scheme syntax elements.
 
+use crate::Error;
 use crate::Result;
 
 /// Position information for tracking token locations in source code.
@@ -211,14 +212,11 @@ impl Lexer {
             ch if self.is_symbol_start_char(ch) => self.read_symbol(position),
 
             // Unexpected character
-            ch => {
-                use crate::Error;
-                Err(Error::syntax_error(
-                    &format!("Unexpected character '{ch}'"),
-                    position.line,
-                    position.column,
-                ))
-            }
+            ch => Err(Error::syntax_error(
+                &format!("Unexpected character '{ch}'"),
+                position.line,
+                position.column,
+            )),
         }
     }
 
