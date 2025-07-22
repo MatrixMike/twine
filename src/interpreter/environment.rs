@@ -1,6 +1,6 @@
-//! Environment management for variable bindings
+//! Environment management for identifier bindings
 //!
-//! This module provides the environment system for managing variable bindings
+//! This module provides the environment system for managing identifier bindings
 //! in the Scheme interpreter. Environments support lexical scoping through
 //! parent environment chains and are designed to be thread-safe for use
 //! in the fiber-based concurrency system.
@@ -9,13 +9,13 @@ use crate::types::{Symbol, Value};
 use crate::{Error, Result};
 use std::collections::HashMap;
 
-/// Environment for managing variable bindings
+/// Environment for managing identifier bindings
 ///
 /// Supports lexical scoping through an optional parent environment reference.
 /// Uses lifetimes to ensure parent environments outlive their children.
 #[derive(Debug)]
 pub struct Environment<'a> {
-    /// Variable bindings in this environment scope
+    /// Identifier bindings in this environment scope
     bindings: HashMap<Symbol, Value>,
     /// Optional parent environment for lexical scoping
     parent: Option<&'a Environment<'a>>,
@@ -49,7 +49,7 @@ impl<'a> Environment<'a> {
             while let Some(environment) = current {
                 if let Some(value) = environment.bindings.get(key) {
                     bindings.insert(key.clone(), value.clone());
-                    break; // Found the variable, stop traversing for this key
+                    break; // Found the identifier, stop traversing for this key
                 }
                 current = environment.parent;
             }
@@ -61,20 +61,20 @@ impl<'a> Environment<'a> {
         }
     }
 
-    /// Define a variable in this environment
+    /// Define an identifier binding in this environment
     ///
     /// This creates a new binding in the current environment scope,
     /// potentially shadowing bindings in parent environments.
-    pub fn define(&mut self, name: Symbol, value: Value) {
-        self.bindings.insert(name, value);
+    pub fn define(&mut self, key: Symbol, value: Value) {
+        self.bindings.insert(key, value);
     }
 
-    /// Define a variable using a string name (convenience method)
-    pub fn define_str(&mut self, name: &str, value: Value) {
-        self.bindings.insert(Symbol::new(name), value);
+    /// Define an identifier binding using a string key (convenience method)
+    pub fn define_str(&mut self, key: &str, value: Value) {
+        self.bindings.insert(Symbol::new(key), value);
     }
 
-    /// Look up a variable by Symbol in this environment or parent environments
+    /// Look up an identifier by Symbol in this environment or parent environments
     pub fn lookup(&self, key: &Symbol) -> Result<Value> {
         // First check this environment
         if let Some(value) = self.bindings.get(key) {
@@ -86,28 +86,28 @@ impl<'a> Environment<'a> {
             return parent.lookup(key);
         }
 
-        // Variable not found
+        // Identifier not found
         Err(Error::parse_error(&format!(
-            "Undefined variable: {}",
+            "Undefined identifier: {}",
             key.as_str()
         )))
     }
 
-    /// Look up a variable by string name (convenience method)
-    pub fn lookup_str(&self, name: &str) -> Result<Value> {
-        let key = Symbol::new(name);
-        self.lookup(&key)
+    /// Look up an identifier by string key (convenience method)
+    pub fn lookup_str(&self, key: &str) -> Result<Value> {
+        let symbol = Symbol::new(key);
+        self.lookup(&symbol)
     }
 
-    /// Check if a variable is defined in this environment or any parent
+    /// Check if an identifier is defined in this environment or any parent
     pub fn contains(&self, key: &Symbol) -> bool {
         self.bindings.contains_key(key) || self.parent.map_or(false, |parent| parent.contains(key))
     }
 
-    /// Check if a variable is defined by string name (convenience method)
-    pub fn contains_str(&self, name: &str) -> bool {
-        let key = Symbol::new(name);
-        self.contains(&key)
+    /// Check if an identifier is defined by string key (convenience method)
+    pub fn contains_str(&self, key: &str) -> bool {
+        let symbol = Symbol::new(key);
+        self.contains(&symbol)
     }
 
     /// Get the number of bindings in this environment (not including parents)
@@ -120,7 +120,7 @@ impl<'a> Environment<'a> {
         self.bindings.is_empty()
     }
 
-    /// Get all variable symbols defined in this environment (not including parents)
+    /// Get all identifier symbols defined in this environment (not including parents)
     pub fn keys(&self) -> impl Iterator<Item = &Symbol> {
         self.bindings.keys()
     }
@@ -266,16 +266,16 @@ mod tests {
             Symbol::new("global1"),     // from grandparent
             Symbol::new("parent1"),     // from parent
             Symbol::new("local1"),      // from child
-            Symbol::new("nonexistent"), // missing variable (should be ignored)
+            Symbol::new("nonexistent"), // missing identifier (should be ignored)
         ];
 
         let closure_env = Environment::new_closure(&child, &keys);
 
-        // Verify closure captured only the existing variables
-        assert_eq!(closure_env.len(), 3); // Should have 3 variables (nonexistent ignored)
+        // Verify closure captured only the existing identifiers
+        assert_eq!(closure_env.len(), 3); // Should have 3 identifiers (nonexistent ignored)
         assert!(closure_env.parent().is_none()); // No parent - standalone
 
-        // Verify captured values are correct
+        // Verify captured bindings are correct
         assert_eq!(
             closure_env
                 .lookup_str("global1")
@@ -301,7 +301,7 @@ mod tests {
             30.0
         );
 
-        // Verify non-captured variables are not accessible
+        // Verify non-captured identifiers are not accessible
         assert!(closure_env.lookup_str("global2").is_err());
         assert!(closure_env.lookup_str("parent2").is_err());
         assert!(closure_env.lookup_str("local2").is_err());
@@ -310,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_definition() {
+    fn test_identifier_definition() {
         let mut env = Environment::new();
         env.define_str("x", Value::number(42.0));
 
@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_lookup() {
+    fn test_identifier_lookup() {
         let mut env = Environment::new();
         env.define_str("x", Value::number(42.0));
         env.define_str("y", Value::boolean(true));
@@ -335,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_lookup_undefined() {
+    fn test_identifier_lookup_undefined() {
         let env = Environment::new();
         let result = env.lookup_str("undefined");
 
@@ -344,12 +344,12 @@ mod tests {
             result
                 .unwrap_err()
                 .to_string()
-                .contains("Undefined variable")
+                .contains("Undefined identifier")
         );
     }
 
     #[test]
-    fn test_variable_lookup_with_parent() {
+    fn test_identifier_lookup_with_parent() {
         let mut parent = Environment::new();
         parent.define_str("x", Value::number(42.0));
         parent.define_str("y", Value::boolean(true));
@@ -357,12 +357,12 @@ mod tests {
         let mut child = Environment::new_scope(&parent);
         child.define_str("z", Value::string("hello"));
 
-        // Should find variable in child
+        // Should find identifier in child
         let result = child.lookup_str("z").unwrap();
         assert!(result.is_string());
         assert_eq!(result.as_string().unwrap(), "hello");
 
-        // Should find variable in parent
+        // Should find identifier in parent
         let result = child.lookup_str("x").unwrap();
         assert!(result.is_number());
         assert_eq!(result.as_number().unwrap(), 42.0);
@@ -373,14 +373,14 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_shadowing() {
+    fn test_identifier_shadowing() {
         let mut parent = Environment::new();
         parent.define_str("x", Value::number(42.0));
 
         let mut child = Environment::new_scope(&parent);
         child.define_str("x", Value::string("shadowed"));
 
-        // Should find shadowed variable in child
+        // Should find shadowed identifier in child
         let result = child.lookup_str("x").unwrap();
         assert!(result.is_string());
         assert_eq!(result.as_string().unwrap(), "shadowed");
@@ -438,7 +438,7 @@ mod tests {
         let result = child.lookup_str("level").unwrap();
         assert_eq!(result.as_string().unwrap(), "child");
 
-        // Test unique variables at each level
+        // Test unique identifiers at each level
         let result = child.lookup_str("unique_c").unwrap();
         assert_eq!(result.as_number().unwrap(), 3.0);
 

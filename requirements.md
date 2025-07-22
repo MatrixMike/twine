@@ -389,6 +389,13 @@ Hello World
 | **GIL-free** | Architecture allowing true parallel execution |
 | **Essential Subset** | Minimal language features for functional programming |
 | **Implementation Simplicity** | Straightforward code over complex optimizations |
+| **Binding** | Immutable association between identifier and value in environment |
+| **Environment** | Scope managing identifier bindings with lexical scoping chains |
+| **Identifier** | Symbol or name bound to value (immutable, not mutable variable) |
+| **Symbol** | Immutable interned string for identifiers using SmolStr optimization |
+| **Closure Environment** | Specialized environment capturing only required bindings for closures |
+| **Shadowing** | Inner scope identifier hiding outer scope binding of same name |
+| **Value** | Immutable data types: numbers, booleans, strings, symbols, lists, procedures |
 
 ---
 
