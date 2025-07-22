@@ -11,5 +11,4 @@ readme = "README.md"
 authors = ["dtcristo"]
 
 [dependencies]
-thiserror = "2.0"
 smol_str = "0.3"

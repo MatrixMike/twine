@@ -60,7 +60,7 @@ mod tests {
             "deps/vendor/ should exist"
         );
 
-        // Check for at least one vendored dependency (thiserror)
+        // Check for at least one vendored dependency
         let vendor_dir = std::fs::read_dir("deps/vendor");
         if let Ok(entries) = vendor_dir {
             let has_dependencies = entries.count() > 0;

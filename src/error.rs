@@ -3,13 +3,12 @@
 //! This module defines the error types used throughout the interpreter,
 //! including syntax errors with position information and general parse errors.
 
-use thiserror::Error;
+use std::fmt;
 
 /// Error types for the Twine interpreter
-#[derive(Error, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum Error {
     /// Syntax errors with location information
-    #[error("Syntax error at line {line}, column {column}: {message}")]
     SyntaxError {
         message: String,
         line: usize,
@@ -17,9 +16,29 @@ pub enum Error {
     },
 
     /// General parsing errors
-    #[error("Parse error: {0}")]
     ParseError(String),
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::SyntaxError {
+                message,
+                line,
+                column,
+            } => {
+                write!(
+                    f,
+                    "Syntax error at line {}, column {}: {}",
+                    line, column, message
+                )
+            }
+            Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
 
 /// Result type alias for Twine operations
 pub type Result<T> = std::result::Result<T, Error>;
