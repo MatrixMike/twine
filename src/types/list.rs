@@ -28,14 +28,6 @@ impl List {
         List(Arc::new(values))
     }
 
-    /// Create a new list from an iterator of values
-    pub fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = Value>,
-    {
-        List(Arc::new(iter.into_iter().collect()))
-    }
-
     /// Get the length of the list
     pub fn len(&self) -> usize {
         self.0.len()
@@ -83,7 +75,7 @@ impl std::fmt::Display for List {
             if i > 0 {
                 write!(f, " ")?;
             }
-            write!(f, "{}", value)?;
+            write!(f, "{value}")?;
         }
         write!(f, ")")
     }
@@ -96,8 +88,12 @@ impl From<Vec<Value>> for List {
 }
 
 impl FromIterator<Value> for List {
-    fn from_iter<T: IntoIterator<Item = Value>>(iter: T) -> Self {
-        List::from_iter(iter)
+    /// Create a new list from an iterator of values
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = Value>,
+    {
+        List(Arc::new(iter.into_iter().collect()))
     }
 }
 

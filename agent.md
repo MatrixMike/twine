@@ -276,6 +276,38 @@ pub struct ArcString(Arc<String>);
 - Address root causes instead of symptoms
 - Use debugging output when helpful for development
 
+### Rust Diagnostics Management
+- **Fix All Diagnostics**: Always fix compiler errors, warnings, and clippy lints when encountered
+- **Run Clippy**: Execute `cargo clippy` after making any Rust code changes
+- **Zero Tolerance**: No warnings or lints should remain in committed code
+- **Immediate Resolution**: Address diagnostics as soon as they appear
+- **Use Diagnostics Tool**: Run diagnostics checks regularly during development
+- **Auto-fix When Possible**: Use `cargo clippy --fix --allow-dirty` for automatic fixes
+- **Common Issues**: Pay attention to unused imports, dead code, inefficient patterns, and style violations
+
+### Code Formatting Requirements
+- **Always Format**: Run `cargo fmt` after making any changes to Rust source code
+- **Consistent Style**: Maintain consistent formatting across the entire codebase  
+- **Pre-Commit**: Format code before considering any implementation complete
+- **IDE Integration**: Configure development environment to format on save when possible
+
+---
+
+## Development Quality Checklist
+
+### After Every Code Change
+1. ✅ **Run Clippy**: Execute `cargo clippy` and fix all lints and warnings
+2. ✅ **Fix Diagnostics**: Run diagnostics and resolve all errors, warnings, lints
+3. ✅ **Format Code**: Run `cargo fmt` to maintain consistent style
+4. ✅ **Run Tests**: Ensure all existing tests pass
+5. ✅ **Update Documentation**: Reflect changes in relevant docs
+
+### Before Marking Tasks Complete
+1. ✅ **Clean Diagnostics**: Zero compiler warnings or clippy lints
+2. ✅ **Formatted Code**: All Rust files properly formatted
+3. ✅ **Acceptance Criteria**: All specified criteria met
+4. ✅ **Test Coverage**: New functionality tested appropriately
+
 ---
 
 ## File Maintenance Requirements

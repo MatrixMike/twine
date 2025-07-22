@@ -326,18 +326,18 @@ impl Parser {
 impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expression::Atom(value) => write!(f, "{}", value),
+            Expression::Atom(value) => write!(f, "{value}"),
             Expression::List(exprs) => {
                 write!(f, "(")?;
                 for (i, expr) in exprs.iter().enumerate() {
                     if i > 0 {
                         write!(f, " ")?;
                     }
-                    write!(f, "{}", expr)?;
+                    write!(f, "{expr}")?;
                 }
                 write!(f, ")")
             }
-            Expression::Quote(expr) => write!(f, "'{}", expr),
+            Expression::Quote(expr) => write!(f, "'{expr}"),
         }
     }
 }

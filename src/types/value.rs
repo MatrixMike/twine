@@ -203,12 +203,12 @@ impl Value {
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Number(n) => write!(f, "{}", n),
+            Value::Number(n) => write!(f, "{n}"),
             Value::Boolean(true) => write!(f, "#t"),
             Value::Boolean(false) => write!(f, "#f"),
             Value::String(s) => write!(f, "\"{}\"", s.as_str().replace('"', "\\\"")),
-            Value::Symbol(s) => write!(f, "{}", s),
-            Value::List(l) => write!(f, "{}", l),
+            Value::Symbol(s) => write!(f, "{s}"),
+            Value::List(l) => write!(f, "{l}"),
             Value::Nil => write!(f, "()"),
         }
     }

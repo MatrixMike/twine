@@ -214,7 +214,7 @@ impl Lexer {
             ch => {
                 use crate::Error;
                 Err(Error::syntax_error(
-                    &format!("Unexpected character '{}'", ch),
+                    &format!("Unexpected character '{ch}'"),
                     position.line,
                     position.column,
                 ))
@@ -270,7 +270,7 @@ impl Lexer {
                     }
                     Some(escaped) => {
                         return Err(Error::syntax_error(
-                            &format!("Invalid escape sequence '\\{}'", escaped),
+                            &format!("Invalid escape sequence '\\{escaped}'"),
                             self.line,
                             self.column,
                         ));
@@ -338,7 +338,7 @@ impl Lexer {
                 Ok(PositionedToken::new(Token::Boolean(false), position))
             }
             Some(ch) => Err(Error::syntax_error(
-                &format!("Invalid boolean literal '#{}'", ch),
+                &format!("Invalid boolean literal '#{ch}'"),
                 position.line,
                 position.column,
             )),
