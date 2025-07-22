@@ -49,7 +49,7 @@ cargo bench              # Benchmarks must run (when applicable)
 - **Add dependencies ONLY when task requires them**
 - **All async crates MUST be from smol ecosystem**
 - **Justify each dependency** with task requirements
-- **Update `./scripts/update-deps.sh`** after any Cargo.toml changes
+- **Update `./scripts/vendor-deps.sh`** after any Cargo.toml changes
 
 #### Documentation Compliance (MANDATORY)
 - ✅ **ALWAYS** read and follow `requirements.md` for functional requirements
@@ -809,7 +809,7 @@ cargo fmt --check            # Formatting verification
 1. **Add ONLY when task requires** - no bulk additions
 2. **Justify each dependency** with specific task needs
 3. **Prefer minimal alternatives** - avoid feature-rich crates
-4. **Update local sources** with `./scripts/update-deps.sh`
+4. **Update local sources** with `./scripts/vendor-deps.sh`
 
 ### Approved Dependencies
 | Dependency | Phase | Purpose | Ecosystem |

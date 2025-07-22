@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 /// Immutable string type for Scheme
 ///
-/// Wraps Arc<String> to enable efficient sharing across multiple threads
+/// Wraps `Arc<String>` to enable efficient sharing across multiple threads
 /// while maintaining immutability guarantees required by Scheme semantics.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ArcString(Arc<String>);

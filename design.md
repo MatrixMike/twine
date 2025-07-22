@@ -260,7 +260,7 @@ pub struct List(Vec<Value>); // Owned vector (sharing planned)
 **Performance Optimizations**:
 - **Symbols**: Use `SmolStr` - stack allocation for identifiers ≤23 bytes
 - **Zero-copy Symbol creation**: Direct SmolStr → Symbol conversion via `from_smol_str()`
-- **Strings**: Use `Arc<String>` for efficient sharing across threads  
+- **Strings**: Use `Arc<String>` for efficient sharing across threads
 - **Numbers**: Use primitive `f64` with `Copy` semantics
 - **Lists**: Use `Vec<Value>` with planned structural sharing
 
@@ -811,22 +811,6 @@ thiserror = "2.0"         # Error derive macros
 [dev-dependencies]
 criterion = "0.5"         # Benchmarking
 tokio-test = "0.4"        # Async testing
-```
-
-### Local Dependency Management
-
-```bash
-# After any Cargo.toml changes, update local sources
-./scripts/update-deps.sh
-
-# Verify vendored sources
-ls deps/vendor/smol/
-ls deps/vendor/smol_str/
-ls deps/docs/smol/
-ls deps/docs/smol_str/
-
-# Check dependency compatibility
-cargo tree | grep -E "(smol|thiserror)"
 ```
 
 ### Performance Characteristics

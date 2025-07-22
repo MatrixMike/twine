@@ -33,7 +33,7 @@ pub enum Value {
 
     /// List values (compound data)
     ///
-    /// Uses List wrapper around Arc<Vec<Value>> for efficient sharing
+    /// Uses List wrapper around `Arc<Vec<Value>>` for efficient sharing
     /// while maintaining immutability.
     List(List),
 

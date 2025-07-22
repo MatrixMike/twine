@@ -8,9 +8,9 @@
 3. ✅ Check current phase and task dependencies
 
 ### After ANY Dependency Changes
-1. ✅ Run `./scripts/update-deps.sh` immediately
+1. ✅ Run `./scripts/vendor-deps.sh` immediately
 2. ✅ Verify vendored sources updated in `deps/vendor/`
-3. ✅ Confirm documentation updated in `deps/docs/`
+3. ✅ Confirm documentation updated in `deps/doc/`
 4. ✅ Run tests to ensure compatibility
 
 ### When Using Third-Party APIs
@@ -62,7 +62,7 @@ These documents are the single source of truth. ALL implementation decisions mus
 
 ### Before Every Implementation Task
 1. **Read requirements.md** - understand functional requirements and constraints
-2. **Read design.md** - follow technical architecture and component specifications  
+2. **Read design.md** - follow technical architecture and component specifications
 3. **Check tasks.md** - verify dependencies and acceptance criteria
 4. **Reference throughout** - cite specific sections during implementation
 
@@ -95,23 +95,23 @@ These documents are the single source of truth. ALL implementation decisions mus
 ### Mandatory Workflow
 ```
 1. Modify Cargo.toml
-2. IMMEDIATELY run ./scripts/update-deps.sh
+2. IMMEDIATELY run ./scripts/vendor-deps.sh
 3. Verify vendored sources in deps/vendor/
-4. Check documentation in deps/docs/
+4. Check documentation in deps/doc/
 5. Run tests to ensure compatibility
 ```
 
 ### Critical Rules
 - ⚠️ **NEVER guess about third-party APIs** - always check local sources
 - ⚠️ **ALL async dependencies MUST be from smol ecosystem**
-- ⚠️ **RUN update script after EVERY Cargo.toml change**
+- ⚠️ **RUN vendor-deps script after EVERY Cargo.toml change**
 - ⚠️ **USE local vendored sources for all dependency analysis**
 
 ### Local Dependency Resources
 | Location | Purpose | Usage |
 |----------|---------|--------|
 | `deps/vendor/[crate]/` | Exact source code | Understanding implementation details |
-| `deps/docs/[crate]/` | Complete API docs | API reference and examples |
+| `deps/doc/[crate]/` | Complete API docs | API reference and examples |
 | `Cargo.lock` | Version constraints | Troubleshooting conflicts |
 
 ### Dependency Analysis Process
@@ -250,8 +250,8 @@ pub struct ArcString(Arc<String>);
 - **Documentation Compliance**: NEVER implement without citing source specifications
 
 ### Dependency Communication
-- **Local Sources**: Reference specific files in `deps/vendor/` and `deps/docs/`
-- **Update Reminders**: Mention when `./scripts/update-deps.sh` needs running
+- **Local Sources**: Reference specific files in `deps/vendor/` and `deps/doc/`
+- **Update Reminders**: Mention when `./scripts/vendor-deps.sh` needs running
 - **Verification**: Confirm dependency compatibility with project constraints
 
 ### Educational Focus
@@ -312,14 +312,14 @@ pub struct ArcString(Arc<String>);
 [dependencies]
 new-crate = "1.0"
 
-# 2. IMMEDIATELY run update script
-./scripts/update-deps.sh
+# 2. IMMEDIATELY run dependency management
+./scripts/vendor-deps.sh
 
 # 3. Verify sources updated
 ls deps/vendor/new-crate/
 
 # 4. Check documentation
-open deps/docs/new-crate/index.html
+open deps/doc/new-crate/index.html
 
 # 5. Run tests
 cargo test
@@ -332,7 +332,7 @@ cargo test
 
 // DO: Check local documentation first
 // 1. Read deps/vendor/some-crate/src/lib.rs
-// 2. Reference deps/docs/some-crate/index.html
+// 2. Reference deps/doc/some-crate/index.html
 // 3. Understand exact behavior before using
 
 use some_crate::Function; // Now I know exactly what this does

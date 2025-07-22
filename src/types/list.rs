@@ -11,7 +11,7 @@ type Value = crate::types::Value;
 
 /// Immutable list type for Scheme
 ///
-/// Wraps Arc<Vec<Value>> to enable efficient sharing across multiple threads
+/// Wraps `Arc<Vec<Value>>` to enable efficient sharing across multiple threads
 /// while maintaining immutability guarantees. Lists are the primary compound
 /// data structure in Scheme.
 #[derive(Debug, Clone, PartialEq)]

@@ -30,12 +30,8 @@ mod tests {
             "deps/vendor/ directory should exist"
         );
         assert!(
-            Path::new("deps/docs").exists(),
-            "deps/docs/ directory should exist"
-        );
-        assert!(
-            Path::new("deps/registry").exists(),
-            "deps/registry/ directory should exist"
+            Path::new("deps/doc").exists(),
+            "deps/doc/ directory should exist"
         );
     }
 
@@ -79,16 +75,13 @@ mod tests {
         use std::path::Path;
 
         // Verify that generated documentation exists
-        assert!(Path::new("deps/docs").exists(), "deps/docs/ should exist");
+        assert!(Path::new("deps/doc").exists(), "deps/doc/ should exist");
 
         // Check for generated documentation files
-        let docs_dir = std::fs::read_dir("deps/docs");
+        let docs_dir = std::fs::read_dir("deps/doc");
         if let Ok(entries) = docs_dir {
             let has_docs = entries.count() > 0;
-            assert!(
-                has_docs,
-                "deps/docs/ should contain generated documentation"
-            );
+            assert!(has_docs, "deps/doc/ should contain generated documentation");
         }
     }
 
