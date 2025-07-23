@@ -1,7 +1,7 @@
 //! Environment management for identifier bindings
 //!
 //! This module provides the environment system for managing identifier bindings
-//! in the Scheme interpreter. Environments support lexical scoping through
+//! in the Scheme runtime. Environments support lexical scoping through
 //! parent environment chains and are designed to be thread-safe for use
 //! in the fiber-based concurrency system.
 

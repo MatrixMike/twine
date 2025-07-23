@@ -101,15 +101,15 @@ twine/src/
 │   └── ...                  # Token types and stream generation
 │
 ├── parser/                  # Syntax Analysis
-│   └── ...                  # S-expression parsing and AST types
+│   └── ...                  # S-expression parsing, AST types, macros
 │
-├── interpreter/             # Core Evaluation
-│   └── ...                  # Evaluation engine, environments, builtins, macros
+├── runtime/                 # Core Evaluation
+│   └── ...                  # Evaluation engine, environments, builtins
 │
 ├── types/                   # Data Types
 │   └── ...                  # Scheme value types and procedures
 │
-├── runtime/                 # Concurrency and Execution
+├── scheduler/               # Concurrency and Execution
 │   └── ...                  # Fiber scheduler, tasks, async I/O
 │
 ├── repl/                    # Interactive Interface
@@ -264,7 +264,7 @@ pub struct List(Vec<Value>); // Owned vector (sharing planned)
 - **Numbers**: Use primitive `f64` with `Copy` semantics
 - **Lists**: Use `Vec<Value>` with planned structural sharing
 
-### Environment Management (`interpreter/environment.rs`)
+### Environment Management (`runtime/environment.rs`)
 
 **Purpose**: Variable binding and lexical scoping
 

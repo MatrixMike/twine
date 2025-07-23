@@ -6,11 +6,11 @@
 - **Phase 1**: ✅ **COMPLETE** (14/14 tasks) - Core Language Foundation
 - **Phase 2.1**: ✅ **COMPLETE** (5/5 tasks) - Syntactic Analysis
 - **Phase 2.2**: ✅ **COMPLETE** (4/4 tasks) - Environment Management
-- **Phase 2.3**: 🚧 **IN PROGRESS** (1/5 tasks) - Basic Evaluation Engine
-- **Overall Progress**: 28% (24/81 tasks completed)
+- **Phase 2.3**: 🚧 **IN PROGRESS** (2/5 tasks) - Basic Evaluation Engine
+- **Overall Progress**: 30% (25/81 tasks completed)
 
 ### Next Priority
-**→ T2.3.2**: Implement arithmetic operations
+**→ T2.3.3**: Implement conditional expressions
 
 ### Phase Overview
 | Phase | Focus | Tasks | Est. Duration |
@@ -326,7 +326,7 @@ cargo bench              # Benchmarks must run (when applicable)
 #### T2.2.1: Implement `Environment` struct ✅
 **Prerequisites**: Parser complete
 **Deliverables**:
-- Create `src/interpreter/environment.rs`
+- Create `src/runtime/environment.rs`
 - Environment with bindings HashMap and optional parent
 - Thread-safe sharing with appropriate synchronization
 
@@ -350,7 +350,7 @@ cargo bench              # Benchmarks must run (when applicable)
 #### T2.3.1: Implement basic `eval` function ✅
 **Prerequisites**: Environment system complete ✅
 **Deliverables**:
-- Create `src/interpreter/mod.rs` ✅
+- Create `src/runtime/mod.rs` ✅
 - Evaluation for atoms (self-evaluating values) ✅
 - Symbol lookup in environment ✅
 - Basic list evaluation framework ✅
@@ -370,11 +370,40 @@ fn test_eval_list_values
 fn test_eval_integration // in lib.rs
 ```
 
-#### T2.3.2: Implement arithmetic operations
+#### T2.3.2: Implement arithmetic operations ✅
 **Deliverables**:
-- Built-in procedures: `+`, `-`, `*`, `/`, `=`, `<`, `>`, `<=`, `>=`
-- Arity checking
-- Type checking for numeric operations
+- Built-in procedures: `+`, `-`, `*`, `/`, `=`, `<`, `>`, `<=`, `>=` ✅
+- Arity checking ✅
+- Type checking for numeric operations ✅
+
+**Implementation Details**:
+- Created `src/runtime/builtin/arithmetic.rs` with all arithmetic operations
+- Created `src/runtime/builtin/mod.rs` for builtin module organization
+- Updated `eval_list` to handle procedure calls with builtin arithmetic operations
+- Comprehensive error handling for division by zero, type mismatches, arity violations
+
+**Tests Added**:
+```rust
+// In arithmetic.rs
+fn test_add
+fn test_subtract  
+fn test_multiply
+fn test_divide
+fn test_equal
+fn test_less_than
+fn test_greater_than
+fn test_less_than_or_equal
+fn test_greater_than_or_equal
+fn test_type_checking
+fn test_edge_cases
+
+// In eval.rs  
+fn test_eval_arithmetic_operations
+fn test_eval_comparison_operations
+fn test_eval_arithmetic_with_variables
+fn test_eval_unknown_procedure
+fn test_eval_non_symbol_procedure
+```
 
 #### T2.3.3: Implement conditional expressions
 **Deliverables**:
@@ -524,7 +553,7 @@ fn test_eval_integration // in lib.rs
 **Prerequisites**: File execution complete
 **Dependencies**: Add `smol`, `futures-lite`, `async-channel` to Cargo.toml
 **Deliverables**:
-- Create `src/runtime/` module
+- Create `src/scheduler/` module
 - Fiber with id, state, continuation, parent fields
 - `FiberState` enum (Ready, Running, Suspended, Completed)
 - `SuspendReason` enum (IoOperation, WaitingForTask, Yielded)
@@ -634,7 +663,7 @@ fn test_eval_integration // in lib.rs
 #### T5.1.1: Implement pattern matching system
 **Prerequisites**: Concurrency system complete
 **Deliverables**:
-- Create `src/interpreter/macros.rs`
+- Create `src/parser/macros.rs`
 - `Pattern` enum (Literal, Identifier, List, Ellipsis)
 - Pattern matching algorithms
 - Pattern identifier binding
@@ -887,11 +916,12 @@ cargo fmt --check            # Formatting verification
 - ✅ T2.2.3: Add environment error handling
 - ✅ T2.2.4: Create environment tests
 - ✅ T2.3.1: Implement basic `eval` function
+- ✅ T2.3.2: Implement arithmetic operations
 
 ### Immediate Next Steps
-1. **T2.3.2**: Implement arithmetic operations (🔥 Priority - Continue Phase 2.3)
-2. **T2.3.3**: Implement conditional expressions
-3. **T2.3.4**: Implement basic list operations
+1. **T2.3.3**: Implement conditional expressions (🔥 Priority - Continue Phase 2.3)
+2. **T2.3.4**: Implement basic list operations
+3. **T2.3.5**: Create basic evaluation tests
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

@@ -4,9 +4,9 @@
 //! subset of R7RS-small Scheme with fiber-based concurrency and strict immutability.
 
 pub mod error;
-pub mod interpreter;
 pub mod lexer;
 pub mod parser;
+pub mod runtime;
 pub mod types;
 
 // Re-export error types for convenience
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_lifetime_based_environment_usage() {
-        use crate::interpreter::environment::Environment;
+        use crate::runtime::environment::Environment;
         use crate::types::{Symbol, Value};
 
         // Test basic environment creation and usage

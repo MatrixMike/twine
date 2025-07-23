@@ -18,6 +18,9 @@ pub enum Error {
     /// General parsing errors
     ParseError(String),
 
+    /// Runtime evaluation errors
+    RuntimeError(String),
+
     /// Environment-related errors
     EnvironmentError {
         kind: EnvironmentErrorKind,
@@ -50,6 +53,7 @@ impl fmt::Display for Error {
                 )
             }
             Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            Error::RuntimeError(msg) => write!(f, "Runtime error: {}", msg),
             Error::EnvironmentError {
                 kind,
                 identifier,
@@ -92,6 +96,11 @@ impl Error {
     /// Create a general parse error
     pub fn parse_error(message: &str) -> Self {
         Self::ParseError(message.to_string())
+    }
+
+    /// Create a runtime error
+    pub fn runtime_error(message: &str) -> Self {
+        Self::RuntimeError(message.to_string())
     }
 
     /// Create an unbound identifier error
@@ -162,6 +171,14 @@ mod tests {
             parse_number("abc").unwrap_err(),
             Error::ParseError(_)
         ));
+    }
+
+    #[test]
+    fn test_runtime_error() {
+        let error = Error::runtime_error("Division by zero");
+
+        assert!(matches!(error, Error::RuntimeError(_)));
+        assert_eq!(error.to_string(), "Runtime error: Division by zero");
     }
 
     #[test]

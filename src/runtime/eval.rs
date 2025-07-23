@@ -1,13 +1,14 @@
-//! Evaluation engine for the Twine Scheme interpreter
+//! Evaluation engine for the Twine Scheme runtime
 //!
 //! This module implements the core evaluation logic for Scheme expressions.
 //! It handles atomic values, symbol lookup, and provides the foundation
 //! for list evaluation (procedure calls and special forms).
 
 use crate::error::{Error, Result};
-use crate::interpreter::Environment;
 use crate::parser::Expression;
 use crate::types::{List, Value};
+
+use super::{Environment, builtin};
 
 /// Evaluate a Scheme expression in the given environment
 ///
@@ -59,20 +60,60 @@ fn eval_atom(value: &Value, env: &Environment) -> Result<Value> {
 ///
 /// Lists represent compound expressions in Scheme:
 /// - Empty lists evaluate to themselves
-/// - Non-empty lists will eventually handle procedure calls and special forms
-///
-/// For now, this provides the basic framework for list evaluation.
-fn eval_list(elements: &[Expression], _env: &Environment) -> Result<Value> {
+/// - Non-empty lists represent procedure calls: (procedure arg1 arg2 ...)
+fn eval_list(elements: &[Expression], env: &Environment) -> Result<Value> {
     // Empty list evaluates to empty list
     if elements.is_empty() {
         return Ok(Value::List(List::new()));
     }
 
-    // For non-empty lists, we'll need to implement procedure calls and special forms
-    // For now, return an error indicating this functionality is not yet implemented
-    Err(Error::parse_error(
-        "List evaluation (procedure calls and special forms) not yet implemented",
-    ))
+    // Non-empty lists are procedure calls: (procedure arg1 arg2 ...)
+    let procedure_expr = &elements[0];
+    let arg_exprs = &elements[1..];
+
+    // Check if the procedure expression is a builtin procedure symbol
+    if let Expression::Atom(Value::Symbol(symbol)) = procedure_expr {
+        // Evaluate all arguments
+        let mut args = Vec::new();
+        for arg_expr in arg_exprs {
+            args.push(eval(arg_expr, env)?);
+        }
+
+        // Handle builtin procedures
+        match symbol.as_str() {
+            "+" => builtin::add(&args),
+            "-" => builtin::subtract(&args),
+            "*" => builtin::multiply(&args),
+            "/" => builtin::divide(&args),
+            "=" => builtin::equal(&args),
+            "<" => builtin::less_than(&args),
+            ">" => builtin::greater_than(&args),
+            "<=" => builtin::less_than_or_equal(&args),
+            ">=" => builtin::greater_than_or_equal(&args),
+            _ => {
+                // Not a builtin procedure, try to evaluate as normal procedure call
+                let _procedure = eval(procedure_expr, env)?;
+                Err(Error::runtime_error(&format!(
+                    "Unknown procedure: '{}'",
+                    symbol.as_str()
+                )))
+            }
+        }
+    } else {
+        // Evaluate the procedure expression and handle other types of procedures
+        let procedure = eval(procedure_expr, env)?;
+
+        // Evaluate all arguments
+        let mut args = Vec::new();
+        for arg_expr in arg_exprs {
+            args.push(eval(arg_expr, env)?);
+        }
+
+        Err(Error::runtime_error(&format!(
+            "Procedure call expects symbol, got {}",
+            procedure.type_name()
+        )))
+    }
 }
 
 /// Evaluate a quoted expression
@@ -182,24 +223,159 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_non_empty_list_not_implemented() {
+    fn test_eval_arithmetic_operations() {
         let env = Environment::new();
 
-        // Non-empty lists should return "not implemented" error for now
-        let list_expr = Expression::list(vec![
+        // Test addition
+        let add_expr = Expression::list(vec![
             Expression::atom(Value::symbol("+")),
             Expression::atom(Value::number(1.0)),
             Expression::atom(Value::number(2.0)),
         ]);
+        let result = eval(&add_expr, &env).unwrap();
+        assert_eq!(result.as_number().unwrap(), 3.0);
 
-        let result = eval(&list_expr, &env);
+        // Test subtraction
+        let sub_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("-")),
+            Expression::atom(Value::number(10.0)),
+            Expression::atom(Value::number(3.0)),
+        ]);
+        let result = eval(&sub_expr, &env).unwrap();
+        assert_eq!(result.as_number().unwrap(), 7.0);
+
+        // Test multiplication
+        let mul_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("*")),
+            Expression::atom(Value::number(3.0)),
+            Expression::atom(Value::number(4.0)),
+        ]);
+        let result = eval(&mul_expr, &env).unwrap();
+        assert_eq!(result.as_number().unwrap(), 12.0);
+
+        // Test division
+        let div_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("/")),
+            Expression::atom(Value::number(15.0)),
+            Expression::atom(Value::number(3.0)),
+        ]);
+        let result = eval(&div_expr, &env).unwrap();
+        assert_eq!(result.as_number().unwrap(), 5.0);
+
+        // Test equality
+        let eq_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("=")),
+            Expression::atom(Value::number(5.0)),
+            Expression::atom(Value::number(5.0)),
+        ]);
+        let result = eval(&eq_expr, &env).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+
+        // Test less than
+        let lt_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("<")),
+            Expression::atom(Value::number(3.0)),
+            Expression::atom(Value::number(5.0)),
+        ]);
+        let result = eval(&lt_expr, &env).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+    }
+
+    #[test]
+    fn test_eval_unknown_procedure() {
+        let env = Environment::new();
+
+        // Test unknown procedure
+        let unknown_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("unknown")),
+            Expression::atom(Value::number(1.0)),
+        ]);
+        let result = eval(&unknown_expr, &env);
         assert!(result.is_err());
-
-        if let Err(Error::ParseError(msg)) = result {
-            assert!(msg.contains("not yet implemented"));
+        if let Err(Error::EnvironmentError { identifier, .. }) = result {
+            assert_eq!(identifier, "unknown");
         } else {
-            panic!("Expected ParseError for non-empty list evaluation");
+            panic!("Expected EnvironmentError for unbound symbol");
         }
+    }
+
+    #[test]
+    fn test_eval_non_symbol_procedure() {
+        let env = Environment::new();
+
+        // Test non-symbol as procedure
+        let non_symbol_proc = Expression::list(vec![
+            Expression::atom(Value::number(42.0)),
+            Expression::atom(Value::number(1.0)),
+        ]);
+        let result = eval(&non_symbol_proc, &env);
+        assert!(result.is_err());
+        if let Err(Error::RuntimeError(msg)) = result {
+            assert!(msg.contains("Procedure call expects symbol, got number"));
+        } else {
+            panic!("Expected RuntimeError for non-symbol procedure");
+        }
+    }
+
+    #[test]
+    fn test_eval_arithmetic_with_variables() {
+        let mut env = Environment::new();
+        env.define_str("x", Value::number(10.0));
+        env.define_str("y", Value::number(5.0));
+
+        // Test arithmetic with variables: (+ x y)
+        let add_vars = Expression::list(vec![
+            Expression::atom(Value::symbol("+")),
+            Expression::atom(Value::symbol("x")),
+            Expression::atom(Value::symbol("y")),
+        ]);
+        let result = eval(&add_vars, &env).unwrap();
+        assert_eq!(result.as_number().unwrap(), 15.0);
+
+        // Test nested arithmetic: (* (+ x y) 2)
+        let nested = Expression::list(vec![
+            Expression::atom(Value::symbol("*")),
+            Expression::list(vec![
+                Expression::atom(Value::symbol("+")),
+                Expression::atom(Value::symbol("x")),
+                Expression::atom(Value::symbol("y")),
+            ]),
+            Expression::atom(Value::number(2.0)),
+        ]);
+        let result = eval(&nested, &env).unwrap();
+        assert_eq!(result.as_number().unwrap(), 30.0);
+    }
+
+    #[test]
+    fn test_eval_comparison_operations() {
+        let env = Environment::new();
+
+        // Test greater than
+        let gt_expr = Expression::list(vec![
+            Expression::atom(Value::symbol(">")),
+            Expression::atom(Value::number(5.0)),
+            Expression::atom(Value::number(3.0)),
+        ]);
+        let result = eval(&gt_expr, &env).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+
+        // Test less than or equal
+        let lte_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("<=")),
+            Expression::atom(Value::number(3.0)),
+            Expression::atom(Value::number(3.0)),
+        ]);
+        let result = eval(&lte_expr, &env).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
+
+        // Test greater than or equal
+        let gte_expr = Expression::list(vec![
+            Expression::atom(Value::symbol(">=")),
+            Expression::atom(Value::number(5.0)),
+            Expression::atom(Value::number(3.0)),
+        ]);
+        let result = eval(&gte_expr, &env).unwrap();
+        assert_eq!(result.as_boolean().unwrap(), true);
     }
 
     #[test]
