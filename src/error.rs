@@ -222,11 +222,11 @@ mod tests {
 
     #[test]
     fn test_unbound_identifier_error_with_context() {
-        let error = Error::unbound_identifier_with_context("x", "Consider defining it first");
+        let error = Error::unbound_identifier_with_context("x", "Did you mean one of: 'y', 'z'?");
 
         assert_eq!(
             error.to_string(),
-            "Unbound identifier: 'x'. Consider defining it first"
+            "Unbound identifier: 'x'. Did you mean one of: 'y', 'z'?"
         );
     }
 

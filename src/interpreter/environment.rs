@@ -97,13 +97,12 @@ impl<'a> Environment<'a> {
         // Collect similar identifiers for suggestions
         let suggestions = self.find_similar_identifiers(key_str);
 
-        let context = if suggestions.is_empty() {
-            "Make sure the identifier is defined before use".to_string()
+        if suggestions.is_empty() {
+            Err(Error::unbound_identifier(key_str))
         } else {
-            format!("Did you mean one of: {}?", suggestions.join(", "))
-        };
-
-        Err(Error::unbound_identifier_with_context(key_str, &context))
+            let context = format!("Did you mean one of: {}?", suggestions.join(", "));
+            Err(Error::unbound_identifier_with_context(key_str, &context))
+        }
     }
 
     /// Find similar identifiers in the environment chain for suggestions
@@ -670,7 +669,8 @@ mod tests {
         // Verify error message contains helpful information
         assert!(error_msg.contains("Unbound identifier"));
         assert!(error_msg.contains("undefined_identifier"));
-        assert!(error_msg.contains("Make sure the identifier is defined"));
+        // No generic context since there are no similar identifiers
+        assert_eq!(error_msg, "Unbound identifier: 'undefined_identifier'");
     }
 
     #[test]
@@ -695,7 +695,7 @@ mod tests {
         let error = child.lookup_str("xyz").unwrap_err();
         let error_msg = error.to_string();
         assert!(error_msg.contains("Unbound identifier: 'xyz'"));
-        assert!(error_msg.contains("Make sure the identifier is defined"));
+        assert_eq!(error_msg, "Unbound identifier: 'xyz'");
 
         // Test 4: Environment chain information
         assert_eq!(child.chain_depth(), 2);
