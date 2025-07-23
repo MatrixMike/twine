@@ -88,9 +88,9 @@ mod tests {
     #[test]
     fn test_symbol_creation() {
         // Test creation from &str
-        let s1 = Symbol::new("variable");
-        assert_eq!(s1.as_str(), "variable");
-        assert_eq!(s1.len(), 8);
+        let s1 = Symbol::new("identifier");
+        assert_eq!(s1.as_str(), "identifier");
+        assert_eq!(s1.len(), 10);
         assert!(!s1.is_empty());
 
         // Test creation from owned String
@@ -132,8 +132,8 @@ mod tests {
 
     #[test]
     fn test_symbol_display() {
-        let s = Symbol::new("my-variable");
-        assert_eq!(format!("{}", s), "my-variable");
+        let s = Symbol::new("my-identifier");
+        assert_eq!(format!("{}", s), "my-identifier");
 
         let empty = Symbol::new("");
         assert_eq!(format!("{}", empty), "");

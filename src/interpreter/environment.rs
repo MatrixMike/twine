@@ -74,7 +74,7 @@ impl<'a> Environment<'a> {
         self.bindings.insert(Symbol::new(key), value);
     }
 
-    /// Look up an identifier by Symbol in this environment or parent environments
+    /// Look up a binding by identifier in this environment or parent environments
     pub fn lookup(&self, key: &Symbol) -> Result<Value> {
         // First check this environment
         if let Some(value) = self.bindings.get(key) {
@@ -86,14 +86,52 @@ impl<'a> Environment<'a> {
             return parent.lookup(key);
         }
 
-        // Identifier not found
-        Err(Error::parse_error(&format!(
-            "Undefined identifier: {}",
-            key.as_str()
-        )))
+        // Identifier not found - provide detailed error
+        self.create_unbound_identifier_error(key)
     }
 
-    /// Look up an identifier by string key (convenience method)
+    /// Create a detailed unbound identifier error with suggestions
+    fn create_unbound_identifier_error(&self, key: &Symbol) -> Result<Value> {
+        let key_str = key.as_str();
+
+        // Collect similar identifiers for suggestions
+        let suggestions = self.find_similar_identifiers(key_str);
+
+        let context = if suggestions.is_empty() {
+            "Make sure the identifier is defined before use".to_string()
+        } else {
+            format!("Did you mean one of: {}?", suggestions.join(", "))
+        };
+
+        Err(Error::unbound_identifier_with_context(key_str, &context))
+    }
+
+    /// Find similar identifiers in the environment chain for suggestions
+    fn find_similar_identifiers(&self, target: &str) -> Vec<String> {
+        let mut suggestions = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        // Collect all identifiers from this environment and parents
+        let mut current = Some(self);
+        while let Some(env) = current {
+            for key in env.bindings.keys() {
+                let key_str = key.as_str();
+                if seen.insert(key_str.to_string()) {
+                    // Simple similarity check: same length or edit distance of 1-2
+                    if is_similar_identifier(target, key_str) {
+                        suggestions.push(format!("'{}'", key_str));
+                    }
+                }
+            }
+            current = env.parent;
+        }
+
+        // Limit suggestions to avoid overwhelming output
+        suggestions.truncate(3);
+        suggestions
+    }
+
+    /// Look up a binding by string key (convenience method)
     pub fn lookup_str(&self, key: &str) -> Result<Value> {
         let symbol = Symbol::new(key);
         self.lookup(&symbol)
@@ -129,12 +167,104 @@ impl<'a> Environment<'a> {
     pub fn parent(&self) -> Option<&Environment<'a>> {
         self.parent
     }
+
+    /// Get information about the environment chain depth
+    pub fn chain_depth(&self) -> usize {
+        let mut depth = 1;
+        let mut current = self.parent;
+        while let Some(env) = current {
+            depth += 1;
+            current = env.parent;
+        }
+        depth
+    }
+
+    /// Find the environment level where an identifier is bound
+    pub fn find_binding_level(&self, key: &Symbol) -> Option<usize> {
+        let mut level = 0;
+        let mut current = Some(self);
+
+        while let Some(env) = current {
+            if env.bindings.contains_key(key) {
+                return Some(level);
+            }
+            level += 1;
+            current = env.parent;
+        }
+
+        None
+    }
 }
 
 impl<'a> Default for Environment<'a> {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Helper function to check if two identifiers are similar
+fn is_similar_identifier(target: &str, candidate: &str) -> bool {
+    if target == candidate {
+        return false; // Exact match is not a "similar" suggestion
+    }
+
+    let target_len = target.len();
+    let candidate_len = candidate.len();
+
+    // Same length - check for single character differences
+    if target_len == candidate_len {
+        let differences = target
+            .chars()
+            .zip(candidate.chars())
+            .filter(|(a, b)| a != b)
+            .count();
+        return differences <= 2;
+    }
+
+    // Length difference of 1 - check for insertion/deletion
+    if (target_len as i32 - candidate_len as i32).abs() == 1 {
+        let (shorter, longer) = if target_len < candidate_len {
+            (target, candidate)
+        } else {
+            (candidate, target)
+        };
+
+        // Check if longer string contains shorter as subsequence with one extra char
+        return edit_distance_one(shorter, longer);
+    }
+
+    false
+}
+
+/// Check if two strings have edit distance of at most 1
+fn edit_distance_one(shorter: &str, longer: &str) -> bool {
+    let mut i = 0;
+    let mut j = 0;
+    let mut found_difference = false;
+
+    let shorter_chars: Vec<char> = shorter.chars().collect();
+    let longer_chars: Vec<char> = longer.chars().collect();
+
+    while i < shorter_chars.len() && j < longer_chars.len() {
+        if shorter_chars[i] == longer_chars[j] {
+            i += 1;
+            j += 1;
+        } else if !found_difference {
+            found_difference = true;
+            if shorter.len() == longer.len() {
+                // Substitution
+                i += 1;
+                j += 1;
+            } else {
+                // Insertion in longer string
+                j += 1;
+            }
+        } else {
+            return false; // More than one difference
+        }
+    }
+
+    true
 }
 
 #[cfg(test)]
@@ -205,12 +335,12 @@ mod tests {
             Symbol::new("a"),           // from grandparent
             Symbol::new("c"),           // from parent
             Symbol::new("e"),           // from child
-            Symbol::new("nonexistent"), // missing variable
+            Symbol::new("nonexistent"), // missing identifier
         ];
 
         let closure_env = Environment::new_closure(&child, &keys);
 
-        assert_eq!(closure_env.len(), 3); // Only found variables
+        assert_eq!(closure_env.len(), 3); // Only found identifiers
         assert_eq!(
             closure_env.lookup_str("a").unwrap().as_number().unwrap(),
             1.0
@@ -344,7 +474,7 @@ mod tests {
             result
                 .unwrap_err()
                 .to_string()
-                .contains("Undefined identifier")
+                .contains("Unbound identifier")
         );
     }
 
@@ -447,5 +577,201 @@ mod tests {
 
         let result = child.lookup_str("unique_gp").unwrap();
         assert_eq!(result.as_number().unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_detailed_unbound_identifier_errors() {
+        let mut env = Environment::new();
+        env.define_str("identifier", Value::number(1.0));
+        env.define_str("function", Value::number(2.0));
+
+        // Test error with similar identifier suggestion
+        let result = env.lookup_str("identifer"); // typo
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("Unbound identifier"));
+        assert!(error.to_string().contains("Did you mean"));
+        assert!(error.to_string().contains("'identifier'"));
+    }
+
+    #[test]
+    fn test_environment_chain_depth() {
+        let grandparent = Environment::new();
+        assert_eq!(grandparent.chain_depth(), 1);
+
+        let parent = Environment::new_scope(&grandparent);
+        assert_eq!(parent.chain_depth(), 2);
+
+        let child = Environment::new_scope(&parent);
+        assert_eq!(child.chain_depth(), 3);
+    }
+
+    #[test]
+    fn test_binding_level_detection() {
+        let mut grandparent = Environment::new();
+        grandparent.define_str("gp_var", Value::number(1.0));
+
+        let mut parent = Environment::new_scope(&grandparent);
+        parent.define_str("parent_var", Value::number(2.0));
+
+        let mut child = Environment::new_scope(&parent);
+        child.define_str("child_var", Value::number(3.0));
+
+        // Test binding level detection
+        assert_eq!(child.find_binding_level(&Symbol::new("child_var")), Some(0));
+        assert_eq!(
+            child.find_binding_level(&Symbol::new("parent_var")),
+            Some(1)
+        );
+        assert_eq!(child.find_binding_level(&Symbol::new("gp_var")), Some(2));
+        assert_eq!(child.find_binding_level(&Symbol::new("nonexistent")), None);
+    }
+
+    #[test]
+    fn test_similar_identifier_detection() {
+        let mut env = Environment::new();
+        env.define_str("identifier", Value::number(1.0));
+        env.define_str("function", Value::number(2.0));
+        env.define_str("procedure", Value::number(3.0));
+
+        // Test various typo patterns
+        let test_cases = [
+            ("identifer", true),  // single character substitution
+            ("functio", true),    // single character deletion
+            ("procedurex", true), // single character addition
+            ("xyz", false),       // completely different
+        ];
+
+        for (typo, should_suggest) in test_cases {
+            let result = env.lookup_str(typo);
+            assert!(result.is_err());
+            let error_msg = result.unwrap_err().to_string();
+
+            if should_suggest {
+                assert!(
+                    error_msg.contains("Did you mean"),
+                    "Should suggest for '{}': {}",
+                    typo,
+                    error_msg
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_error_message_quality() {
+        let env = Environment::new();
+        let result = env.lookup_str("undefined_identifier");
+
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let error_msg = error.to_string();
+
+        // Verify error message contains helpful information
+        assert!(error_msg.contains("Unbound identifier"));
+        assert!(error_msg.contains("undefined_identifier"));
+        assert!(error_msg.contains("Make sure the identifier is defined"));
+    }
+
+    #[test]
+    fn test_enhanced_error_handling_demo() {
+        let mut parent = Environment::new();
+        parent.define_str("count", Value::number(42.0));
+        parent.define_str("result", Value::string("success"));
+
+        let mut child = Environment::new_scope(&parent);
+        child.define_str("local_var", Value::boolean(true));
+
+        // Test 1: Normal binding definition (shadowing is allowed)
+        child.define_str("count", Value::number(100.0)); // Shadows parent binding normally
+
+        // Test 2: Detailed unbound identifier error with suggestions
+        let error = child.lookup_str("cout").unwrap_err(); // typo for "count"
+        let error_msg = error.to_string();
+        assert!(error_msg.contains("Unbound identifier: 'cout'"));
+        assert!(error_msg.contains("Did you mean one of: 'count'"));
+
+        // Test 3: Error without suggestions for completely different identifier
+        let error = child.lookup_str("xyz").unwrap_err();
+        let error_msg = error.to_string();
+        assert!(error_msg.contains("Unbound identifier: 'xyz'"));
+        assert!(error_msg.contains("Make sure the identifier is defined"));
+
+        // Test 4: Environment chain information
+        assert_eq!(child.chain_depth(), 2);
+        assert_eq!(child.find_binding_level(&Symbol::new("count")), Some(0)); // count is redefined in child
+        assert_eq!(child.find_binding_level(&Symbol::new("result")), Some(1)); // result is only in parent
+        assert_eq!(child.find_binding_level(&Symbol::new("local_var")), Some(0));
+    }
+
+    #[test]
+    fn test_why_unbound_identifier_errors_matter() {
+        // This test demonstrates why unbound identifier errors are essential
+        let mut env = Environment::new();
+        env.define_str("counter", Value::number(42.0));
+        env.define_str("width", Value::number(10.0));
+        env.define_str("calculate", Value::string("function"));
+
+        // Scenario 1: Typo in identifier name - close enough for suggestions
+        let result = env.lookup_str("counte"); // missing 'r' from "counter"
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Unbound identifier"));
+        // May or may not have suggestions depending on similarity
+
+        // Scenario 2: Completely missing identifier
+        // Without error handling: program continues with undefined state
+        // With error handling: clear error message prevents silent bugs
+        let result = env.lookup_str("height"); // forgot to define
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Unbound identifier: 'height'"));
+
+        // Scenario 3: Close typo that should get suggestions
+        let result = env.lookup_str("calcuate"); // missing 'l' from "calculate"
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Unbound identifier"));
+
+        // The key point: ALL of these return proper errors instead of:
+        // 1. Crashing the interpreter
+        // 2. Returning null/undefined values
+        // 3. Continuing with garbage data
+        // 4. Silent failures that are hard to debug
+
+        // This demonstrates why unbound identifier detection is essential:
+        // - Prevents runtime crashes and undefined behavior
+        // - Provides clear feedback about what went wrong
+        // - Helps catch typos and missing definitions early
+        // - Ensures the interpreter behaves predictably
+        // - Meets Scheme language specification requirements
+    }
+
+    #[test]
+    fn test_normal_shadowing_behavior() {
+        let mut parent = Environment::new();
+        parent.define_str("x", Value::number(42.0));
+        parent.define_str("y", Value::string("parent"));
+
+        let mut child = Environment::new_scope(&parent);
+
+        // Test normal shadowing - should work without warnings
+        child.define_str("x", Value::number(100.0)); // Shadows parent's x
+        child.define_str("z", Value::boolean(true)); // New binding
+
+        // Verify shadowing works correctly
+        assert_eq!(child.lookup_str("x").unwrap().as_number().unwrap(), 100.0); // Child's value
+        assert_eq!(
+            child.lookup_str("y").unwrap().as_string().unwrap(),
+            "parent"
+        ); // Parent's value
+        assert_eq!(child.lookup_str("z").unwrap().as_boolean().unwrap(), true); // Child's value
+
+        // Test redefinition in same scope
+        child.define_str("z", Value::number(99.0)); // Redefine z
+        assert_eq!(child.lookup_str("z").unwrap().as_number().unwrap(), 99.0);
+
+        // Verify parent environment unchanged
+        assert_eq!(parent.lookup_str("x").unwrap().as_number().unwrap(), 42.0);
     }
 }

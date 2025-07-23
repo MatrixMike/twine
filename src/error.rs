@@ -17,6 +17,22 @@ pub enum Error {
 
     /// General parsing errors
     ParseError(String),
+
+    /// Environment-related errors
+    EnvironmentError {
+        kind: EnvironmentErrorKind,
+        identifier: String,
+        context: Option<String>,
+    },
+}
+
+/// Specific kinds of environment errors
+#[derive(Debug, Clone)]
+pub enum EnvironmentErrorKind {
+    /// Unbound identifier error
+    UnboundIdentifier,
+    /// Invalid identifier
+    InvalidIdentifier,
 }
 
 impl fmt::Display for Error {
@@ -34,6 +50,26 @@ impl fmt::Display for Error {
                 )
             }
             Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            Error::EnvironmentError {
+                kind,
+                identifier,
+                context,
+            } => {
+                let base_msg = match kind {
+                    EnvironmentErrorKind::UnboundIdentifier => {
+                        format!("Unbound identifier: '{}'", identifier)
+                    }
+                    EnvironmentErrorKind::InvalidIdentifier => {
+                        format!("Invalid identifier: '{}'", identifier)
+                    }
+                };
+
+                if let Some(ctx) = context {
+                    write!(f, "{}. {}", base_msg, ctx)
+                } else {
+                    write!(f, "{}", base_msg)
+                }
+            }
         }
     }
 }
@@ -56,6 +92,33 @@ impl Error {
     /// Create a general parse error
     pub fn parse_error(message: &str) -> Self {
         Self::ParseError(message.to_string())
+    }
+
+    /// Create an unbound identifier error
+    pub fn unbound_identifier(identifier: &str) -> Self {
+        Self::EnvironmentError {
+            kind: EnvironmentErrorKind::UnboundIdentifier,
+            identifier: identifier.to_string(),
+            context: None,
+        }
+    }
+
+    /// Create an unbound identifier error with context
+    pub fn unbound_identifier_with_context(identifier: &str, context: &str) -> Self {
+        Self::EnvironmentError {
+            kind: EnvironmentErrorKind::UnboundIdentifier,
+            identifier: identifier.to_string(),
+            context: Some(context.to_string()),
+        }
+    }
+
+    /// Create an invalid identifier error
+    pub fn invalid_identifier(identifier: &str, context: &str) -> Self {
+        Self::EnvironmentError {
+            kind: EnvironmentErrorKind::InvalidIdentifier,
+            identifier: identifier.to_string(),
+            context: Some(context.to_string()),
+        }
     }
 }
 
@@ -141,5 +204,46 @@ mod tests {
 
         assert!(matches!(error, Error::ParseError(_)));
         assert_eq!(error.to_string(), "Parse error: invalid expression");
+    }
+
+    #[test]
+    fn test_unbound_identifier_error() {
+        let error = Error::unbound_identifier("x");
+
+        assert!(matches!(
+            error,
+            Error::EnvironmentError {
+                kind: EnvironmentErrorKind::UnboundIdentifier,
+                ..
+            }
+        ));
+        assert_eq!(error.to_string(), "Unbound identifier: 'x'");
+    }
+
+    #[test]
+    fn test_unbound_identifier_error_with_context() {
+        let error = Error::unbound_identifier_with_context("x", "Consider defining it first");
+
+        assert_eq!(
+            error.to_string(),
+            "Unbound identifier: 'x'. Consider defining it first"
+        );
+    }
+
+    #[test]
+    fn test_invalid_identifier_error() {
+        let error = Error::invalid_identifier("123abc", "Identifiers cannot start with digits");
+
+        assert!(matches!(
+            error,
+            Error::EnvironmentError {
+                kind: EnvironmentErrorKind::InvalidIdentifier,
+                ..
+            }
+        ));
+        assert_eq!(
+            error.to_string(),
+            "Invalid identifier: '123abc'. Identifiers cannot start with digits"
+        );
     }
 }

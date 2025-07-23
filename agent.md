@@ -260,6 +260,16 @@ pub struct ArcString(Arc<String>);
 - **Module Organization**: Explain how code organization supports learning
 - **Concept Reinforcement**: Show how implementations build on previous concepts
 
+### Scheme Terminology (CRITICAL)
+**NEVER use "variable" - always use proper Scheme terminology:**
+- **Identifier** = the symbolic name (e.g., `x`, `my-function`, `calculate`)
+- **Binding** = the association between an identifier and a value in an environment
+- **"Variable"** is an imperative programming concept - avoid this term entirely
+- **Examples**: "unbound identifier", "identifier binding", "binding lookup"
+- **Error messages**: Use "Unbound identifier" not "Undefined variable"
+- **Comments**: "Define an identifier binding" not "Define a variable"
+- **Shadowing**: Shadowing is normal behavior in Scheme - no warnings needed
+
 ---
 
 ## Error Handling and Debugging

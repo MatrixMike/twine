@@ -167,7 +167,7 @@ mod tests {
         let closure_env = Environment::new_closure(&let_env, &keys);
 
         assert!(closure_env.parent().is_none()); // No parent - standalone
-        assert_eq!(closure_env.len(), 2); // Only captured variables
+        assert_eq!(closure_env.len(), 2); // Only captured identifiers
         assert_eq!(
             closure_env
                 .lookup_str("captured_var")
@@ -185,7 +185,7 @@ mod tests {
             "test"
         );
 
-        // Test that closure doesn't have access to non-captured variables
+        // Test that closure doesn't have access to non-captured identifiers
         assert!(closure_env.lookup_str("global_var").is_err());
         assert!(closure_env.lookup_str("local_var").is_err());
         assert!(closure_env.lookup_str("inner_var").is_err());

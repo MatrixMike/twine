@@ -233,9 +233,9 @@ mod tests {
         assert!(str_val.is_string());
         assert_eq!(str_val.as_string(), Some("hello"));
 
-        let sym_val = Value::symbol("variable");
+        let sym_val = Value::symbol("identifier");
         assert!(sym_val.is_symbol());
-        assert_eq!(sym_val.as_symbol(), Some("variable"));
+        assert_eq!(sym_val.as_symbol(), Some("identifier"));
 
         let list_val = Value::list(vec![Value::number(1.0), Value::number(2.0)]);
         assert!(list_val.is_list());
