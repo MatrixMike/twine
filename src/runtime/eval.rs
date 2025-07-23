@@ -79,25 +79,16 @@ fn eval_list(elements: &[Expression], env: &Environment) -> Result<Value> {
             args.push(eval(arg_expr, env)?);
         }
 
-        // Handle builtin procedures
-        match symbol.as_str() {
-            "+" => builtin::add(&args),
-            "-" => builtin::subtract(&args),
-            "*" => builtin::multiply(&args),
-            "/" => builtin::divide(&args),
-            "=" => builtin::equal(&args),
-            "<" => builtin::less_than(&args),
-            ">" => builtin::greater_than(&args),
-            "<=" => builtin::less_than_or_equal(&args),
-            ">=" => builtin::greater_than_or_equal(&args),
-            _ => {
-                // Not a builtin procedure, try to evaluate as normal procedure call
-                let _procedure = eval(procedure_expr, env)?;
-                Err(Error::runtime_error(&format!(
-                    "Unknown procedure: '{}'",
-                    symbol.as_str()
-                )))
-            }
+        // Handle builtin procedures through centralized dispatch
+        if let Some(result) = builtin::dispatch(symbol.as_str(), &args) {
+            result
+        } else {
+            // Not a builtin procedure, try to evaluate as normal procedure call
+            let _procedure = eval(procedure_expr, env)?;
+            Err(Error::runtime_error(&format!(
+                "Unknown procedure: '{}'",
+                symbol.as_str()
+            )))
         }
     } else {
         // Evaluate the procedure expression and handle other types of procedures
