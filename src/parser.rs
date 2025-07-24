@@ -25,7 +25,7 @@
 //! ]));
 //! ```
 
-use crate::lexer::Position;
+use crate::lexer::{Lexer, Position};
 use crate::types::Value;
 
 /// Abstract Syntax Tree node for Scheme expressions.
@@ -173,8 +173,6 @@ impl Parser {
     ///
     /// Tokenizes the input using the lexer and prepares for parsing.
     pub fn new(input: String) -> crate::Result<Self> {
-        use crate::lexer::Lexer;
-
         let mut lexer = Lexer::new(input);
         let mut tokens = Vec::new();
 

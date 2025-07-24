@@ -220,6 +220,11 @@ This document (`agent.md`) serves as **living memory** for all agent behavioral 
 
 ## Code Style Guidelines
 
+### Import Style
+- **Place imports at module top**: All `use` statements must be at the top of the file, never within functions
+- **Exception for test modules**: `use` statements within test functions are acceptable for test-specific imports
+- **Organize imports logically**: Group standard library, external crates, and local crate imports separately
+
 ### Commenting Style
 - **Focus on Functionality**: Comments should describe what code does and why technical decisions were made
 - **Include Important "Why"**: Explain technical rationale, performance considerations, safety concerns, and non-obvious design choices

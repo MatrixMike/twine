@@ -232,8 +232,6 @@ impl Lexer {
 
     /// Read a string literal with escape sequence support.
     fn read_string(&mut self, position: Position) -> Result<PositionedToken> {
-        use crate::Error;
-
         self.advance(); // consume opening quote
         let mut value = String::new();
 
@@ -322,8 +320,6 @@ impl Lexer {
 
     /// Read a boolean literal (#t or #f).
     fn read_boolean(&mut self, position: Position) -> Result<PositionedToken> {
-        use crate::Error;
-
         self.advance(); // consume '#'
 
         match self.peek() {

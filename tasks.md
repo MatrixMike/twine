@@ -6,11 +6,11 @@
 - **Phase 1**: ✅ **COMPLETE** (14/14 tasks) - Core Language Foundation
 - **Phase 2.1**: ✅ **COMPLETE** (5/5 tasks) - Syntactic Analysis
 - **Phase 2.2**: ✅ **COMPLETE** (4/4 tasks) - Environment Management
-- **Phase 2.3**: 🚧 **IN PROGRESS** (2/5 tasks) - Basic Evaluation Engine
-- **Overall Progress**: 30% (25/81 tasks completed)
+- **Phase 2.3**: 🚧 **IN PROGRESS** (3/5 tasks) - Basic Evaluation Engine
+- **Overall Progress**: 31% (26/81 tasks completed)
 
 ### Next Priority
-**→ T2.3.3**: Implement conditional expressions
+**→ T2.3.4**: Implement basic list operations
 
 ### Phase Overview
 | Phase | Focus | Tasks | Est. Duration |
@@ -405,17 +405,50 @@ fn test_eval_unknown_procedure
 fn test_eval_non_symbol_procedure
 ```
 
-#### T2.3.3: Implement conditional expressions
+#### T2.3.3: Implement conditional expressions ✅
+**Prerequisites**: Arithmetic operations complete ✅
 **Deliverables**:
-- `if` special form evaluation
-- Boolean evaluation logic
-- Conditional flow control
+- `if` special form evaluation ✅
+- Boolean evaluation logic ✅
+- Conditional flow control ✅
+
+**Implementation Details**:
+- Modified `eval_list` to handle special forms before builtin procedures
+- Implemented `eval_if` function with proper arity checking (3 arguments required)
+- Implemented `is_truthy` helper function following Scheme semantics (only #f is false)
+- Added comprehensive error handling for invalid argument counts
+
+**Tests Added**:
+```rust
+// In eval.rs
+fn test_eval_if_true_condition
+fn test_eval_if_false_condition
+fn test_eval_if_truthiness
+fn test_eval_if_with_expressions
+fn test_eval_if_nested
+fn test_eval_if_arity_errors
+fn test_eval_if_evaluation_order
+fn test_is_truthy_function
+
+// In lib.rs
+fn test_eval_integration // end-to-end if expression testing
+```
 
 #### T2.3.4: Implement basic list operations
 **Deliverables**:
 - Built-in procedures: `car`, `cdr`, `cons`, `list`, `null?`
 - List type checking
 - List construction and deconstruction
+
+**File Structure Note**: This task should add list operations to the builtins directory:
+```
+runtime/
+├── special_forms.rs    # if
+└── builtins/
+    ├── mod.rs          # dispatch (update to include list operations)
+    ├── arithmetic.rs   # +, -, *, /, =, <, >, etc.
+    └── list.rs         # car, cdr, cons, list, null?
+```
 
 #### T2.3.5: Create basic evaluation tests
 **Acceptance**: 20+ tests covering arithmetic, conditionals, and list operations
@@ -428,6 +461,18 @@ fn test_eval_non_symbol_procedure
 - Identifier definition in current environment
 - Function definition syntax sugar
 - Proper scoping for definitions
+
+**File Structure Note**: This task should transition `special_forms.rs` to a directory structure:
+```
+runtime/
+├── special_forms/
+│   ├── mod.rs          # dispatch system
+│   ├── conditional.rs  # if
+│   └── binding.rs      # define
+└── builtins/
+    ├── mod.rs          # dispatch
+    └── arithmetic.rs   # +, -, *, /, =, <, >, etc.
+```
 
 #### T2.4.2: Implement `let` binding forms
 **Deliverables**:
@@ -457,6 +502,21 @@ fn test_eval_non_symbol_procedure
 - Closure creation with environment capture
 - Parameter binding logic
 
+**File Structure Note**: This task should expand the special_forms directory:
+```
+runtime/
+├── special_forms/
+│   ├── mod.rs          # dispatch (update to include lambda)
+│   ├── conditional.rs  # if
+│   ├── binding.rs      # define, let
+│   └── function.rs     # lambda
+└── builtins/
+    ├── mod.rs          # dispatch
+    ├── arithmetic.rs   # +, -, *, /, =, <, >, etc.
+    ├── list.rs         # car, cdr, cons, list, null?
+    └── predicates.rs   # number?, boolean?, string?, etc.
+```
+
 #### T3.1.3: Implement function application
 **Deliverables**:
 - Procedure call evaluation
@@ -480,6 +540,21 @@ fn test_eval_non_symbol_procedure
 - `number?`, `boolean?`, `string?`, `symbol?`, `list?`, `procedure?`, `null?`
 - Comprehensive type checking logic
 
+**File Structure Note**: This task should add predicates to the builtins directory:
+```
+runtime/
+├── special_forms/
+│   ├── mod.rs          # dispatch
+│   ├── conditional.rs  # if
+│   ├── binding.rs      # define, let
+│   └── function.rs     # lambda
+└── builtins/
+    ├── mod.rs          # dispatch (update to include predicates)
+    ├── arithmetic.rs   # +, -, *, /, =, <, >, etc.
+    ├── list.rs         # car, cdr, cons, list, null?, append, etc.
+    └── predicates.rs   # number?, boolean?, string?, symbol?, list?, procedure?, null?
+```
+
 #### T3.2.2: Implement advanced list operations
 **Deliverables**:
 - `length`, `append`, `reverse`, `member`, `assoc`
@@ -491,6 +566,22 @@ fn test_eval_non_symbol_procedure
 - `display`, `newline`, `read` (basic)
 - String output formatting
 - Basic input reading
+
+**File Structure Note**: This task should add I/O procedures to the builtins directory:
+```
+runtime/
+├── special_forms/
+│   ├── mod.rs          # dispatch
+│   ├── conditional.rs  # if
+│   ├── binding.rs      # define, let
+│   └── function.rs     # lambda
+└── builtins/
+    ├── mod.rs          # dispatch (update to include I/O)
+    ├── arithmetic.rs   # +, -, *, /, =, <, >, etc.
+    ├── list.rs         # car, cdr, cons, list, null?, append, etc.
+    ├── predicates.rs   # number?, boolean?, string?, symbol?, list?, procedure?, null?
+    └── io.rs           # display, newline, read
+```
 
 #### T3.2.4: Create built-in procedure tests
 **Acceptance**: 20+ tests covering type checking, list operations, and I/O
@@ -880,12 +971,12 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 2 (Basic Interpreter)
-**Overall Progress**: 23% (19/82 tasks completed)
+**Overall Progress**: 31% (26/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
-- **Phase 2**: ☐ 25% (5/20 tasks) - Basic Interpreter
+- **Phase 2**: ☐ 30% (6/20 tasks) - Basic Interpreter
 - **Phase 3**: ☐ 0% (0/20 tasks) - Advanced Features
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
@@ -917,11 +1008,12 @@ cargo fmt --check            # Formatting verification
 - ✅ T2.2.4: Create environment tests
 - ✅ T2.3.1: Implement basic `eval` function
 - ✅ T2.3.2: Implement arithmetic operations
+- ✅ T2.3.3: Implement conditional expressions
 
 ### Immediate Next Steps
-1. **T2.3.3**: Implement conditional expressions (🔥 Priority - Continue Phase 2.3)
-2. **T2.3.4**: Implement basic list operations
-3. **T2.3.5**: Create basic evaluation tests
+1. **T2.3.4**: Implement basic list operations (🔥 Priority - Continue Phase 2.3)
+2. **T2.3.5**: Create basic evaluation tests
+3. **T2.4.1**: Implement `define` special form
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

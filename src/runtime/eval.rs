@@ -8,7 +8,7 @@ use crate::error::{Error, Result};
 use crate::parser::Expression;
 use crate::types::{List, Value};
 
-use super::{Environment, builtin};
+use super::{Environment, builtins, special_forms};
 
 /// Evaluate a Scheme expression in the given environment
 ///
@@ -60,43 +60,49 @@ fn eval_atom(value: &Value, env: &Environment) -> Result<Value> {
 ///
 /// Lists represent compound expressions in Scheme:
 /// - Empty lists evaluate to themselves
-/// - Non-empty lists represent procedure calls: (procedure arg1 arg2 ...)
+/// - Non-empty lists represent special forms or procedure calls: (form/procedure arg1 arg2 ...)
 fn eval_list(elements: &[Expression], env: &Environment) -> Result<Value> {
     // Empty list evaluates to empty list
     if elements.is_empty() {
         return Ok(Value::List(List::new()));
     }
 
-    // Non-empty lists are procedure calls: (procedure arg1 arg2 ...)
-    let procedure_expr = &elements[0];
-    let arg_exprs = &elements[1..];
+    // Non-empty lists can be special forms or procedure calls
+    let first_expr = &elements[0];
+    let rest_exprs = &elements[1..];
 
-    // Check if the procedure expression is a builtin procedure identifier
-    if let Expression::Atom(Value::Symbol(identifier)) = procedure_expr {
-        // Evaluate all arguments
-        let mut args = Vec::new();
-        for arg_expr in arg_exprs {
-            args.push(eval(arg_expr, env)?);
-        }
-
-        // Handle builtin procedures through centralized dispatch
-        if let Some(result) = builtin::dispatch(identifier, &args) {
+    // Check if the first expression is a special form or procedure identifier
+    if let Expression::Atom(Value::Symbol(identifier)) = first_expr {
+        // Handle special forms first (these have special evaluation rules)
+        if let Some(result) = special_forms::dispatch(identifier, rest_exprs, env) {
             result
         } else {
-            // Not a builtin procedure, try to evaluate as normal procedure call
-            let _procedure = eval(procedure_expr, env)?;
-            Err(Error::runtime_error(&format!(
-                "Unknown procedure: '{}'",
-                identifier
-            )))
+            // Not a special form, try builtin procedures
+            // Evaluate all arguments for procedure calls
+            let mut args = Vec::new();
+            for arg_expr in rest_exprs {
+                args.push(eval(arg_expr, env)?);
+            }
+
+            // Handle builtin procedures through centralized dispatch
+            if let Some(result) = builtins::dispatch(identifier, &args) {
+                result
+            } else {
+                // Not a builtin procedure, try to evaluate as normal procedure call
+                let _procedure = eval(first_expr, env)?;
+                Err(Error::runtime_error(&format!(
+                    "Unknown procedure: '{}'",
+                    identifier
+                )))
+            }
         }
     } else {
         // Evaluate the procedure expression and handle other types of procedures
-        let procedure = eval(procedure_expr, env)?;
+        let procedure = eval(first_expr, env)?;
 
         // Evaluate all arguments
         let mut args = Vec::new();
-        for arg_expr in arg_exprs {
+        for arg_expr in rest_exprs {
             args.push(eval(arg_expr, env)?);
         }
 
@@ -506,5 +512,178 @@ mod tests {
         let result = eval(&empty_list, &env).unwrap();
         assert!(result.is_list());
         assert!(result.as_list().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_eval_if_true_condition() {
+        let env = Environment::new();
+
+        // Test (if #t "yes" "no") -> "yes"
+        let if_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::atom(Value::boolean(true)),
+            Expression::atom(Value::string("yes")),
+            Expression::atom(Value::string("no")),
+        ]);
+
+        let result = eval(&if_expr, &env).unwrap();
+        assert!(result.is_string());
+        assert_eq!(result.as_string().unwrap(), "yes");
+    }
+
+    #[test]
+    fn test_eval_if_false_condition() {
+        let env = Environment::new();
+
+        // Test (if #f "yes" "no") -> "no"
+        let if_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::atom(Value::boolean(false)),
+            Expression::atom(Value::string("yes")),
+            Expression::atom(Value::string("no")),
+        ]);
+
+        let result = eval(&if_expr, &env).unwrap();
+        assert!(result.is_string());
+        assert_eq!(result.as_string().unwrap(), "no");
+    }
+
+    #[test]
+    fn test_eval_if_truthiness() {
+        let env = Environment::new();
+
+        // Test that all non-#f values are truthy
+        let test_cases = vec![
+            (Value::number(0.0), "zero"),             // 0 is truthy in Scheme
+            (Value::string(""), "empty-string"),      // Empty string is truthy
+            (Value::List(List::new()), "empty-list"), // Empty list is truthy
+            (Value::Nil, "nil"),                      // Nil is truthy
+            (Value::number(42.0), "number"),          // Positive number is truthy
+            (Value::string("hello"), "string"),       // Non-empty string is truthy
+        ];
+
+        for (condition, expected) in test_cases {
+            let if_expr = Expression::list(vec![
+                Expression::atom(Value::symbol("if")),
+                Expression::atom(condition),
+                Expression::atom(Value::string(expected)),
+                Expression::atom(Value::string("false")),
+            ]);
+
+            let result = eval(&if_expr, &env).unwrap();
+            assert!(result.is_string());
+            assert_eq!(result.as_string().unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn test_eval_if_with_expressions() {
+        let mut env = Environment::new();
+        env.define_str("x", Value::number(5.0));
+
+        // Test (if (> x 0) "positive" "non-positive") -> "positive"
+        let if_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::list(vec![
+                Expression::atom(Value::symbol(">")),
+                Expression::atom(Value::symbol("x")),
+                Expression::atom(Value::number(0.0)),
+            ]),
+            Expression::atom(Value::string("positive")),
+            Expression::atom(Value::string("non-positive")),
+        ]);
+
+        let result = eval(&if_expr, &env).unwrap();
+        assert!(result.is_string());
+        assert_eq!(result.as_string().unwrap(), "positive");
+
+        // Change x to -3 and test again
+        env.define_str("x", Value::number(-3.0));
+        let result = eval(&if_expr, &env).unwrap();
+        assert!(result.is_string());
+        assert_eq!(result.as_string().unwrap(), "non-positive");
+    }
+
+    #[test]
+    fn test_eval_if_nested() {
+        let env = Environment::new();
+
+        // Test nested if: (if #t (if #f 1 2) 3) -> 2
+        let nested_if = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::atom(Value::boolean(true)),
+            Expression::list(vec![
+                Expression::atom(Value::symbol("if")),
+                Expression::atom(Value::boolean(false)),
+                Expression::atom(Value::number(1.0)),
+                Expression::atom(Value::number(2.0)),
+            ]),
+            Expression::atom(Value::number(3.0)),
+        ]);
+
+        let result = eval(&nested_if, &env).unwrap();
+        assert!(result.is_number());
+        assert_eq!(result.as_number().unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_eval_if_arity_errors() {
+        let env = Environment::new();
+
+        // Test if with too few arguments
+        let if_expr_few = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::atom(Value::boolean(true)),
+        ]);
+
+        let result = eval(&if_expr_few, &env);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("if: expected 3 arguments, got 1"));
+
+        // Test if with too many arguments
+        let if_expr_many = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::atom(Value::boolean(true)),
+            Expression::atom(Value::string("yes")),
+            Expression::atom(Value::string("no")),
+            Expression::atom(Value::string("extra")),
+        ]);
+
+        let result = eval(&if_expr_many, &env);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("if: expected 3 arguments, got 4"));
+    }
+
+    #[test]
+    fn test_eval_if_evaluation_order() {
+        let mut env = Environment::new();
+        env.define_str("x", Value::number(1.0));
+
+        // Test that only the chosen branch is evaluated
+        // (if #t x undefined-symbol) should work because undefined-symbol is not evaluated
+        let if_expr = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::atom(Value::boolean(true)),
+            Expression::atom(Value::symbol("x")),
+            Expression::atom(Value::symbol("undefined-symbol")),
+        ]);
+
+        let result = eval(&if_expr, &env).unwrap();
+        assert!(result.is_number());
+        assert_eq!(result.as_number().unwrap(), 1.0);
+
+        // Test the other branch: (if #f undefined-symbol x) should also work
+        let if_expr_false = Expression::list(vec![
+            Expression::atom(Value::symbol("if")),
+            Expression::atom(Value::boolean(false)),
+            Expression::atom(Value::symbol("undefined-symbol")),
+            Expression::atom(Value::symbol("x")),
+        ]);
+
+        let result = eval(&if_expr_false, &env).unwrap();
+        assert!(result.is_number());
+        assert_eq!(result.as_number().unwrap(), 1.0);
     }
 }

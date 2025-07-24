@@ -781,4 +781,76 @@ mod tests {
         // Verify parent environment unchanged
         assert_eq!(parent.lookup_str("x").unwrap().as_number().unwrap(), 42.0);
     }
+
+    #[test]
+    fn test_lifetime_based_usage() {
+        // Test basic environment creation and usage
+        let mut global = Environment::new();
+        global.define_str("global_var", Value::number(42.0));
+
+        // Test scope creation with parent reference
+        let mut function_env = Environment::new_scope(&global);
+        function_env.define_str("local_var", Value::string("hello"));
+
+        // Test nested scope
+        let mut let_env = Environment::new_scope(&function_env);
+        let_env.define_str("inner_var", Value::boolean(true));
+
+        // Test lookups through environment chain
+        assert_eq!(
+            let_env
+                .lookup_str("inner_var")
+                .unwrap()
+                .as_boolean()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            let_env
+                .lookup_str("local_var")
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "hello"
+        );
+        assert_eq!(
+            let_env
+                .lookup_str("global_var")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            42.0
+        );
+
+        // Test closure creation with efficient subset
+        let_env.define_str("captured_var", Value::number(99.0));
+        let_env.define_str("another_var", Value::symbol("test"));
+
+        let keys = vec![Symbol::new("captured_var"), Symbol::new("another_var")];
+        let closure_env = Environment::new_closure(&let_env, &keys);
+
+        assert!(closure_env.parent().is_none()); // No parent - standalone
+        assert_eq!(closure_env.len(), 2); // Only captured identifiers
+        assert_eq!(
+            closure_env
+                .lookup_str("captured_var")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            99.0
+        );
+        assert_eq!(
+            closure_env
+                .lookup_str("another_var")
+                .unwrap()
+                .as_symbol()
+                .unwrap(),
+            "test"
+        );
+
+        // Test that closure doesn't have access to non-captured identifiers
+        assert!(closure_env.lookup_str("global_var").is_err());
+        assert!(closure_env.lookup_str("local_var").is_err());
+        assert!(closure_env.lookup_str("inner_var").is_err());
+    }
 }
