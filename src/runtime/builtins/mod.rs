@@ -7,12 +7,16 @@ use crate::error::Result;
 use crate::types::{Symbol, Value};
 
 pub mod arithmetic;
+pub mod list;
 
 // Re-export arithmetic functions for convenience
 pub use arithmetic::{
     add, divide, equal, greater_than, greater_than_or_equal, less_than, less_than_or_equal,
     multiply, subtract,
 };
+
+// Re-export list functions for convenience
+pub use list::{car, cdr, cons, list, null_p};
 
 /// Dispatch a builtin procedure call
 ///
@@ -40,6 +44,13 @@ pub fn dispatch(identifier: &Symbol, args: &[Value]) -> Option<Result<Value>> {
         ">" => Some(greater_than(args)),
         "<=" => Some(less_than_or_equal(args)),
         ">=" => Some(greater_than_or_equal(args)),
+
+        // List operations
+        "car" => Some(car(args)),
+        "cdr" => Some(cdr(args)),
+        "cons" => Some(cons(args)),
+        "list" => Some(list(args)),
+        "null?" => Some(null_p(args)),
 
         // Return None for unknown identifiers - not a builtin procedure
         _ => None,
@@ -122,11 +133,8 @@ mod tests {
         let result = dispatch(&Symbol::new("unknown-proc"), &[Value::number(1.0)]);
         assert!(result.is_none());
 
-        // Test with future builtin that doesn't exist yet
-        let result = dispatch(
-            &Symbol::new("cons"),
-            &[Value::number(1.0), Value::number(2.0)],
-        );
+        // Test with unknown builtin
+        let result = dispatch(&Symbol::new("unknown-builtin"), &[Value::number(1.0)]);
         assert!(result.is_none());
     }
 
@@ -148,5 +156,51 @@ mod tests {
         let result =
             dispatch(&Symbol::new("/"), &[Value::number(1.0), Value::number(0.0)]).unwrap();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_dispatch_list_operations() {
+        // Test car
+        let list = Value::list(vec![Value::number(1.0), Value::number(2.0)]);
+        let result = dispatch(&Symbol::new("car"), &[list]).unwrap().unwrap();
+        assert_eq!(result, Value::number(1.0));
+
+        // Test cdr
+        let list = Value::list(vec![Value::number(1.0), Value::number(2.0)]);
+        let result = dispatch(&Symbol::new("cdr"), &[list]).unwrap().unwrap();
+        assert_eq!(result, Value::list(vec![Value::number(2.0)]));
+
+        // Test cons
+        let tail = Value::list(vec![Value::number(2.0)]);
+        let result = dispatch(&Symbol::new("cons"), &[Value::number(1.0), tail])
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            result,
+            Value::list(vec![Value::number(1.0), Value::number(2.0)])
+        );
+
+        // Test list
+        let result = dispatch(
+            &Symbol::new("list"),
+            &[Value::number(1.0), Value::string("hello")],
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            result,
+            Value::list(vec![Value::number(1.0), Value::string("hello")])
+        );
+
+        // Test null?
+        let empty = Value::empty_list();
+        let result = dispatch(&Symbol::new("null?"), &[empty]).unwrap().unwrap();
+        assert_eq!(result, Value::boolean(true));
+
+        let non_empty = Value::list(vec![Value::number(1.0)]);
+        let result = dispatch(&Symbol::new("null?"), &[non_empty])
+            .unwrap()
+            .unwrap();
+        assert_eq!(result, Value::boolean(false));
     }
 }

@@ -39,16 +39,18 @@ pub fn add(args: &[Value]) -> Result<Value> {
 /// With multiple arguments, subtracts all subsequent arguments from the first.
 pub fn subtract(args: &[Value]) -> Result<Value> {
     if args.is_empty() {
-        return Err(Error::runtime_error("'-' requires at least one argument"));
+        return Err(Error::arity_error("-", 1, 0));
     }
 
     // Check all arguments are numbers first
-    for arg in args {
+    for (i, arg) in args.iter().enumerate() {
         if !arg.is_number() {
-            return Err(Error::runtime_error(&format!(
-                "'-' requires numeric arguments, got {}",
-                arg.type_name()
-            )));
+            return Err(Error::type_error(
+                "-",
+                "number",
+                &arg.type_name(),
+                Some(i + 1),
+            ));
         }
     }
 
@@ -98,16 +100,18 @@ pub fn multiply(args: &[Value]) -> Result<Value> {
 /// With multiple arguments, divides the first by all subsequent arguments.
 pub fn divide(args: &[Value]) -> Result<Value> {
     if args.is_empty() {
-        return Err(Error::runtime_error("'/' requires at least one argument"));
+        return Err(Error::arity_error("/", 1, 0));
     }
 
     // Check all arguments are numbers first
-    for arg in args {
+    for (i, arg) in args.iter().enumerate() {
         if !arg.is_number() {
-            return Err(Error::runtime_error(&format!(
-                "'/' requires numeric arguments, got {}",
-                arg.type_name()
-            )));
+            return Err(Error::type_error(
+                "/",
+                "number",
+                &arg.type_name(),
+                Some(i + 1),
+            ));
         }
     }
 
@@ -140,16 +144,18 @@ pub fn divide(args: &[Value]) -> Result<Value> {
 /// Requires at least two arguments.
 pub fn equal(args: &[Value]) -> Result<Value> {
     if args.len() < 2 {
-        return Err(Error::runtime_error("'=' requires at least two arguments"));
+        return Err(Error::arity_error("=", 2, args.len()));
     }
 
     // Check all arguments are numbers first
-    for arg in args {
+    for (i, arg) in args.iter().enumerate() {
         if !arg.is_number() {
-            return Err(Error::runtime_error(&format!(
-                "'=' requires numeric arguments, got {}",
-                arg.type_name()
-            )));
+            return Err(Error::type_error(
+                "=",
+                "number",
+                &arg.type_name(),
+                Some(i + 1),
+            ));
         }
     }
 

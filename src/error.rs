@@ -21,6 +21,21 @@ pub enum Error {
     /// Runtime evaluation errors
     RuntimeError(String),
 
+    /// Arity errors for incorrect number of arguments
+    ArityError {
+        procedure: String,
+        expected: usize,
+        actual: usize,
+    },
+
+    /// Type errors for incorrect argument types
+    TypeError {
+        procedure: String,
+        expected: String,
+        actual: String,
+        position: Option<usize>,
+    },
+
     /// Environment-related errors
     EnvironmentError {
         kind: EnvironmentErrorKind,
@@ -54,6 +69,36 @@ impl fmt::Display for Error {
             }
             Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
             Error::RuntimeError(msg) => write!(f, "Runtime error: {}", msg),
+            Error::ArityError {
+                procedure,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "{}: expected {} argument{}, got {}",
+                    procedure,
+                    expected,
+                    if *expected == 1 { "" } else { "s" },
+                    actual
+                )
+            }
+            Error::TypeError {
+                procedure,
+                expected,
+                actual,
+                position,
+            } => {
+                if let Some(pos) = position {
+                    write!(
+                        f,
+                        "{}: expected {} for argument {}, got {}",
+                        procedure, expected, pos, actual
+                    )
+                } else {
+                    write!(f, "{}: expected {}, got {}", procedure, expected, actual)
+                }
+            }
             Error::EnvironmentError {
                 kind,
                 identifier,
@@ -118,6 +163,30 @@ impl Error {
             kind: EnvironmentErrorKind::InvalidIdentifier,
             identifier: identifier.to_string(),
             context: context.map(|c| c.to_string()),
+        }
+    }
+
+    /// Create an arity error for incorrect number of arguments
+    pub fn arity_error(procedure: &str, expected: usize, actual: usize) -> Self {
+        Self::ArityError {
+            procedure: procedure.to_string(),
+            expected,
+            actual,
+        }
+    }
+
+    /// Create a structured type error with procedure and type information
+    pub fn type_error(
+        procedure: &str,
+        expected: &str,
+        actual: &str,
+        position: Option<usize>,
+    ) -> Self {
+        Self::TypeError {
+            procedure: procedure.to_string(),
+            expected: expected.to_string(),
+            actual: actual.to_string(),
+            position,
         }
     }
 }
@@ -267,6 +336,33 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "Invalid identifier: '123abc'. Identifiers cannot start with digits"
+        );
+    }
+
+    #[test]
+    fn test_arity_error() {
+        let error = Error::arity_error("car", 1, 0);
+
+        assert!(matches!(error, Error::ArityError { .. }));
+        assert_eq!(error.to_string(), "car: expected 1 argument, got 0");
+
+        // Test plural
+        let error = Error::arity_error("list", 3, 2);
+        assert_eq!(error.to_string(), "list: expected 3 arguments, got 2");
+    }
+
+    #[test]
+    fn test_type_error() {
+        let error = Error::type_error("car", "list", "number", None);
+
+        assert!(matches!(error, Error::TypeError { .. }));
+        assert_eq!(error.to_string(), "car: expected list, got number");
+
+        // Test with position
+        let error = Error::type_error("cons", "list", "string", Some(2));
+        assert_eq!(
+            error.to_string(),
+            "cons: expected list for argument 2, got string"
         );
     }
 }

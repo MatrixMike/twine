@@ -254,6 +254,21 @@ pub struct ArcString(Arc<String>);
 /// Requirements Compliance: ✅ FR-2 (Syntactic Analysis)...
 ```
 
+### Testing Guidelines
+- **End-to-End Integration Tests**: Place comprehensive tests that exercise the complete pipeline (lexing → parsing → evaluation) in `tests/integration.rs`
+  - These test user-facing functionality from source code strings to final results
+  - Use the `eval_source()` helper function for complete evaluation workflows
+  - Focus on acceptance criteria and user stories validation
+- **Module Integration Tests**: Tests that verify interaction between 2-3 modules can live within the relevant module using `#[cfg(test)]`
+  - Example: Testing parser + lexer interaction within `parser.rs`
+  - Example: Testing evaluator + environment interaction within `eval.rs`
+  - These verify internal API contracts and component interactions
+- **Unit Tests**: Keep tests for individual functions and components within their respective modules using `#[cfg(test)]`
+- **Test Organization Priority**: 
+  1. End-to-end tests for user-facing functionality and acceptance criteria
+  2. Module integration tests for component interaction verification
+  3. Unit tests for implementation details and edge cases
+
 ---
 
 ## Communication Guidelines
