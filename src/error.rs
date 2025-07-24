@@ -103,30 +103,21 @@ impl Error {
         Self::RuntimeError(message.to_string())
     }
 
-    /// Create an unbound identifier error
-    pub fn unbound_identifier(identifier: &str) -> Self {
+    /// Create an unbound identifier error with optional context
+    pub fn unbound_identifier(identifier: &str, context: Option<&str>) -> Self {
         Self::EnvironmentError {
             kind: EnvironmentErrorKind::UnboundIdentifier,
             identifier: identifier.to_string(),
-            context: None,
+            context: context.map(|c| c.to_string()),
         }
     }
 
-    /// Create an unbound identifier error with context
-    pub fn unbound_identifier_with_context(identifier: &str, context: &str) -> Self {
-        Self::EnvironmentError {
-            kind: EnvironmentErrorKind::UnboundIdentifier,
-            identifier: identifier.to_string(),
-            context: Some(context.to_string()),
-        }
-    }
-
-    /// Create an invalid identifier error
-    pub fn invalid_identifier(identifier: &str, context: &str) -> Self {
+    /// Create an invalid identifier error with optional context
+    pub fn invalid_identifier(identifier: &str, context: Option<&str>) -> Self {
         Self::EnvironmentError {
             kind: EnvironmentErrorKind::InvalidIdentifier,
             identifier: identifier.to_string(),
-            context: Some(context.to_string()),
+            context: context.map(|c| c.to_string()),
         }
     }
 }
@@ -225,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_unbound_identifier_error() {
-        let error = Error::unbound_identifier("x");
+        let error = Error::unbound_identifier("x", None);
 
         assert!(matches!(
             error,
@@ -239,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_unbound_identifier_error_with_context() {
-        let error = Error::unbound_identifier_with_context("x", "Did you mean one of: 'y', 'z'?");
+        let error = Error::unbound_identifier("x", Some("Did you mean one of: 'y', 'z'?"));
 
         assert_eq!(
             error.to_string(),
@@ -249,7 +240,22 @@ mod tests {
 
     #[test]
     fn test_invalid_identifier_error() {
-        let error = Error::invalid_identifier("123abc", "Identifiers cannot start with digits");
+        let error = Error::invalid_identifier("123abc", None);
+
+        assert!(matches!(
+            error,
+            Error::EnvironmentError {
+                kind: EnvironmentErrorKind::InvalidIdentifier,
+                ..
+            }
+        ));
+        assert_eq!(error.to_string(), "Invalid identifier: '123abc'");
+    }
+
+    #[test]
+    fn test_invalid_identifier_error_with_context() {
+        let error =
+            Error::invalid_identifier("123abc", Some("Identifiers cannot start with digits"));
 
         assert!(matches!(
             error,

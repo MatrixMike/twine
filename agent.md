@@ -148,6 +148,17 @@ These documents are the single source of truth. ALL implementation decisions mus
 - Implement only R7RS-small subset specified in requirements
 - Focus on essentials: arithmetic, lists, functions, conditionals, macros
 - Support lexical scoping with closures
+
+### Symbol Type Usage
+- **ALWAYS use `Symbol` or `&Symbol`** when working with Scheme identifiers
+- **NEVER use `String` or `&str`** for identifier parameters in internal functions
+- **Exception**: Error functions and string literals use `&str` for general-purpose APIs
+- **Performance**: Avoids unnecessary `Symbol → &str → Symbol` conversions
+- **Examples**:
+  - Function parameters: `fn lookup(identifier: &Symbol)` not `fn lookup(identifier: &str)`
+  - Collections: `HashMap<Symbol, Value>` not `HashMap<String, Value>`
+  - Comparisons: `if symbol1 == symbol2` not `if symbol1.as_str() == symbol2.as_str()`
+- **Rationale**: `Symbol` is optimized for identifier use with efficient storage and comparison
 - Provide both REPL and file execution modes
 
 ---

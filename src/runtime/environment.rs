@@ -92,36 +92,35 @@ impl<'a> Environment<'a> {
 
     /// Create a detailed unbound identifier error with suggestions
     fn create_unbound_identifier_error(&self, identifier: &Symbol) -> Result<Value> {
-        let identifier_str = identifier.as_str();
-
         // Collect similar identifiers for suggestions
-        let suggestions = self.find_similar_identifiers(identifier_str);
+        let suggestions = self.find_similar_identifiers(identifier);
 
         if suggestions.is_empty() {
-            Err(Error::unbound_identifier(identifier_str))
+            Err(Error::unbound_identifier(identifier.as_str(), None))
         } else {
-            let context = format!("Did you mean one of: {}?", suggestions.join(", "));
-            Err(Error::unbound_identifier_with_context(
-                identifier_str,
-                &context,
+            let formatted_suggestions: Vec<String> =
+                suggestions.iter().map(|s| format!("'{}'", s)).collect();
+            let context = format!("Did you mean one of: {}?", formatted_suggestions.join(", "));
+            Err(Error::unbound_identifier(
+                identifier.as_str(),
+                Some(&context),
             ))
         }
     }
 
     /// Find similar identifiers in the environment chain for suggestions
-    fn find_similar_identifiers(&self, target: &str) -> Vec<String> {
+    fn find_similar_identifiers(&self, target: &Symbol) -> Vec<Symbol> {
         let mut suggestions = Vec::new();
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = std::collections::HashSet::<Symbol>::new();
 
         // Collect all identifiers from this environment and parents
         let mut current = Some(self);
         while let Some(env) = current {
             for identifier in env.bindings.keys() {
-                let identifier_str = identifier.as_str();
-                if seen.insert(identifier_str.to_string()) {
+                if seen.insert(identifier.clone()) {
                     // Simple similarity check: same length or edit distance of 1-2
-                    if is_similar_identifier(target, identifier_str) {
-                        suggestions.push(format!("'{}'", identifier_str));
+                    if is_similar_identifier(target, identifier) {
+                        suggestions.push(identifier.clone());
                     }
                 }
             }
@@ -208,19 +207,21 @@ impl<'a> Default for Environment<'a> {
 }
 
 /// Helper function to check if two identifiers are similar
-fn is_similar_identifier(target: &str, candidate: &str) -> bool {
+fn is_similar_identifier(target: &Symbol, candidate: &Symbol) -> bool {
     if target == candidate {
         return false; // Exact match is not a "similar" suggestion
     }
 
-    let target_len = target.len();
-    let candidate_len = candidate.len();
+    let target_str = target.as_str();
+    let candidate_str = candidate.as_str();
+    let target_len = target_str.len();
+    let candidate_len = candidate_str.len();
 
     // Same length - check for single character differences
     if target_len == candidate_len {
-        let differences = target
+        let differences = target_str
             .chars()
-            .zip(candidate.chars())
+            .zip(candidate_str.chars())
             .filter(|(a, b)| a != b)
             .count();
         return differences <= 2;
@@ -229,9 +230,9 @@ fn is_similar_identifier(target: &str, candidate: &str) -> bool {
     // Length difference of 1 - check for insertion/deletion
     if (target_len as i32 - candidate_len as i32).abs() == 1 {
         let (shorter, longer) = if target_len < candidate_len {
-            (target, candidate)
+            (target_str, candidate_str)
         } else {
-            (candidate, target)
+            (candidate_str, target_str)
         };
 
         // Check if longer string contains shorter as subsequence with one extra char

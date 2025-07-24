@@ -80,14 +80,14 @@ fn eval_list(elements: &[Expression], env: &Environment) -> Result<Value> {
         }
 
         // Handle builtin procedures through centralized dispatch
-        if let Some(result) = builtin::dispatch(identifier.as_str(), &args) {
+        if let Some(result) = builtin::dispatch(identifier, &args) {
             result
         } else {
             // Not a builtin procedure, try to evaluate as normal procedure call
             let _procedure = eval(procedure_expr, env)?;
             Err(Error::runtime_error(&format!(
                 "Unknown procedure: '{}'",
-                identifier.as_str()
+                identifier
             )))
         }
     } else {
