@@ -135,6 +135,17 @@ impl Value {
         matches!(self, Value::List(_))
     }
 
+    /// Check if this value is truthy in Scheme semantics
+    ///
+    /// In Scheme, only #f is false. Everything else, including 0, empty lists,
+    /// empty strings, and nil, is considered true.
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Value::Boolean(false) => false,
+            _ => true,
+        }
+    }
+
     /// Get the numeric value if this is a number
     pub fn as_number(&self) -> Option<f64> {
         match self {
@@ -299,6 +310,24 @@ mod tests {
         assert!(values[3].is_symbol() && !values[3].is_string() && !values[3].is_number());
         assert!(values[4].is_list() && !values[4].is_symbol() && !values[4].is_number());
         assert!(values[5].is_nil() && !values[5].is_list() && !values[5].is_number());
+    }
+
+    #[test]
+    fn test_is_truthy_method() {
+        // Test Scheme truthiness semantics - only #f is false
+        assert!(Value::boolean(true).is_truthy());
+        assert!(!Value::boolean(false).is_truthy());
+
+        // All other values are truthy, including zero and empty collections
+        assert!(Value::number(0.0).is_truthy());
+        assert!(Value::number(42.0).is_truthy());
+        assert!(Value::number(-1.0).is_truthy());
+        assert!(Value::string("").is_truthy());
+        assert!(Value::string("hello").is_truthy());
+        assert!(Value::symbol("test").is_truthy());
+        assert!(Value::list(vec![]).is_truthy());
+        assert!(Value::list(vec![Value::number(1.0)]).is_truthy());
+        assert!(Value::nil().is_truthy());
     }
 
     #[test]

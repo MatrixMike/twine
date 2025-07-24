@@ -12,10 +12,12 @@
 //! Arguments are not automatically evaluated, allowing control over evaluation flow.
 //!
 //! ### Current Special Forms
-//! - `if`: Conditional expressions
+//! - `if`: Control flow - conditional expressions
+//! - `define`: Variable and function definition
 //!
 //! ### Future Special Forms (planned)
-//! - `define`: Variable and function definition (T2.4.1)
+//! - `cond`, `case`, `when`, `unless`: Additional control flow constructs
+//! - `begin`: Expression sequencing
 //! - `let`: Local variable binding (T2.4.2)
 //! - `lambda`: Function definition (T3.1.2)
 //! - `quote`: Prevent evaluation (already partially implemented)
