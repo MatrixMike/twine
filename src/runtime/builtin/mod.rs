@@ -21,13 +21,13 @@ pub use arithmetic::{
 /// or `None` if the symbol is not a builtin.
 ///
 /// # Arguments
-/// * `symbol` - The procedure name as a string
+/// * `identifier` - The procedure name as a string
 /// * `args` - The evaluated arguments to pass to the procedure
 ///
 /// # Returns
-/// * `Option<Result<Value>>` - Some(result) for builtins, None for unknown symbols
-pub fn dispatch(symbol: &str, args: &[Value]) -> Option<Result<Value>> {
-    match symbol {
+/// * `Option<Result<Value>>` - Some(result) for builtins, None for unknown identifiers
+pub fn dispatch(identifier: &str, args: &[Value]) -> Option<Result<Value>> {
+    match identifier {
         // Arithmetic operations
         "+" => Some(add(args)),
         "-" => Some(subtract(args)),
@@ -41,7 +41,7 @@ pub fn dispatch(symbol: &str, args: &[Value]) -> Option<Result<Value>> {
         "<=" => Some(less_than_or_equal(args)),
         ">=" => Some(greater_than_or_equal(args)),
 
-        // Return None for unknown symbols - not a builtin procedure
+        // Return None for unknown identifiers - not a builtin procedure
         _ => None,
     }
 }

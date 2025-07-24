@@ -40,16 +40,16 @@ impl<'a> Environment<'a> {
 
     /// Create a new environment for closures by capturing specific bindings
     /// No parent reference needed - only specified bindings are copied
-    pub fn new_closure(env: &Environment<'a>, keys: &[Symbol]) -> Environment<'static> {
-        let mut bindings = HashMap::with_capacity(keys.len());
+    pub fn new_closure(env: &Environment<'a>, identifiers: &[Symbol]) -> Environment<'static> {
+        let mut bindings = HashMap::with_capacity(identifiers.len());
 
-        for key in keys {
-            // Use direct hash lookup for each key
+        for identifier in identifiers {
+            // Use direct hash lookup for each identifier
             let mut current = Some(env);
             while let Some(environment) = current {
-                if let Some(value) = environment.bindings.get(key) {
-                    bindings.insert(key.clone(), value.clone());
-                    break; // Found the identifier, stop traversing for this key
+                if let Some(value) = environment.bindings.get(identifier) {
+                    bindings.insert(identifier.clone(), value.clone());
+                    break; // Found the identifier, stop traversing for this identifier
                 }
                 current = environment.parent;
             }
@@ -65,43 +65,46 @@ impl<'a> Environment<'a> {
     ///
     /// This creates a new binding in the current environment scope,
     /// potentially shadowing bindings in parent environments.
-    pub fn define(&mut self, key: Symbol, value: Value) {
-        self.bindings.insert(key, value);
+    pub fn define(&mut self, identifier: Symbol, value: Value) {
+        self.bindings.insert(identifier, value);
     }
 
     /// Define an identifier binding using a string key (convenience method)
-    pub fn define_str(&mut self, key: &str, value: Value) {
-        self.bindings.insert(Symbol::new(key), value);
+    pub fn define_str(&mut self, identifier: &str, value: Value) {
+        self.bindings.insert(Symbol::new(identifier), value);
     }
 
     /// Look up a binding by identifier in this environment or parent environments
-    pub fn lookup(&self, key: &Symbol) -> Result<Value> {
+    pub fn lookup(&self, identifier: &Symbol) -> Result<Value> {
         // First check this environment
-        if let Some(value) = self.bindings.get(key) {
+        if let Some(value) = self.bindings.get(identifier) {
             return Ok(value.clone());
         }
 
         // Then check parent environment if it exists
         if let Some(parent) = self.parent {
-            return parent.lookup(key);
+            return parent.lookup(identifier);
         }
 
         // Identifier not found - provide detailed error
-        self.create_unbound_identifier_error(key)
+        self.create_unbound_identifier_error(identifier)
     }
 
     /// Create a detailed unbound identifier error with suggestions
-    fn create_unbound_identifier_error(&self, key: &Symbol) -> Result<Value> {
-        let key_str = key.as_str();
+    fn create_unbound_identifier_error(&self, identifier: &Symbol) -> Result<Value> {
+        let identifier_str = identifier.as_str();
 
         // Collect similar identifiers for suggestions
-        let suggestions = self.find_similar_identifiers(key_str);
+        let suggestions = self.find_similar_identifiers(identifier_str);
 
         if suggestions.is_empty() {
-            Err(Error::unbound_identifier(key_str))
+            Err(Error::unbound_identifier(identifier_str))
         } else {
             let context = format!("Did you mean one of: {}?", suggestions.join(", "));
-            Err(Error::unbound_identifier_with_context(key_str, &context))
+            Err(Error::unbound_identifier_with_context(
+                identifier_str,
+                &context,
+            ))
         }
     }
 
@@ -113,12 +116,12 @@ impl<'a> Environment<'a> {
         // Collect all identifiers from this environment and parents
         let mut current = Some(self);
         while let Some(env) = current {
-            for key in env.bindings.keys() {
-                let key_str = key.as_str();
-                if seen.insert(key_str.to_string()) {
+            for identifier in env.bindings.keys() {
+                let identifier_str = identifier.as_str();
+                if seen.insert(identifier_str.to_string()) {
                     // Simple similarity check: same length or edit distance of 1-2
-                    if is_similar_identifier(target, key_str) {
-                        suggestions.push(format!("'{}'", key_str));
+                    if is_similar_identifier(target, identifier_str) {
+                        suggestions.push(format!("'{}'", identifier_str));
                     }
                 }
             }
@@ -131,19 +134,22 @@ impl<'a> Environment<'a> {
     }
 
     /// Look up a binding by string key (convenience method)
-    pub fn lookup_str(&self, key: &str) -> Result<Value> {
-        let symbol = Symbol::new(key);
+    pub fn lookup_str(&self, identifier: &str) -> Result<Value> {
+        let symbol = Symbol::new(identifier);
         self.lookup(&symbol)
     }
 
     /// Check if an identifier is defined in this environment or any parent
-    pub fn contains(&self, key: &Symbol) -> bool {
-        self.bindings.contains_key(key) || self.parent.map_or(false, |parent| parent.contains(key))
+    pub fn contains(&self, identifier: &Symbol) -> bool {
+        self.bindings.contains_key(identifier)
+            || self
+                .parent
+                .map_or(false, |parent| parent.contains(identifier))
     }
 
     /// Check if an identifier is defined by string key (convenience method)
-    pub fn contains_str(&self, key: &str) -> bool {
-        let symbol = Symbol::new(key);
+    pub fn contains_str(&self, identifier: &str) -> bool {
+        let symbol = Symbol::new(identifier);
         self.contains(&symbol)
     }
 
@@ -179,12 +185,12 @@ impl<'a> Environment<'a> {
     }
 
     /// Find the environment level where an identifier is bound
-    pub fn find_binding_level(&self, key: &Symbol) -> Option<usize> {
+    pub fn find_binding_level(&self, identifier: &Symbol) -> Option<usize> {
         let mut level = 0;
         let mut current = Some(self);
 
         while let Some(env) = current {
-            if env.bindings.contains_key(key) {
+            if env.bindings.contains_key(identifier) {
                 return Some(level);
             }
             level += 1;
@@ -296,8 +302,8 @@ mod tests {
         parent.define_str("z", Value::boolean(true));
 
         // Create closure that captures only x and y
-        let keys = vec![Symbol::new("x"), Symbol::new("y")];
-        let closure_env = Environment::new_closure(&parent, &keys);
+        let identifiers = vec![Symbol::new("x"), Symbol::new("y")];
+        let closure_env = Environment::new_closure(&parent, &identifiers);
 
         assert_eq!(closure_env.len(), 2);
         assert!(closure_env.parent().is_none());
@@ -330,14 +336,14 @@ mod tests {
         child.define_str("e", Value::number(5.0));
 
         // Create closure with bindings from different levels
-        let keys = vec![
+        let identifiers = vec![
             Symbol::new("a"),           // from grandparent
             Symbol::new("c"),           // from parent
             Symbol::new("e"),           // from child
             Symbol::new("nonexistent"), // missing identifier
         ];
 
-        let closure_env = Environment::new_closure(&child, &keys);
+        let closure_env = Environment::new_closure(&child, &identifiers);
 
         assert_eq!(closure_env.len(), 3); // Only found identifiers
         assert_eq!(
@@ -363,8 +369,8 @@ mod tests {
         let mut child = Environment::new_scope(&parent);
         child.define_str("x", Value::number(2.0)); // shadows parent
 
-        let keys = vec![Symbol::new("x")];
-        let closure_env = Environment::new_closure(&child, &keys);
+        let identifiers = vec![Symbol::new("x")];
+        let closure_env = Environment::new_closure(&child, &identifiers);
 
         // Should get child's value (shadowing)
         assert_eq!(closure_env.len(), 1);
@@ -391,14 +397,14 @@ mod tests {
         child.define_str("local2", Value::boolean(true));
 
         // Create closure that captures bindings from different levels
-        let keys = vec![
+        let identifiers = vec![
             Symbol::new("global1"),     // from grandparent
             Symbol::new("parent1"),     // from parent
             Symbol::new("local1"),      // from child
             Symbol::new("nonexistent"), // missing identifier (should be ignored)
         ];
 
-        let closure_env = Environment::new_closure(&child, &keys);
+        let closure_env = Environment::new_closure(&child, &identifiers);
 
         // Verify closure captured only the existing identifiers
         assert_eq!(closure_env.len(), 3); // Should have 3 identifiers (nonexistent ignored)

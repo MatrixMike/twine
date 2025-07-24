@@ -40,7 +40,7 @@ pub fn eval(expr: &Expression, env: &Environment) -> Result<Value> {
 ///
 /// Atoms are evaluated based on their type:
 /// - Numbers, booleans, strings, and lists are self-evaluating
-/// - Symbols are looked up in the environment
+/// - Symbols are looked up as identifiers in the environment
 fn eval_atom(value: &Value, env: &Environment) -> Result<Value> {
     match value {
         // Self-evaluating values
@@ -49,7 +49,7 @@ fn eval_atom(value: &Value, env: &Environment) -> Result<Value> {
         }
 
         // Symbols need environment lookup
-        Value::Symbol(symbol) => env.lookup(symbol),
+        Value::Symbol(identifier) => env.lookup(identifier),
 
         // Handle nil value
         Value::Nil => Ok(Value::Nil),
@@ -71,8 +71,8 @@ fn eval_list(elements: &[Expression], env: &Environment) -> Result<Value> {
     let procedure_expr = &elements[0];
     let arg_exprs = &elements[1..];
 
-    // Check if the procedure expression is a builtin procedure symbol
-    if let Expression::Atom(Value::Symbol(symbol)) = procedure_expr {
+    // Check if the procedure expression is a builtin procedure identifier
+    if let Expression::Atom(Value::Symbol(identifier)) = procedure_expr {
         // Evaluate all arguments
         let mut args = Vec::new();
         for arg_expr in arg_exprs {
@@ -80,14 +80,14 @@ fn eval_list(elements: &[Expression], env: &Environment) -> Result<Value> {
         }
 
         // Handle builtin procedures through centralized dispatch
-        if let Some(result) = builtin::dispatch(symbol.as_str(), &args) {
+        if let Some(result) = builtin::dispatch(identifier.as_str(), &args) {
             result
         } else {
             // Not a builtin procedure, try to evaluate as normal procedure call
             let _procedure = eval(procedure_expr, env)?;
             Err(Error::runtime_error(&format!(
                 "Unknown procedure: '{}'",
-                symbol.as_str()
+                identifier.as_str()
             )))
         }
     } else {
