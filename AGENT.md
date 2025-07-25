@@ -325,6 +325,7 @@ pub struct ArcString(Arc<String>);
 ### Rust Diagnostics Management
 - **Fix All Diagnostics**: Always fix compiler errors, warnings, and clippy lints when encountered
 - **Run Clippy**: Execute `cargo clippy` after making any Rust code changes
+- **Regular Monitoring**: Proactively check for clippy lints during development sessions, not just when prompted
 - **Zero Tolerance**: No warnings or lints should remain in committed code
 - **Immediate Resolution**: Address diagnostics as soon as they appear
 - **Use Diagnostics Tool**: Run diagnostics checks regularly during development
