@@ -23,15 +23,15 @@ use crate::types::Value;
 /// - Evaluates <test>
 /// - If the result is truthy (anything except #f), evaluates and returns <consequent>
 /// - If the result is falsy (#f), evaluates and returns <alternative>
-pub fn eval_if(args: &[Expression], env: &mut Environment) -> Result<Value> {
+pub fn eval_if(mut args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
     // if requires exactly 3 arguments: test, consequent, alternative
     if args.len() != 3 {
         return Err(crate::Error::arity_error("if", 3, args.len()));
     }
 
-    let test_expr = &args[0];
-    let consequent_expr = &args[1];
-    let alternative_expr = &args[2];
+    let alternative_expr = args.pop().unwrap();
+    let consequent_expr = args.pop().unwrap();
+    let test_expr = args.pop().unwrap();
 
     // Evaluate the test expression
     let test_value = eval(test_expr, env)?;
@@ -61,7 +61,7 @@ mod tests {
             Expression::atom(Value::string("consequent")),
             Expression::atom(Value::string("alternative")),
         ];
-        let result = eval_if(&args_true, &mut env).unwrap();
+        let result = eval_if(args_true, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "consequent");
 
         // Test false condition
@@ -70,12 +70,12 @@ mod tests {
             Expression::atom(Value::string("consequent")),
             Expression::atom(Value::string("alternative")),
         ];
-        let result = eval_if(&args_false, &mut env).unwrap();
+        let result = eval_if(args_false, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "alternative");
 
         // Test arity error
         let args_wrong = vec![Expression::atom(Value::boolean(true))];
-        let result = eval_if(&args_wrong, &mut env);
+        let result = eval_if(args_wrong, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -106,7 +106,7 @@ mod tests {
                 Expression::atom(Value::string("true-branch")),
                 Expression::atom(Value::string("false-branch")),
             ];
-            let result = eval_if(&args, &mut env).unwrap();
+            let result = eval_if(args, &mut env).unwrap();
             assert_eq!(result.as_string().unwrap(), "true-branch");
         }
 
@@ -116,7 +116,7 @@ mod tests {
             Expression::atom(Value::string("true-branch")),
             Expression::atom(Value::string("false-branch")),
         ];
-        let result = eval_if(&args_false, &mut env).unwrap();
+        let result = eval_if(args_false, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "false-branch");
     }
 }

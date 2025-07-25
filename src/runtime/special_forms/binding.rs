@@ -20,21 +20,23 @@ use crate::types::Value;
 /// For procedure definition (syntactic sugar):
 /// - (define (name param1 param2) body1 body2...)
 /// - Equivalent to: (define name (lambda (param1 param2) body1 body2...))
-pub fn eval_define(args: &[Expression], env: &mut Environment) -> Result<Value> {
+pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
         return Err(crate::Error::arity_error("define", 1, 0));
     }
 
-    match &args[0] {
+    let first_arg = args.remove(0);
+    match first_arg {
         // Binding definition: (define identifier expression)
         Expression::Atom(Value::Symbol(identifier)) => {
-            if args.len() != 2 {
-                return Err(crate::Error::arity_error("define", 2, args.len()));
+            if args.len() != 1 {
+                return Err(crate::Error::arity_error("define", 2, args.len() + 1));
             }
 
             // Evaluate the expression and bind it to the identifier
-            let value = eval(&args[1], env)?;
-            env.define(identifier.clone(), value);
+            let value_expr = args.into_iter().next().unwrap();
+            let value = eval(value_expr, env)?;
+            env.define(identifier, value);
             Ok(Value::Nil)
         }
 
@@ -71,14 +73,14 @@ pub fn eval_define(args: &[Expression], env: &mut Environment) -> Result<Value> 
                 }
             }
 
-            // Procedure body is everything after the parameter list
-            if args.len() < 2 {
+            // Procedure body is everything remaining in args
+            if args.is_empty() {
                 return Err(crate::Error::runtime_error(
                     "define: procedure definition requires at least one body expression",
                 ));
             }
 
-            let body_expressions: Vec<Expression> = args[1..].to_vec();
+            let body_expressions = args;
 
             // Create a lambda expression: (lambda (param...) body...)
             let mut lambda_args = vec![Expression::List(
@@ -115,14 +117,14 @@ pub fn eval_define(args: &[Expression], env: &mut Environment) -> Result<Value> 
 /// 3. Bind identifiers (id1, id2, ...) to their evaluated values simultaneously
 /// 4. Evaluate body expressions sequentially in the new environment
 /// 5. Return the value of the last body expression
-pub fn eval_let(args: &[Expression], env: &mut Environment) -> Result<Value> {
+pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
         return Err(crate::Error::arity_error("let", 1, 0));
     }
 
     // First argument must be the binding list
-    let bindings_expr = &args[0];
-    let body_exprs = &args[1..];
+    let bindings_expr = args.remove(0);
+    let body_exprs = args;
 
     if body_exprs.is_empty() {
         return Err(crate::Error::runtime_error(
@@ -146,7 +148,7 @@ pub fn eval_let(args: &[Expression], env: &mut Environment) -> Result<Value> {
 
     for pair in binding_pairs {
         match pair {
-            Expression::List(elements) => {
+            Expression::List(mut elements) => {
                 if elements.len() != 2 {
                     return Err(crate::Error::runtime_error(
                         "let: each binding must be a list of exactly 2 elements (identifier expression)",
@@ -154,8 +156,8 @@ pub fn eval_let(args: &[Expression], env: &mut Environment) -> Result<Value> {
                 }
 
                 // First element must be a symbol (identifier name)
-                let identifier = match &elements[0] {
-                    Expression::Atom(Value::Symbol(sym)) => sym.clone(),
+                let identifier = match elements.remove(0) {
+                    Expression::Atom(Value::Symbol(sym)) => sym,
                     _ => {
                         return Err(crate::Error::runtime_error(
                             "let: binding identifier must be a symbol",
@@ -164,7 +166,7 @@ pub fn eval_let(args: &[Expression], env: &mut Environment) -> Result<Value> {
                 };
 
                 // Second element is the expression to evaluate
-                let expression = &elements[1];
+                let expression = elements.remove(0);
 
                 identifiers.push(identifier);
                 expressions.push(expression);
@@ -179,7 +181,7 @@ pub fn eval_let(args: &[Expression], env: &mut Environment) -> Result<Value> {
 
     // Evaluate all expressions in the current environment BEFORE creating bindings
     let mut values = Vec::new();
-    for expr in &expressions {
+    for expr in expressions {
         let value = eval(expr, env)?;
         values.push(value);
     }
@@ -193,6 +195,7 @@ pub fn eval_let(args: &[Expression], env: &mut Environment) -> Result<Value> {
     }
 
     // Evaluate body expressions sequentially in the new environment
+    // Evaluate the body expressions in sequence
     let mut result = Value::Nil;
     for body_expr in body_exprs {
         result = eval(body_expr, &mut let_env)?;
@@ -218,7 +221,7 @@ mod tests {
             Expression::atom(Value::number(42.0)),
         ];
 
-        let result = eval_define(&args, &mut env).unwrap();
+        let result = eval_define(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created
@@ -238,7 +241,7 @@ mod tests {
             Expression::atom(Value::symbol("y")), // Should evaluate to 10.0
         ];
 
-        let result = eval_define(&args, &mut env).unwrap();
+        let result = eval_define(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created with the evaluated value
@@ -263,7 +266,7 @@ mod tests {
 
         let args = vec![procedure_def, body];
 
-        let result = eval_define(&args, &mut env).unwrap();
+        let result = eval_define(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the procedure binding was created (placeholder for now)
@@ -290,7 +293,7 @@ mod tests {
 
         let args = vec![procedure_def, body];
 
-        let result = eval_define(&args, &mut env).unwrap();
+        let result = eval_define(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the procedure binding was created
@@ -310,7 +313,7 @@ mod tests {
 
         let args = vec![procedure_def, body1, body2];
 
-        let result = eval_define(&args, &mut env).unwrap();
+        let result = eval_define(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the procedure binding was created
@@ -323,7 +326,7 @@ mod tests {
         let mut env = Environment::new();
 
         // Test no arguments
-        let result = eval_define(&[], &mut env);
+        let result = eval_define(vec![], &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -334,7 +337,7 @@ mod tests {
 
         // Test binding definition with wrong arity
         let args = vec![Expression::atom(Value::symbol("x"))];
-        let result = eval_define(&args, &mut env);
+        let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -348,7 +351,7 @@ mod tests {
             Expression::atom(Value::number(42.0)), // Not a symbol
         ]);
         let args = vec![procedure_def];
-        let result = eval_define(&args, &mut env);
+        let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -363,7 +366,7 @@ mod tests {
             Expression::atom(Value::number(42.0)), // Parameter must be symbol
         ]);
         let args = vec![procedure_def];
-        let result = eval_define(&args, &mut env);
+        let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -375,7 +378,7 @@ mod tests {
         // Test procedure definition with empty parameter list
         let procedure_def = Expression::List(vec![]);
         let args = vec![procedure_def];
-        let result = eval_define(&args, &mut env);
+        let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -387,7 +390,7 @@ mod tests {
         // Test procedure definition without body
         let procedure_def = Expression::List(vec![Expression::atom(Value::symbol("fn"))]);
         let args = vec![procedure_def];
-        let result = eval_define(&args, &mut env);
+        let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -398,7 +401,7 @@ mod tests {
 
         // Test invalid first argument
         let args = vec![Expression::atom(Value::number(42.0))];
-        let result = eval_define(&args, &mut env);
+        let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -417,7 +420,7 @@ mod tests {
             Expression::atom(Value::symbol("x")),
             Expression::atom(Value::number(42.0)),
         ];
-        eval_define(&args1, &mut env).unwrap();
+        eval_define(args1, &mut env).unwrap();
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(42.0));
 
         // Redefine the same identifier (should shadow)
@@ -425,7 +428,7 @@ mod tests {
             Expression::atom(Value::symbol("x")),
             Expression::atom(Value::string("hello")),
         ];
-        eval_define(&args2, &mut env).unwrap();
+        eval_define(args2, &mut env).unwrap();
         assert_eq!(
             env.lookup(&Symbol::new("x")).unwrap(),
             Value::string("hello")
@@ -444,7 +447,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env).unwrap();
+        let result = eval_let(args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
 
         // Verify the original environment is unchanged
@@ -471,7 +474,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("y"));
 
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env).unwrap();
+        let result = eval_let(args, &mut env).unwrap();
         assert_eq!(result, Value::number(20.0));
     }
 
@@ -490,7 +493,7 @@ mod tests {
         let body3 = Expression::atom(Value::symbol("x"));
 
         let args = vec![bindings, body1, body2, body3];
-        let result = eval_let(&args, &mut env).unwrap();
+        let result = eval_let(args, &mut env).unwrap();
         assert_eq!(result, Value::number(5.0)); // Should return last expression
     }
 
@@ -510,7 +513,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env).unwrap();
+        let result = eval_let(args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
 
         // Verify outer environment is unchanged
@@ -539,7 +542,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("y"));
 
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env).unwrap();
+        let result = eval_let(args, &mut env).unwrap();
         assert_eq!(result, Value::number(10.0)); // y should be 10 (outer x), not 42
     }
 
@@ -552,7 +555,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
 
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env).unwrap();
+        let result = eval_let(args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
     }
 
@@ -577,7 +580,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env).unwrap();
+        let result = eval_let(args, &mut env).unwrap();
         assert_eq!(result, Value::number(5.0));
     }
 
@@ -586,7 +589,7 @@ mod tests {
         let mut env = Environment::new();
 
         // Test no arguments
-        let result = eval_let(&[], &mut env);
+        let result = eval_let(vec![], &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -598,7 +601,7 @@ mod tests {
         // Test no body expressions
         let bindings = Expression::List(vec![]);
         let args = vec![bindings];
-        let result = eval_let(&args, &mut env);
+        let result = eval_let(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -611,7 +614,7 @@ mod tests {
         let bindings = Expression::atom(Value::number(42.0));
         let body = Expression::atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env);
+        let result = eval_let(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -624,7 +627,7 @@ mod tests {
         let bindings = Expression::List(vec![Expression::atom(Value::number(42.0))]);
         let body = Expression::atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env);
+        let result = eval_let(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -639,7 +642,7 @@ mod tests {
         )])]);
         let body = Expression::atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env);
+        let result = eval_let(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -655,7 +658,7 @@ mod tests {
         ])]);
         let body = Expression::atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env);
+        let result = eval_let(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -677,7 +680,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(&args, &mut env);
+        let result = eval_let(args, &mut env);
         assert!(result.is_err());
         assert!(
             result

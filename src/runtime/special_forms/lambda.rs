@@ -30,14 +30,14 @@ use crate::types::{Procedure, Symbol, Value};
 /// // (lambda (x y) (+ x y))
 /// // (lambda () 42)
 /// ```
-pub fn eval_lambda(args: &[Expression], env: &Environment) -> Result<Value> {
+pub fn eval_lambda(mut args: Vec<Expression>, env: &Environment) -> Result<Value> {
     // Lambda requires exactly 2 arguments: parameter list and body
     if args.len() != 2 {
         return Err(Error::arity_error("lambda", 2, args.len()));
     }
 
-    let params_expr = &args[0];
-    let body_expr = &args[1];
+    let body_expr = args.pop().unwrap();
+    let params_expr = args.pop().unwrap();
 
     // Parse parameter list - must be a list of symbols
     let params = parse_parameter_list(params_expr)?;
@@ -48,7 +48,7 @@ pub fn eval_lambda(args: &[Expression], env: &Environment) -> Result<Value> {
     // Create lambda procedure with captured environment (closure)
     // The environment is captured at lambda creation time (lexical scoping)
     // Flatten the environment to remove lifetime constraints
-    let lambda_proc = Procedure::lambda(params, body_expr.clone(), env.flatten());
+    let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
 
     Ok(Value::Procedure(lambda_proc))
 }
@@ -67,7 +67,7 @@ pub fn eval_lambda(args: &[Expression], env: &Environment) -> Result<Value> {
 ///
 /// # Errors
 /// Returns error if parameter list is malformed or contains non-symbols
-fn parse_parameter_list(params_expr: &Expression) -> Result<Vec<Symbol>> {
+fn parse_parameter_list(params_expr: Expression) -> Result<Vec<Symbol>> {
     match params_expr {
         Expression::List(elements) => {
             let mut params = Vec::new();
@@ -154,7 +154,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body.clone()];
 
-        let result = eval_lambda(&args, &env).unwrap();
+        let result = eval_lambda(args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -175,7 +175,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
         let args = vec![params, body.clone()];
 
-        let result = eval_lambda(&args, &env).unwrap();
+        let result = eval_lambda(args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -207,7 +207,7 @@ mod tests {
         ]);
         let args = vec![params, body.clone()];
 
-        let result = eval_lambda(&args, &env).unwrap();
+        let result = eval_lambda(args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -237,7 +237,7 @@ mod tests {
         ]);
         let args = vec![params, body.clone()];
 
-        let result = eval_lambda(&args, &env).unwrap();
+        let result = eval_lambda(args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             let captured_env = proc.env().unwrap();
@@ -258,7 +258,7 @@ mod tests {
 
         // Too few arguments
         let args = vec![Expression::List(vec![])];
-        let result = eval_lambda(&args, &env);
+        let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -273,7 +273,7 @@ mod tests {
             Expression::atom(Value::number(42.0)),
             Expression::atom(Value::number(43.0)),
         ];
-        let result = eval_lambda(&args, &env);
+        let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -292,7 +292,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(&args, &env);
+        let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -309,7 +309,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(&args, &env);
+        let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -326,7 +326,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(&args, &env);
+        let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -348,7 +348,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(&args, &env);
+        let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -366,7 +366,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(&args, &env);
+        let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -382,12 +382,12 @@ mod tests {
 
         // Empty list
         let params_expr = Expression::List(vec![]);
-        let result = parse_parameter_list(&params_expr).unwrap();
+        let result = parse_parameter_list(params_expr).unwrap();
         assert_eq!(result.len(), 0);
 
         // Single parameter
         let params_expr = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
-        let result = parse_parameter_list(&params_expr).unwrap();
+        let result = parse_parameter_list(params_expr).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], Symbol::new("x"));
 
@@ -396,20 +396,20 @@ mod tests {
             Expression::atom(Value::symbol("x")),
             Expression::atom(Value::symbol("y")),
         ]);
-        let result = parse_parameter_list(&params_expr).unwrap();
+        let result = parse_parameter_list(params_expr).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], Symbol::new("x"));
         assert_eq!(result[1], Symbol::new("y"));
 
         // Non-list parameter expression
-        let params_expr = Expression::atom(Value::number(42.0));
-        let result = parse_parameter_list(&params_expr);
+        let params_expr = Expression::atom(Value::symbol("x"));
+        let result = parse_parameter_list(params_expr);
         assert!(result.is_err());
         assert!(
             result
                 .unwrap_err()
                 .to_string()
-                .contains("parameter list must be a list")
+                .contains("parameters must be enclosed in parentheses")
         );
     }
 
@@ -457,7 +457,7 @@ mod tests {
         ]);
         let args = vec![params, body.clone()];
 
-        let result = eval_lambda(&args, &env).unwrap();
+        let result = eval_lambda(args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -479,7 +479,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(&args, &env).unwrap();
+        let result = eval_lambda(args, &env).unwrap();
 
         // Test that the procedure displays correctly
         assert_eq!(format!("{result}"), "#<lambda:x y>");
@@ -499,7 +499,7 @@ mod tests {
         let body = Expression::atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(&args, &env).unwrap();
+        let result = eval_lambda(args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             let param_list = proc.params().unwrap();

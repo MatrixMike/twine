@@ -19,7 +19,7 @@ fn eval_source(
 
     let mut parser = Parser::new(source.to_string())?;
     let expr = parser.parse_expression()?.expr;
-    eval(&expr, env)
+    eval(expr, env)
 }
 
 #[test]

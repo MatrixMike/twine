@@ -23,16 +23,16 @@ use super::{Environment, builtins, special_forms};
 ///
 /// # Returns
 /// * `Result<Value>` - The evaluated value or an error
-pub fn eval(expr: &Expression, env: &mut Environment) -> Result<Value> {
+pub fn eval(expr: Expression, env: &mut Environment) -> Result<Value> {
     match expr {
         // Atoms are handled based on their value type
-        Expression::Atom(value) => eval_atom(value, env),
+        Expression::Atom(value) => eval_atom(&value, env),
 
         // Lists represent procedure calls or special forms
         Expression::List(elements) => eval_list(elements, env),
 
         // Quoted expressions prevent evaluation
-        Expression::Quote(boxed_expr) => eval_quote(boxed_expr),
+        Expression::Quote(boxed_expr) => eval_quote(&boxed_expr),
     }
 }
 
@@ -63,7 +63,7 @@ fn eval_atom(value: &Value, env: &Environment) -> Result<Value> {
 /// Lists represent compound expressions in Scheme:
 /// - Empty lists evaluate to themselves
 /// - Non-empty lists represent special forms or procedure calls: (form/procedure arg1 arg2 ...)
-fn eval_list(elements: &[Expression], env: &mut Environment) -> Result<Value> {
+fn eval_list(elements: Vec<Expression>, env: &mut Environment) -> Result<Value> {
     // Empty list evaluates to empty list
     if elements.is_empty() {
         return Ok(Value::List(List::new()));
@@ -76,35 +76,37 @@ fn eval_list(elements: &[Expression], env: &mut Environment) -> Result<Value> {
     // Check if the first expression is a special form or procedure identifier
     if let Expression::Atom(Value::Symbol(identifier)) = first_expr {
         // Handle special forms first (these have special evaluation rules)
-        if let Some(result) = special_forms::dispatch(identifier.as_str(), rest_exprs, env) {
+        // Clone the rest_exprs for special forms since they need owned expressions
+        if let Some(result) = special_forms::dispatch(identifier.as_str(), rest_exprs.to_vec(), env)
+        {
+            return result;
+        }
+
+        // Not a special form, try builtin procedures
+        // Evaluate all arguments for procedure calls
+        let mut args = Vec::new();
+        for arg_expr in rest_exprs {
+            args.push(eval(arg_expr.clone(), env)?);
+        }
+
+        // Handle builtin procedures through centralized dispatch
+        if let Some(result) = builtins::dispatch(identifier.as_str(), &args) {
             result
         } else {
-            // Not a special form, try builtin procedures
-            // Evaluate all arguments for procedure calls
-            let mut args = Vec::new();
-            for arg_expr in rest_exprs {
-                args.push(eval(arg_expr, env)?);
-            }
-
-            // Handle builtin procedures through centralized dispatch
-            if let Some(result) = builtins::dispatch(identifier.as_str(), &args) {
-                result
-            } else {
-                // Not a builtin procedure, try to evaluate as normal procedure call
-                let _procedure = eval(first_expr, env)?;
-                Err(Error::runtime_error(&format!(
-                    "Unknown procedure: '{identifier}'"
-                )))
-            }
+            // Not a builtin procedure, try to evaluate as normal procedure call
+            let _procedure = eval(first_expr.clone(), env)?;
+            Err(Error::runtime_error(&format!(
+                "Unknown procedure: '{identifier}'"
+            )))
         }
     } else {
         // Evaluate the procedure expression and handle other types of procedures
-        let procedure = eval(first_expr, env)?;
+        let procedure = eval(first_expr.clone(), env)?;
 
         // Evaluate all arguments
         let mut args = Vec::new();
         for arg_expr in rest_exprs {
-            args.push(eval(arg_expr, env)?);
+            args.push(eval(arg_expr.clone(), env)?);
         }
 
         Err(Error::runtime_error(&format!(
@@ -157,22 +159,22 @@ mod tests {
 
         // Test number evaluation
         let number_expr = Expression::atom(Value::number(42.0));
-        let result = eval(&number_expr, &mut env).unwrap();
+        let result = eval(number_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 42.0);
 
         // Test boolean evaluation
         let bool_expr = Expression::atom(Value::boolean(true));
-        let result = eval(&bool_expr, &mut env).unwrap();
+        let result = eval(bool_expr, &mut env).unwrap();
         assert!(result.as_boolean().unwrap());
 
         // Test string evaluation
         let string_expr = Expression::atom(Value::string("hello"));
-        let result = eval(&string_expr, &mut env).unwrap();
+        let result = eval(string_expr, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello");
 
         // Test nil evaluation
         let nil_expr = Expression::atom(Value::Nil);
-        let result = eval(&nil_expr, &mut env).unwrap();
+        let result = eval(nil_expr, &mut env).unwrap();
         assert!(result.is_nil());
     }
 
@@ -184,11 +186,11 @@ mod tests {
 
         // Test successful symbol lookup
         let symbol_expr = Expression::atom(Value::symbol("x"));
-        let result = eval(&symbol_expr, &mut env).unwrap();
+        let result = eval(symbol_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 10.0);
 
         let greeting_expr = Expression::atom(Value::symbol("greeting"));
-        let result = eval(&greeting_expr, &mut env).unwrap();
+        let result = eval(greeting_expr, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello world");
     }
 
@@ -198,7 +200,7 @@ mod tests {
 
         // Test unbound symbol error
         let symbol_expr = Expression::atom(Value::symbol("undefined"));
-        let result = eval(&symbol_expr, &mut env);
+        let result = eval(symbol_expr, &mut env);
 
         assert!(result.is_err());
         if let Err(Error::EnvironmentError { identifier, .. }) = result {
@@ -214,7 +216,7 @@ mod tests {
 
         // Empty list should evaluate to empty list
         let empty_list = Expression::list(vec![]);
-        let result = eval(&empty_list, &mut env).unwrap();
+        let result = eval(empty_list, &mut env).unwrap();
 
         assert!(result.is_list());
         assert!(result.as_list().unwrap().is_empty());
@@ -231,7 +233,7 @@ mod tests {
             Expression::atom(Value::number(1.0)),
             Expression::atom(Value::number(2.0)),
         ]);
-        let result = eval(&add_expr, &mut env).unwrap();
+        let result = eval(add_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 3.0);
 
         // Test that comparison operations return proper boolean values
@@ -240,7 +242,7 @@ mod tests {
             Expression::atom(Value::number(5.0)),
             Expression::atom(Value::number(5.0)),
         ]);
-        let result = eval(&eq_expr, &mut env).unwrap();
+        let result = eval(eq_expr, &mut env).unwrap();
         assert!(result.as_boolean().unwrap());
     }
 
@@ -253,7 +255,7 @@ mod tests {
             Expression::atom(Value::symbol("unknown")),
             Expression::atom(Value::number(1.0)),
         ]);
-        let result = eval(&unknown_expr, &mut env);
+        let result = eval(unknown_expr, &mut env);
         assert!(result.is_err());
         if let Err(Error::EnvironmentError { identifier, .. }) = result {
             assert_eq!(identifier, "unknown");
@@ -271,7 +273,7 @@ mod tests {
             Expression::atom(Value::number(42.0)),
             Expression::atom(Value::number(1.0)),
         ]);
-        let result = eval(&non_symbol_proc, &mut env);
+        let result = eval(non_symbol_proc, &mut env);
         assert!(result.is_err());
         if let Err(Error::RuntimeError(msg)) = result {
             assert!(msg.contains("Procedure call expects symbol, got number"));
@@ -296,7 +298,7 @@ mod tests {
             ]),
             Expression::atom(Value::number(2.0)),
         ]);
-        let result = eval(&nested, &mut env).unwrap();
+        let result = eval(nested, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 30.0);
     }
 
@@ -309,7 +311,7 @@ mod tests {
 
         // Quoted atom should return the atom value without evaluation
         let quoted_symbol = Expression::quote(Expression::atom(Value::symbol("undefined")));
-        let result = eval(&quoted_symbol, &mut env).unwrap();
+        let result = eval(quoted_symbol, &mut env).unwrap();
 
         assert!(result.is_symbol());
         assert_eq!(result.as_symbol().unwrap(), "undefined");
@@ -329,7 +331,7 @@ mod tests {
             Expression::atom(Value::number(2.0)),
         ]));
 
-        let result = eval(&quoted_list, &mut env).unwrap();
+        let result = eval(quoted_list, &mut env).unwrap();
 
         assert!(result.is_list());
         let list = result.as_list().unwrap();
@@ -374,12 +376,12 @@ mod tests {
 
         // Test lookup from local environment
         let local_expr = Expression::atom(Value::symbol("local_var"));
-        let result = eval(&local_expr, &mut local).unwrap();
+        let result = eval(local_expr, &mut local).unwrap();
         assert_eq!(result.as_string().unwrap(), "local");
 
         // Test lookup from parent environment
         let global_expr = Expression::atom(Value::symbol("global_var"));
-        let result = eval(&global_expr, &mut local).unwrap();
+        let result = eval(global_expr, &mut local).unwrap();
         assert_eq!(result.as_number().unwrap(), 100.0);
     }
 
@@ -395,7 +397,7 @@ mod tests {
         ]));
 
         let expr = Expression::atom(list_value.clone());
-        let result = eval(&expr, &mut env).unwrap();
+        let result = eval(expr, &mut env).unwrap();
 
         assert!(result.is_list());
         let result_list = result.as_list().unwrap();
@@ -414,11 +416,11 @@ mod tests {
         let mut env = Environment::new();
 
         let number_expr = Expression::atom(Value::number(42.0));
-        let result = eval(&number_expr, &mut env).unwrap();
+        let result = eval(number_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 42.0);
 
         let string_expr = Expression::atom(Value::string("hello"));
-        let result = eval(&string_expr, &mut env).unwrap();
+        let result = eval(string_expr, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello");
 
         // Test eval function with symbol lookup
@@ -426,18 +428,18 @@ mod tests {
         env_with_binding.define_str("x", Value::number(10.0));
 
         let symbol_expr = Expression::atom(Value::symbol("x"));
-        let result = eval(&symbol_expr, &mut env_with_binding).unwrap();
+        let result = eval(symbol_expr, &mut env_with_binding).unwrap();
         assert_eq!(result.as_number().unwrap(), 10.0);
 
         // Test eval function with quoted expressions
         let quoted_expr = Expression::quote(Expression::atom(Value::symbol("unbound")));
-        let result = eval(&quoted_expr, &mut env).unwrap();
+        let result = eval(quoted_expr, &mut env).unwrap();
         assert!(result.is_symbol());
         assert_eq!(result.as_symbol().unwrap(), "unbound");
 
         // Test eval function with empty lists
         let empty_list = Expression::list(vec![]);
-        let result = eval(&empty_list, &mut env).unwrap();
+        let result = eval(empty_list, &mut env).unwrap();
         assert!(result.is_list());
         assert!(result.as_list().unwrap().is_empty());
     }
@@ -454,7 +456,7 @@ mod tests {
             Expression::atom(Value::string("no")),
         ]);
 
-        let result = eval(&if_expr, &mut env).unwrap();
+        let result = eval(if_expr, &mut env).unwrap();
         assert!(result.is_string());
         assert_eq!(result.as_string().unwrap(), "yes");
     }
@@ -471,7 +473,7 @@ mod tests {
             Expression::atom(Value::string("no")),
         ]);
 
-        let result = eval(&if_expr, &mut env).unwrap();
+        let result = eval(if_expr, &mut env).unwrap();
         assert!(result.is_string());
         assert_eq!(result.as_string().unwrap(), "no");
     }
@@ -498,7 +500,7 @@ mod tests {
                 Expression::atom(Value::string("false")),
             ]);
 
-            let result = eval(&if_expr, &mut env).unwrap();
+            let result = eval(if_expr, &mut env).unwrap();
             assert!(result.is_string());
             assert_eq!(result.as_string().unwrap(), expected);
         }
@@ -521,14 +523,14 @@ mod tests {
             Expression::atom(Value::string("non-positive")),
         ]);
 
-        let result = eval(&if_expr, &mut env).unwrap();
+        let result = eval(if_expr.clone(), &mut env).unwrap();
         assert!(result.is_string());
         assert_eq!(result.as_string().unwrap(), "positive");
 
         // Change x to -3 and test again
         env.define_str("x", Value::number(-3.0));
 
-        let result2 = eval(&if_expr, &mut env).unwrap();
+        let result2 = eval(if_expr, &mut env).unwrap();
         assert!(result2.is_string());
         assert_eq!(result2.as_string().unwrap(), "non-positive");
     }
@@ -550,7 +552,7 @@ mod tests {
             Expression::atom(Value::string("outer-no")),
         ]);
 
-        let result = eval(&nested_if, &mut env).unwrap();
+        let result = eval(nested_if, &mut env).unwrap();
         assert!(result.is_string());
         assert_eq!(result.as_string().unwrap(), "inner-yes");
     }
@@ -565,7 +567,7 @@ mod tests {
             Expression::atom(Value::boolean(true)),
         ]);
 
-        let result = eval(&if_too_few, &mut env);
+        let result = eval(if_too_few, &mut env);
         assert!(result.is_err());
 
         // Test if with too many arguments
@@ -577,7 +579,7 @@ mod tests {
             Expression::atom(Value::string("extra")),
         ]);
 
-        let result = eval(&if_too_many, &mut env);
+        let result = eval(if_too_many, &mut env);
         assert!(result.is_err());
     }
 
@@ -599,7 +601,7 @@ mod tests {
             Expression::atom(Value::string("not-equal")),
         ]);
 
-        let result = eval(&if_expr, &mut env).unwrap();
+        let result = eval(if_expr, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "equal");
     }
 
@@ -618,7 +620,7 @@ mod tests {
                 Expression::atom(Value::number(42.0)),
             ])),
         ]);
-        let result = eval(&car_expr, &mut env).unwrap();
+        let result = eval(car_expr, &mut env).unwrap();
         assert!(result.is_symbol());
         assert_eq!(result.as_symbol().unwrap(), "test");
 
@@ -627,7 +629,7 @@ mod tests {
             Expression::atom(Value::symbol("car")),
             Expression::quote(Expression::list(vec![])),
         ]);
-        let result = eval(&car_empty_expr, &mut env);
+        let result = eval(car_empty_expr, &mut env);
         assert!(result.is_err());
     }
 }

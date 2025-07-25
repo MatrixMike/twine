@@ -36,7 +36,7 @@ use crate::types::Value;
 /// will be evaluated sequentially in the spawned fiber. If multiple
 /// expressions are provided, they behave like `begin` - evaluated in order
 /// with the last expression's value returned.
-pub fn eval_async(_args: &[Expression], _env: &mut Environment) -> Result<Value> {
+pub fn eval_async(_args: Vec<Expression>, _env: &mut Environment) -> Result<Value> {
     // TODO: Implementation will be completed in Phase 4 when fiber scheduler is available
     // For now, return a placeholder error indicating the feature is not yet implemented
 
@@ -68,7 +68,7 @@ mod tests {
 
         // Test with empty body
         let args = vec![];
-        let result = eval_async(&args, &mut env);
+        let result = eval_async(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -79,7 +79,7 @@ mod tests {
 
         // Test with single expression
         let args = vec![Expression::atom(Value::number(42.0))];
-        let result = eval_async(&args, &mut env);
+        let result = eval_async(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -93,7 +93,7 @@ mod tests {
             Expression::atom(Value::string("hello")),
             Expression::atom(Value::number(123.0)),
         ];
-        let result = eval_async(&args, &mut env);
+        let result = eval_async(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -112,7 +112,7 @@ mod tests {
 
         // Zero arguments should be valid (returns task with nil)
         let args = vec![];
-        let result = eval_async(&args, &mut env);
+        let result = eval_async(args, &mut env);
         // Should fail with "not implemented" rather than arity error
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
@@ -127,7 +127,7 @@ mod tests {
             Expression::atom(Value::number(4.0)),
             Expression::atom(Value::number(5.0)),
         ];
-        let result = eval_async(&args, &mut env);
+        let result = eval_async(args, &mut env);
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("not yet implemented"));

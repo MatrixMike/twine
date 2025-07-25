@@ -43,7 +43,7 @@ impl SpecialForm {
     }
 
     /// Execute this special form with the given arguments
-    pub fn call(self, args: &[Expression], env: &mut Environment) -> Result<Value> {
+    pub fn call(self, args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
         match self {
             SpecialForm::If => control_flow::eval_if(args, env),
             SpecialForm::Define => binding::eval_define(args, env),
@@ -84,7 +84,7 @@ pub mod lambda;
 ///
 /// # Returns
 /// * `Option<Result<Value>>` - Some(result) for special forms, None for unknown identifiers
-pub fn dispatch(name: &str, args: &[Expression], env: &mut Environment) -> Option<Result<Value>> {
+pub fn dispatch(name: &str, args: Vec<Expression>, env: &mut Environment) -> Option<Result<Value>> {
     // Try to parse as a special form
     SpecialForm::from_name(name).map(|special_form| special_form.call(args, env))
 }
@@ -107,7 +107,7 @@ mod tests {
             Expression::atom(Value::string("no")),
         ];
 
-        let result = dispatch("if", &args, &mut env).unwrap().unwrap();
+        let result = dispatch("if", args, &mut env).unwrap().unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
     }
 
@@ -121,7 +121,7 @@ mod tests {
             Expression::atom(Value::number(42.0)),
         ];
 
-        let result = dispatch("define", &args, &mut env).unwrap().unwrap();
+        let result = dispatch("define", args, &mut env).unwrap().unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created
@@ -135,7 +135,7 @@ mod tests {
         // Test async special form dispatch - currently returns not implemented error
         let args = vec![Expression::atom(Value::number(42.0))];
 
-        let result = dispatch("async", &args, &mut env).unwrap();
+        let result = dispatch("async", args, &mut env).unwrap();
         assert!(result.is_err());
         assert!(
             result
@@ -151,11 +151,11 @@ mod tests {
         let args = vec![Expression::atom(Value::number(1.0))];
 
         // Unknown special form should return None
-        let result = dispatch("unknown-form", &args, &mut env);
+        let result = dispatch("unknown-form", args.clone(), &mut env);
         assert!(result.is_none());
 
         // Test with unknown special form that doesn't exist
-        let result = dispatch("unknown-future-form", &args, &mut env);
+        let result = dispatch("unknown-future-form", args, &mut env);
         assert!(result.is_none());
     }
 
@@ -171,7 +171,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
         let args = vec![bindings, body];
 
-        let result = dispatch("let", &args, &mut env).unwrap().unwrap();
+        let result = dispatch("let", args, &mut env).unwrap().unwrap();
         assert_eq!(result, Value::number(42.0));
     }
 
@@ -184,7 +184,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
         let args = vec![params, body];
 
-        let result = dispatch("lambda", &args, &mut env).unwrap().unwrap();
+        let result = dispatch("lambda", args, &mut env).unwrap().unwrap();
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
             assert_eq!(proc.arity(), Some(1));
@@ -202,7 +202,7 @@ mod tests {
         // if with wrong arity should error
         let args = vec![Expression::atom(Value::boolean(true))]; // Missing consequent and alternative
 
-        let result = dispatch("if", &args, &mut env).unwrap();
+        let result = dispatch("if", args, &mut env).unwrap();
         assert!(result.is_err());
         assert!(
             result
@@ -245,7 +245,7 @@ mod tests {
             Expression::atom(Value::string("yes")),
             Expression::atom(Value::string("no")),
         ];
-        let result = SpecialForm::If.call(&args, &mut env).unwrap();
+        let result = SpecialForm::If.call(args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
 
         // Test define special form
@@ -253,7 +253,7 @@ mod tests {
             Expression::atom(Value::symbol("x")),
             Expression::atom(Value::number(42.0)),
         ];
-        let result = SpecialForm::Define.call(&args, &mut env).unwrap();
+        let result = SpecialForm::Define.call(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(42.0));
 
@@ -264,14 +264,14 @@ mod tests {
         ])]);
         let body = Expression::atom(Value::symbol("y"));
         let args = vec![bindings, body];
-        let result = SpecialForm::Let.call(&args, &mut env).unwrap();
+        let result = SpecialForm::Let.call(args, &mut env).unwrap();
         assert_eq!(result, Value::number(100.0));
 
         // Test lambda special form
         let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
         let body = Expression::atom(Value::symbol("x"));
         let args = vec![params, body];
-        let result = SpecialForm::Lambda.call(&args, &mut env).unwrap();
+        let result = SpecialForm::Lambda.call(args, &mut env).unwrap();
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
             assert_eq!(proc.arity(), Some(1));
@@ -286,12 +286,12 @@ mod tests {
 
         // Test error propagation for invalid arguments
         let args = vec![Expression::atom(Value::boolean(true))]; // Missing consequent and alternative
-        let result = SpecialForm::If.call(&args, &mut env);
+        let result = SpecialForm::If.call(args, &mut env);
         assert!(result.is_err());
 
         // Test async not implemented error
         let args = vec![Expression::atom(Value::number(42.0))];
-        let result = SpecialForm::Async.call(&args, &mut env);
+        let result = SpecialForm::Async.call(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -352,11 +352,12 @@ mod tests {
             Expression::atom(Value::string("yes")),
             Expression::atom(Value::string("no")),
         ];
-        let result = dispatch("if", &args, &mut env).unwrap().unwrap();
+        let result = dispatch("if", args, &mut env).unwrap().unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
 
         // Test that unknown special forms return None
-        let result = dispatch("unknown-form", &args, &mut env);
+        let args = vec![Expression::atom(Value::boolean(true))];
+        let result = dispatch("unknown-form", args, &mut env);
         assert!(result.is_none());
     }
 }
