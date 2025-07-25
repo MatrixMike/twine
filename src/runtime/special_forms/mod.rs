@@ -36,6 +36,7 @@ pub fn dispatch(
 
         // Binding and definition forms
         "define" => Some(binding::eval_define(args, env)),
+        "let" => Some(binding::eval_let(args, env)),
 
         // Return None for unknown identifiers - not a special form
         _ => None,
@@ -95,8 +96,26 @@ mod tests {
         assert!(result.is_none());
 
         // Test with future special form that doesn't exist yet
-        let result = dispatch(&Symbol::new("let"), &args, &mut env);
+        let result = dispatch(&Symbol::new("lambda"), &args, &mut env);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_dispatch_let_special_form() {
+        let mut env = Environment::new();
+
+        // Test let special form dispatch: (let ((x 42)) x)
+        let bindings = Expression::List(vec![Expression::List(vec![
+            Expression::atom(Value::symbol("x")),
+            Expression::atom(Value::number(42.0)),
+        ])]);
+        let body = Expression::atom(Value::symbol("x"));
+        let args = vec![bindings, body];
+
+        let result = dispatch(&Symbol::new("let"), &args, &mut env)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result, Value::number(42.0));
     }
 
     #[test]

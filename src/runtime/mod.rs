@@ -2,7 +2,7 @@
 //!
 //! This module contains the core runtime functionality organized as follows:
 //!
-//! - `environment`: Variable binding and scope management
+//! - `environment`: Identifier binding and scope management
 //! - `eval`: Core evaluation engine and expression dispatch
 //! - `special_forms`: Language constructs with special evaluation rules
 //! - `builtins`: Standard library procedures organized by category
@@ -13,13 +13,15 @@
 //!
 //! ### Current Special Forms
 //! - `if`: Control flow - conditional expressions
-//! - `define`: Variable and function definition
+//! - `define`: Binding and procedure definition
+//!
+//! ### Implemented Special Forms
+//! - `let`: Local identifier binding (T2.4.2) ✅
 //!
 //! ### Future Special Forms (planned)
 //! - `cond`, `case`, `when`, `unless`: Additional control flow constructs
 //! - `begin`: Expression sequencing
-//! - `let`: Local variable binding (T2.4.2)
-//! - `lambda`: Function definition (T3.1.2)
+//! - `lambda`: Procedure definition (T3.1.2)
 //! - `quote`: Prevent evaluation (already partially implemented)
 //! - `define-syntax`: Macro definition (T5.2.1)
 //!

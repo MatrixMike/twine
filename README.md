@@ -11,10 +11,9 @@
 
 Twine is a [Scheme](https://en.wikipedia.org/wiki/Scheme_(programming_language)) interpreter implementing:
 
-- **Fiber-based Concurrency**: Lightweight fiber scheduler with multi-threaded execution
+- **Fiber-based Concurrency**: Lightweight fiber scheduler with multi-threaded parallel execution
 - **Asynchronous I/O**: All I/O operations are async with fiber yielding
 - **Strict Immutability**: All data structures are immutable after creation
-- **Macro System**: R7RS-small macro support with `define-syntax` and `syntax-rules`
 - **Minimalism**: Essential language features only
 
 ## Educational Goals
@@ -45,8 +44,8 @@ For detailed project information, see:
 - **Error Handling**: Comprehensive syntax error reporting with precise position information
 - **Test Coverage**: 130+ tests covering all implemented features
 
-### 🚧 In Progress  
-- Environment management for variable binding
+### 🚧 In Progress
+- Environment management for identifier binding
 - Basic evaluation engine
 - Built-in procedures and special forms
 
@@ -70,7 +69,7 @@ For detailed project information, see:
 (map square numbers)  ; => (1 4 9 16 25)
 
 ;; Async tasks with fiber concurrency
-(define task1 (async (+ 1 2)))
+(define task1 (async (lambda () (+ 1 2))))
 (define task2 (async (lambda () (* 3 4))))
 (+ (task-wait task1) (task-wait task2))  ; => 15
 

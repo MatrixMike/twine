@@ -14,8 +14,8 @@ User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thre
 |-----------|---------|--------------|
 | **Lexer** | Tokenization | Comments, numbers, strings, symbols |
 | **Parser** | AST Construction | S-expressions, quote syntax, error reporting |
-| **Evaluator** | Expression Evaluation | Special forms, function application, tail-call optimization |
-| **Environment** | Variable Binding | Lexical scoping, closures, immutable chains |
+| **Evaluator** | Expression Evaluation | Special forms, procedure application, tail-call optimization |
+| **Environment** | Identifier Binding | Lexical scoping, closures, immutable chains |
 | **Fiber Scheduler** | Concurrency Management | Automatic I/O yielding, thread pool execution |
 | **Task System** | High-level Async | Hierarchical parent-child relationships |
 | **Value System** | Data Types | Complete immutability, reference counting |
@@ -73,7 +73,7 @@ User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thre
 │                    Execution Engine                             │
 │  ┌─────────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
 │  │ Fiber Scheduler │  │ Task System  │  │ Environment Manager │  │
-│  │ Low-level Mgmt  │  │ High-level   │  │ Variable Binding    │  │
+│  │ Low-level Mgmt  │  │ High-level   │  │ Identifier Binding  │  │
 │  └─────────────────┘  └──────────────┘  └─────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────┤
 │                    Runtime Foundation                           │
@@ -266,7 +266,7 @@ pub struct List(Vec<Value>); // Owned vector (sharing planned)
 
 ### Environment Management (`runtime/environment.rs`)
 
-**Purpose**: Variable binding and lexical scoping
+**Purpose**: Identifier binding and lexical scoping
 
 ```rust
 #[derive(Debug, Clone)]
@@ -300,7 +300,7 @@ impl Environment {
 ┌─────────────────────────────────────────────────────────────────┐
 │                    High-Level: Task System                      │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │ async macro → spawn-fiber → creates hierarchical tasks     │ │
+│  │ async builtin → spawn-fiber → creates hierarchical tasks   │ │
 │  │ task-wait → synchronization with parent-child cleanup      │ │
 │  │ Task Tree: Main → [TaskA, TaskB → [TaskB1, TaskB2]]        │ │
 │  └─────────────────────────────────────────────────────────────┘ │
@@ -391,10 +391,10 @@ worker
 
 #### Hierarchical Task Execution
 ```scheme
-> (define task1 (async (+ 10 20)))
+> (define task1 (async (lambda () (+ 10 20))))
 task1
 > (define task2 (async (lambda ()
-    (let ((subtask (async (* 3 4))))
+    (let ((subtask (async (lambda () (* 3 4)))))
       (+ (task-wait subtask) 100)))))
 task2
 > (task-wait task1)
@@ -411,7 +411,7 @@ task2
     42)))
 Starting...
 slow-task
-> (define quick-task (async (+ 1 2 3)))
+> (define quick-task (async (lambda () (+ 1 2 3))))
 quick-task
 > (task-wait quick-task)
 6
@@ -553,6 +553,7 @@ fn eval_list(
             "define" => eval_define(&exprs[1..], env, scheduler, fiber_id),
             "lambda" => eval_lambda(&exprs[1..], env),
             "quote" => eval_quote(&exprs[1..]),
+
             _ => eval_application(exprs, env, scheduler, fiber_id),
         }
     } else {
@@ -566,8 +567,8 @@ fn eval_list(
 | Special Form | Purpose | Example |
 |--------------|---------|---------|
 | **if** | Conditional execution | `(if (> x 0) 'positive 'non-positive)` |
-| **define** | Variable binding | `(define pi 3.14159)` |
-| **lambda** | Function creation | `(lambda (x) (* x x))` |
+| **define** | Identifier binding | `(define pi 3.14159)` |
+| **lambda** | Procedure creation | `(lambda (x) (* x x))` |
 | **quote** | Literal data | `(quote (a b c))` or `'(a b c)` |
 
 ### Tail Call Optimization
@@ -662,7 +663,7 @@ pub fn display(
 #[derive(Debug, Clone)]
 pub enum Pattern {
     Literal(Value),              // Exact match: 42, #t, "hello"
-    Variable(String),            // Bind to variable: x, condition
+    Identifier(String),          // Bind to identifier: x, condition
     List(Vec<Pattern>),          // Match list structure: (if ...)
     Ellipsis(Box<Pattern>),      // Variable length: body ...
 }
@@ -670,7 +671,7 @@ pub enum Pattern {
 #[derive(Debug, Clone)]
 pub enum Template {
     Literal(Value),              // Insert literal value
-    Variable(String),            // Substitute variable
+    Identifier(String),          // Substitute identifier
     List(Vec<Template>),         // Generate list structure
     Substitution(String),        // Pattern substitution
 }
@@ -701,26 +702,47 @@ pub struct Macro {
   (newline))
 ```
 
-#### async Macro
-```scheme
-(define-syntax async
-  (syntax-rules (lambda)
-    ((async (lambda () body ...))
-     (spawn-fiber (lambda () body ...)))
-    ((async expr)
-     (spawn-fiber (lambda () expr)))))
+#### async Built-in Procedure
+**Note**: `async` is implemented as a built-in procedure that takes a thunk and spawns it in a new fiber.
 
-;; Usage
-(define task1 (async (+ 1 2 3)))           ; Simple expression
-(define task2 (async (lambda ()
+```scheme
+;; async is a built-in procedure that takes a thunk (lambda with no parameters)
+;; Usage examples:
+(define task1 (async (lambda () (+ 1 2 3))))           ; Simple expression
+(define task2 (async (lambda () 
   (display "Working...")
-  (* 6 7))))                               ; Explicit thunk
+  (* 6 7))))                                           ; Multiple expressions
+
+;; Identifier capture example
+(let ((x 10))
+  (async (lambda () (+ x 1))))                         ; Captures x from environment
 ```
+
+**Evaluation Semantics**: The `async` built-in procedure:
+1. **Takes exactly one argument** - must be a thunk (lambda with no parameters)
+2. **Evaluates the thunk argument** - the lambda is evaluated to a `Procedure` value
+3. **Validates thunk** - ensures the procedure has zero parameters
+4. **Returns immediately** - returns a `TaskHandle` without blocking
+5. **Spawns fiber** - the thunk will be invoked in a separate fiber
+
+**Procedure Signature**: `(async <thunk>)`
+- **Required**: Must be a thunk: `(lambda () <body>...)`
+- **Examples**: 
+  - `(async (lambda () (+ 1 2)))` - simple thunk
+  - `(async (lambda () (display "hi") (* 3 4)))` - thunk with multiple expressions
+- **Error**: `(async (lambda (x) (* x x)))` - lambda with parameters not allowed
+- **Error**: `(async (+ 1 2))` - not a thunk
+
+**Design Rationale**: `async` is implemented as a built-in procedure rather than a special form:
+- **Simple Semantics**: Standard function call with evaluated arguments
+- **Type Safety**: Can validate that the argument is actually a zero-parameter procedure
+- **Clear Interface**: Function call semantics are well understood
+- **Implementation Simplicity**: No special evaluation rules needed
 
 **Key Features**:
 - **Pattern Matching**: R7RS-small syntax-rules patterns
 - **Ellipsis Support**: Variable-length pattern matching (`...`)
-- **Hygienic Expansion**: Prevents variable capture
+- **Hygienic Expansion**: Prevents identifier capture
 - **Compile-time**: Macros expanded before evaluation
 
 ---
@@ -739,7 +761,7 @@ pub enum Error {
     // Runtime errors
     TypeError(String),
     ArityError(String),
-    UnboundVariable(String),
+    UnboundIdentifier(String),
     DivisionByZero,
 
     // System errors
@@ -780,7 +802,7 @@ pub async fn execute_with_error_handling(
 Syntax error at line 5, column 12: Unexpected token ')'
 Type error: Expected number, got string in arithmetic operation
 Arity error: + expects at least 1 argument, got 0
-Unbound variable: undefined-function
+Unbound identifier: undefined-procedure
 I/O error: Failed to write to stdout
 Fiber error: Fiber deadlock detected
 Task error: Parent task cancelled, terminating children
@@ -897,7 +919,7 @@ impl ResourceLimits {
 #### Phase 1: Foundation (Weeks 1-2)
 - **Core Data Types**: Numbers, booleans, strings, symbols
 - **Basic Parsing**: Tokenization and S-expression parsing
-- **Simple Evaluation**: Arithmetic and variable lookup
+- **Simple Evaluation**: Arithmetic and identifier lookup
 - **Learning Focus**: Understanding interpreter basics
 
 #### Phase 2: Language Features (Weeks 3-4)

@@ -401,7 +401,7 @@ fn test_edge_cases
 // In eval.rs
 fn test_eval_arithmetic_operations
 fn test_eval_comparison_operations
-fn test_eval_arithmetic_with_variables
+fn test_eval_arithmetic_with_identifiers
 fn test_eval_unknown_procedure
 fn test_eval_non_symbol_procedure
 ```
@@ -518,14 +518,28 @@ runtime/
 - Supports variable shadowing in current environment
 - Comprehensive test coverage including error cases
 
-#### T2.4.2: Implement `let` binding forms
+#### T2.4.2: Implement `let` binding forms ✅
 **Deliverables**:
-- `let` for local identifier binding
-- Lexical scoping implementation
-- Binding evaluation order
+- `let` for local identifier binding ✅
+- Lexical scoping implementation ✅
+- Binding evaluation order ✅
 
-#### T2.4.3: Create identifier binding tests
-**Acceptance**: 10+ tests covering define, let, and scoping behavior
+**Implementation Notes**:
+- Added `eval_let` function in `runtime/special_forms/binding.rs`
+- Implemented proper lexical scoping with `Environment::new_scope`
+- Ensures simultaneous binding evaluation (all expressions evaluated in current environment before any bindings)
+- Added comprehensive unit tests (9 tests) and integration tests (9 tests)
+- Proper error handling for malformed let expressions
+
+#### T2.4.3: Create identifier binding tests ✅
+**Acceptance**: 10+ tests covering define, let, and scoping behavior ✅
+
+**Implementation Notes**:
+- 29+ comprehensive tests implemented covering define, let, and scoping behavior
+- Unit tests: 7 for define, 9 for let (runtime/special_forms/binding.rs)
+- Integration tests: 11 end-to-end tests (tests/integration.rs)
+- Special form dispatch tests: 2 tests (runtime/special_forms/mod.rs)
+- Coverage includes: basic functionality, lexical scoping, simultaneous binding, error cases, nested scoping, integration with other features
 
 ---
 
@@ -769,8 +783,38 @@ runtime/
 **Prerequisites**: Async I/O complete
 **Deliverables**:
 - `spawn-fiber`, `yield`, `current-fiber`, `fiber-status`
+- `async` built-in procedure for convenient fiber creation
 - Fiber control and introspection
 - Error handling for fiber operations
+
+**Implementation Note**: `async` should be implemented as a built-in procedure (not a special form) since it can work with standard function call semantics.
+
+**Async Built-in Procedure Specification**:
+- **Signature**: `(async <thunk>)` - requires exactly one thunk (lambda with no parameters)
+- **Behavior**: Takes an evaluated thunk and spawns it in a new fiber
+- **Validation**: Ensures the argument is a procedure with zero parameters
+- **Return value**: Returns a `TaskHandle` immediately (non-blocking)
+- **Examples**:
+  - `(async (lambda () (+ 1 2)))` - simple thunk
+  - `(async (lambda () (display "hi") (* 3 4)))` - thunk with multiple expressions
+- **Error**: `(async (lambda (x) (* x x)))` - lambda with parameters not allowed
+
+**File Structure Note**: This task should expand the builtins directory to include fiber procedures:
+```
+runtime/
+├── special_forms/
+│   ├── mod.rs          # dispatch
+│   ├── control_flow.rs # if
+│   ├── binding.rs      # define, let
+│   └── function.rs     # lambda
+└── builtins/
+    ├── mod.rs          # dispatch (update to include fibers)
+    ├── arithmetic.rs   # +, -, *, /, =, <, >, etc.
+    ├── list.rs         # car, cdr, cons, list, null?, append, etc.
+    ├── predicates.rs   # number?, boolean?, string?, symbol?, list?, procedure?, null?
+    ├── io.rs           # display, newline, read
+    └── fibers.rs       # spawn-fiber, yield, current-fiber, fiber-status, async
+```
 
 #### T4.4.2: Implement task management procedures
 **Deliverables**:
@@ -837,7 +881,8 @@ runtime/
 **Deliverables**:
 - `when`, `unless`, `cond` macros
 - `let*`, `letrec` binding macros
-- `async` macro for task creation
+
+**Note**: The `async` procedure is implemented as a built-in function in T4.4.1, not as a macro.
 
 #### T5.2.4: Create macro integration tests
 **Acceptance**: 12+ tests covering macro definition and expansion
@@ -1020,7 +1065,7 @@ cargo fmt --check            # Formatting verification
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
-- **Phase 2**: ☐ 40% (8/20 tasks) - Basic Interpreter
+- **Phase 2**: ☐ 85% (17/20 tasks) - Basic Interpreter (Section 2.4 COMPLETE)
 - **Phase 3**: ☐ 0% (0/20 tasks) - Advanced Features
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
@@ -1040,12 +1085,11 @@ cargo fmt --check            # Formatting verification
 - ✅ T1.3.3: Implement token recognition
 - ✅ T1.3.4: Add lexer error handling
 - ✅ T1.3.5: Create comprehensive lexer tests
-- ✅ T2.1.1: Implement `Expression` enum (FR-2 compliance)
-- ✅ T2.1.2: Implement `Parser` struct (FR-2 compliance)
-- ✅ T2.1.3: Implement expression parsing (FR-2 compliance)
-- ✅ T2.1.4: Add parser error handling (FR-2 compliance)
-- ✅ T2.1.5: Create comprehensive parser tests (FR-2 compliance)
-
+- ✅ T2.1.1: Implement `Expr` enum
+- ✅ T2.1.2: Implement `Parser` struct
+- ✅ T2.1.3: Implement expression parsing
+- ✅ T2.1.4: Add parser error handling
+- ✅ T2.1.5: Create comprehensive parser tests
 - ✅ T2.2.1: Implement `Environment` struct
 - ✅ T2.2.2: Implement environment operations
 - ✅ T2.2.3: Add environment error handling
@@ -1056,11 +1100,13 @@ cargo fmt --check            # Formatting verification
 - ✅ T2.3.4: Implement basic list operations
 - ✅ T2.3.5: Create basic evaluation tests
 - ✅ T2.4.1: Implement `define` special form
+- ✅ T2.4.2: Implement `let` binding forms
+- ✅ T2.4.3: Create identifier binding tests
 
 ### Immediate Next Steps
-1. **T2.4.2**: Implement `let` binding forms (🔥 Priority - Continue Phase 2.4)
-2. **T2.4.3**: Create identifier binding tests
-3. **T3.1.1**: Implement `Procedure` enum (Next Phase - Function System)
+1. **T3.1.1**: Implement `Procedure` enum (🔥 Priority - Begin Phase 3.1 Function System)
+2. **T3.1.2**: Implement `lambda` special form
+3. **T3.1.3**: Implement function application
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

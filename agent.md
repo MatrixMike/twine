@@ -86,7 +86,7 @@ These documents are the single source of truth. ALL implementation decisions mus
 - **Comprehensive testing**: Test each implemented feature thoroughly
 - **Extensive documentation**: Explain design decisions and implementation choices
 - **Rust best practices**: Follow idiomatic patterns while prioritizing simplicity
-- **Descriptive naming**: Use clear, verbose names for functions and variables
+- **Descriptive naming**: Use clear, verbose names for functions and identifiers
 
 ---
 
@@ -146,7 +146,7 @@ These documents are the single source of truth. ALL implementation decisions mus
 
 ### Language Feature Constraints
 - Implement only R7RS-small subset specified in requirements
-- Focus on essentials: arithmetic, lists, functions, conditionals, macros
+- Focus on essentials: arithmetic, lists, procedures, conditionals, macros
 - Support lexical scoping with closures
 
 ### Symbol Type Usage
@@ -293,13 +293,18 @@ pub struct ArcString(Arc<String>);
 
 ### Scheme Terminology (CRITICAL)
 **NEVER use "variable" - always use proper Scheme terminology:**
-- **Identifier** = the symbolic name (e.g., `x`, `my-function`, `calculate`)
+- **Identifier** = the symbolic name (e.g., `x`, `my-procedure`, `calculate`)
+- **Procedure** = callable entity in Scheme (not "function")
 - **Binding** = the association between an identifier and a value in an environment
 - **"Variable"** is an imperative programming concept - avoid this term entirely
 - **Examples**: "unbound identifier", "identifier binding", "binding lookup"
 - **Error messages**: Use "Unbound identifier" not "Undefined variable"
-- **Comments**: "Define an identifier binding" not "Define a variable"
+- **Comments**: "Define an identifier binding" not "Define a variable", "Procedure definition" not "Function definition"
 - **Shadowing**: Shadowing is normal behavior in Scheme - no warnings needed
+
+**Important Distinction:**
+- **Scheme context**: Use "procedure" (e.g., "builtin procedures", "procedure application")
+- **Rust context**: Use "function" (e.g., "Rust functions", "`fn lookup(...)`", "helper functions")
 
 ---
 
@@ -312,7 +317,7 @@ pub struct ArcString(Arc<String>);
 - Maintain error context through the fiber scheduler
 
 ### Debugging Approach
-- Add descriptive logging statements to track variable and code state
+- Add descriptive logging statements to track identifier and code state
 - Create test functions to isolate problems
 - Address root causes instead of symptoms
 - Use debugging output when helpful for development

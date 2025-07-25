@@ -34,7 +34,7 @@ use crate::types::Value;
 ///
 /// Expression types:
 /// - **Atom**: Primitive values (numbers, strings, symbols, booleans)
-/// - **List**: Compound expressions for function calls and special forms
+/// - **List**: Compound expressions for procedure calls and special forms
 /// - **Quote**: Quoted expressions that prevent evaluation
 ///
 /// | Scheme Code | AST Representation |
@@ -966,7 +966,7 @@ mod tests {
         let expr = parser.parse_expression().unwrap();
         assert_eq!(format!("{}", expr.expr), "(+ 1 2)");
 
-        // Function definition example
+        // Procedure definition example
         let mut parser = Parser::new("(define square (lambda (x) (* x x)))".to_string()).unwrap();
         let expr = parser.parse_expression().unwrap();
         assert_eq!(

@@ -116,8 +116,8 @@ Implements functional subset of R7RS-small with:
 | **FR-4** | **Arithmetic Operations** | +, -, *, /, =, <, >, <=, >= with variadic support |
 | **FR-5** | **List Operations** | car, cdr, cons, list, null?, pair? |
 | **FR-6** | **Conditional Expressions** | `if` with condition, then-clause, optional else-clause |
-| **FR-7** | **Variable Binding** | `define` for globals, `lambda` for functions - NO reassignment |
-| **FR-8** | **Function Application** | Left-to-right evaluation, proper binding, tail-call optimization |
+| **FR-7** | **Identifier Binding** | `define` for globals, `lambda` for procedures - NO reassignment |
+| **FR-8** | **Procedure Application** | Left-to-right evaluation, proper binding, tail-call optimization |
 
 ### Interactive Features (FR-9 to FR-12)
 
@@ -378,8 +378,8 @@ Hello World
 | **REPL** | Read-Eval-Print Loop, interactive interpreter interface |
 | **AST** | Abstract Syntax Tree, internal representation of parsed code |
 | **Tail-call optimization** | Recursive calls in tail position reuse stack frames |
-| **Lexical scoping** | Variables refer to bindings in enclosing lexical scope |
-| **Closure** | Function capturing variables from defining environment |
+| **Lexical scoping** | Identifiers refer to bindings in enclosing lexical scope |
+| **Closure** | Procedure capturing identifiers from defining environment |
 | **Fiber** | Lightweight computation unit managed by scheduler |
 | **Fiber Scheduler** | Central component managing fiber execution and I/O yielding |
 | **Async Task** | High-level abstraction with hierarchical parent-child relationships |
@@ -391,7 +391,7 @@ Hello World
 | **Implementation Simplicity** | Straightforward code over complex optimizations |
 | **Binding** | Immutable association between identifier and value in environment |
 | **Environment** | Scope managing identifier bindings with lexical scoping chains |
-| **Identifier** | Symbol or name bound to value (immutable, not mutable variable) |
+| **Identifier** | Symbol or name bound to value (immutable, not mutable) |
 | **Symbol** | Immutable interned string for identifiers using SmolStr optimization |
 | **Closure Environment** | Specialized environment capturing only required bindings for closures |
 | **Shadowing** | Inner scope identifier hiding outer scope binding of same name |

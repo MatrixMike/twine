@@ -95,7 +95,7 @@ fn test_integration_arithmetic_operations() {
     let result = eval_source("(/ 15 3)", &mut env).unwrap();
     assert_eq!(result.as_number().unwrap(), 5.0);
 
-    // With variables
+    // With identifiers
     let result = eval_source("(+ x y)", &mut env).unwrap();
     assert_eq!(result.as_number().unwrap(), 13.0);
 
@@ -792,13 +792,13 @@ fn test_integration_list_with_quotes() {
 }
 
 #[test]
-fn test_integration_variable_binding_with_lists() {
+fn test_integration_identifier_binding_with_lists() {
     use twine_scheme::runtime::environment::Environment;
     use twine_scheme::types::Value;
 
     let mut env = Environment::new();
 
-    // Define some list variables
+    // Define some list identifiers
     env.define_str(
         "numbers",
         Value::list(vec![
@@ -839,6 +839,252 @@ fn test_integration_variable_binding_with_lists() {
     let result = eval_source("(if (null? empty) 'yes 'no)", &mut env).unwrap();
     assert!(result.is_symbol());
     assert_eq!(result.as_symbol().unwrap(), "yes");
+}
+
+#[test]
+fn test_integration_let_binding_basic() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test basic let binding: (let ((x 42)) x)
+    let result = eval_source("(let ((x 42)) x)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 42.0);
+
+    // Test multiple bindings: (let ((x 10) (y 20)) y)
+    let result = eval_source("(let ((x 10) (y 20)) y)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 20.0);
+
+    // Test empty bindings: (let () 'hello)
+    let result = eval_source("(let () 'hello)", &mut env).unwrap();
+    assert_eq!(result.as_symbol().unwrap(), "hello");
+}
+
+#[test]
+fn test_integration_let_binding_lexical_scoping() {
+    use twine_scheme::runtime::environment::Environment;
+    use twine_scheme::types::Value;
+
+    let mut env = Environment::new();
+
+    // Define x in outer environment
+    env.define_str("x", Value::number(100.0));
+
+    // Test lexical scoping - inner x should shadow outer x
+    let result = eval_source("(let ((x 42)) x)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 42.0);
+
+    // Verify outer environment unchanged
+    assert_eq!(env.lookup_str("x").unwrap().as_number().unwrap(), 100.0);
+
+    // Test accessing outer scope from within let
+    env.define_str("y", Value::number(50.0));
+    let result = eval_source("(let ((x 42)) y)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 50.0);
+}
+
+#[test]
+fn test_integration_let_binding_simultaneous() {
+    use twine_scheme::runtime::environment::Environment;
+    use twine_scheme::types::Value;
+
+    let mut env = Environment::new();
+
+    // Define x in outer environment
+    env.define_str("x", Value::number(10.0));
+
+    // Test simultaneous binding - y should see outer x, not inner x
+    let result = eval_source("(let ((x 42) (y x)) y)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 10.0); // Should be outer x, not 42
+
+    // Test with expressions that reference each other indirectly
+    env.define_str("a", Value::number(5.0));
+    env.define_str("b", Value::number(7.0));
+    let result = eval_source("(let ((x a) (y b)) (+ x y))", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 12.0);
+}
+
+#[test]
+fn test_integration_let_binding_multiple_body() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test multiple body expressions - should return last one
+    let result = eval_source("(let ((x 5)) 1 2 3 x)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 5.0);
+
+    // Test with define in let body - should be scoped to let
+    let result = eval_source("(let ((x 10)) (define y x) y)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 10.0);
+
+    // Verify y is NOT accessible in outer scope (correct Scheme behavior)
+    assert!(env.lookup_str("y").is_err());
+}
+
+#[test]
+fn test_integration_let_binding_with_lists() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test let with list operations
+    let result = eval_source("(let ((lst '(1 2 3))) (car lst))", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 1.0);
+
+    // Test let with list construction
+    let result = eval_source("(let ((x 42)) (list x x))", &mut env).unwrap();
+    assert!(result.is_list());
+    let list = result.as_list().unwrap();
+    assert_eq!(list.len(), 2);
+    assert_eq!(list.get(0).unwrap().as_number().unwrap(), 42.0);
+    assert_eq!(list.get(1).unwrap().as_number().unwrap(), 42.0);
+
+    // Test let with cons
+    let result = eval_source("(let ((x 'hello) (y '(world))) (cons x y))", &mut env).unwrap();
+    assert!(result.is_list());
+    let list = result.as_list().unwrap();
+    assert_eq!(list.len(), 2);
+    assert_eq!(list.get(0).unwrap().as_symbol().unwrap(), "hello");
+}
+
+#[test]
+fn test_integration_let_binding_nested() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test nested let expressions
+    let result = eval_source("(let ((x 10)) (let ((y 20)) (+ x y)))", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 30.0);
+
+    // Test nested let with shadowing
+    let result = eval_source("(let ((x 10)) (let ((x 20)) x))", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 20.0);
+
+    // Test nested let accessing outer scope
+    let result = eval_source("(let ((x 10) (y 5)) (let ((z 3)) (+ x y z)))", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 18.0);
+}
+
+#[test]
+fn test_integration_let_binding_with_conditionals() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test let with if expressions
+    let result = eval_source("(let ((x 10) (y 20)) (if (< x y) x y))", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 10.0);
+
+    // Test let binding boolean values
+    let result = eval_source("(let ((flag #t)) (if flag 'yes 'no))", &mut env).unwrap();
+    assert_eq!(result.as_symbol().unwrap(), "yes");
+
+    // Test complex conditional logic
+    let result = eval_source(
+        "(let ((a 5) (b 0)) (if (= b 0) 'division-by-zero a))",
+        &mut env,
+    )
+    .unwrap();
+    assert_eq!(result.as_symbol().unwrap(), "division-by-zero");
+}
+
+#[test]
+fn test_integration_let_binding_with_define() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test let with define - bindings defined in let body stay in let scope
+    let result = eval_source("(let ((x 42)) (define local-var x) local-var)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 42.0);
+
+    // The binding defined in let should NOT be accessible in outer scope
+    assert!(env.lookup_str("local-var").is_err());
+    assert!(env.lookup_str("x").is_err());
+
+    // Test that outer definitions are still accessible in let
+    eval_source("(define outer 100)", &mut env).unwrap();
+    let result = eval_source("(let ((inner 200)) outer)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 100.0);
+
+    // Verify outer scope unchanged
+    assert_eq!(env.lookup_str("outer").unwrap().as_number().unwrap(), 100.0);
+    assert!(env.lookup_str("inner").is_err());
+}
+
+#[test]
+fn test_integration_let_binding_error_cases() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test let with undefined identifier in binding expression
+    let result = eval_source("(let ((x undefined-var)) x)", &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Unbound identifier")
+    );
+
+    // Test let with undefined identifier in body
+    let result = eval_source("(let ((x 42)) undefined-var)", &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Unbound identifier")
+    );
+
+    // Test invalid let syntax - should be caught by parser or evaluator
+    // Note: These might be caught at parse time depending on implementation
+}
+
+#[test]
+fn test_integration_comprehensive_binding_behavior() {
+    use twine_scheme::runtime::environment::Environment;
+
+    let mut env = Environment::new();
+
+    // Test complex scenario combining define and let
+    eval_source("(define base 10)", &mut env).unwrap();
+
+    let result = eval_source(
+        "(let ((multiplier 3) (offset 5))
+           (define computed (* base multiplier))
+           (+ computed offset))",
+        &mut env,
+    )
+    .unwrap();
+    assert_eq!(result.as_number().unwrap(), 35.0); // (10 * 3) + 5
+
+    // Verify what's in the environment
+    assert_eq!(env.lookup_str("base").unwrap().as_number().unwrap(), 10.0);
+    // computed was defined in let scope, so it should NOT be accessible in outer scope
+    assert!(env.lookup_str("computed").is_err());
+    assert!(env.lookup_str("multiplier").is_err()); // Should not be accessible
+    assert!(env.lookup_str("offset").is_err()); // Should not be accessible
+
+    // Test let expressions that build on each other
+    let result = eval_source(
+        "(let ((x 1))
+           (let ((y (+ x 1)))
+             (let ((z (+ y 1)))
+               (list x y z))))",
+        &mut env,
+    )
+    .unwrap();
+
+    assert!(result.is_list());
+    let list = result.as_list().unwrap();
+    assert_eq!(list.len(), 3);
+    assert_eq!(list.get(0).unwrap().as_number().unwrap(), 1.0);
+    assert_eq!(list.get(1).unwrap().as_number().unwrap(), 2.0);
+    assert_eq!(list.get(2).unwrap().as_number().unwrap(), 3.0);
 }
 
 #[test]
