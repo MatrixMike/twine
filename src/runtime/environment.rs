@@ -198,6 +198,36 @@ impl<'a> Environment<'a> {
 
         None
     }
+
+    /// Flatten the environment chain into a single 'static environment
+    ///
+    /// Creates a new environment with all bindings from this environment
+    /// and its parent chain. This is useful for lambda closures where
+    /// we need to capture the environment without lifetime constraints.
+    pub fn flatten(&self) -> Environment<'static> {
+        let mut bindings = HashMap::new();
+        let mut current = Some(self);
+
+        // Traverse the environment chain and collect all bindings
+        // Inner scopes override outer scopes for shadowing
+        let mut levels = Vec::new();
+        while let Some(env) = current {
+            levels.push(env);
+            current = env.parent;
+        }
+
+        // Apply bindings from outermost to innermost to preserve shadowing
+        for env in levels.iter().rev() {
+            for (identifier, value) in &env.bindings {
+                bindings.insert(identifier.clone(), value.clone());
+            }
+        }
+
+        Environment {
+            bindings,
+            parent: None,
+        }
+    }
 }
 
 impl<'a> Default for Environment<'a> {
@@ -849,5 +879,174 @@ mod tests {
         assert!(closure_env.lookup_str("global_var").is_err());
         assert!(closure_env.lookup_str("local_var").is_err());
         assert!(closure_env.lookup_str("inner_var").is_err());
+    }
+
+    #[test]
+    fn test_environment_flatten() {
+        // Create a chain of environments to test flattening
+        let mut grandparent = Environment::new();
+        grandparent.define_str("gp_var", Value::number(1.0));
+        grandparent.define_str("shared", Value::string("grandparent"));
+
+        let mut parent = Environment::new_scope(&grandparent);
+        parent.define_str("parent_var", Value::number(2.0));
+        parent.define_str("shared", Value::string("parent")); // Shadows grandparent
+
+        let mut child = Environment::new_scope(&parent);
+        child.define_str("child_var", Value::number(3.0));
+        child.define_str("shared", Value::string("child")); // Shadows parent
+
+        // Flatten the child environment
+        let flattened = child.flatten();
+
+        // Verify that all bindings are present
+        assert_eq!(
+            flattened.lookup_str("gp_var").unwrap().as_number().unwrap(),
+            1.0
+        );
+        assert_eq!(
+            flattened
+                .lookup_str("parent_var")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            2.0
+        );
+        assert_eq!(
+            flattened
+                .lookup_str("child_var")
+                .unwrap()
+                .as_number()
+                .unwrap(),
+            3.0
+        );
+
+        // Verify that shadowing is preserved (innermost wins)
+        assert_eq!(
+            flattened.lookup_str("shared").unwrap().as_string().unwrap(),
+            "child"
+        );
+
+        // Verify that the flattened environment has no parent
+        assert!(flattened.parent().is_none());
+
+        // Verify that the flattened environment has the correct number of bindings
+        assert_eq!(flattened.len(), 4); // gp_var, parent_var, child_var, shared
+
+        // Verify that the flattened environment contains all expected keys
+        assert!(flattened.contains_str("gp_var"));
+        assert!(flattened.contains_str("parent_var"));
+        assert!(flattened.contains_str("child_var"));
+        assert!(flattened.contains_str("shared"));
+
+        // Verify that unbound identifiers still return errors
+        assert!(flattened.lookup_str("nonexistent").is_err());
+    }
+
+    #[test]
+    fn test_environment_flatten_empty_chain() {
+        // Test flattening an empty environment
+        let env = Environment::new();
+        let flattened = env.flatten();
+
+        assert!(flattened.is_empty());
+        assert!(flattened.parent().is_none());
+        assert_eq!(flattened.len(), 0);
+    }
+
+    #[test]
+    fn test_environment_flatten_single_level() {
+        // Test flattening a single-level environment (no parent)
+        let mut env = Environment::new();
+        env.define_str("var1", Value::number(42.0));
+        env.define_str("var2", Value::string("test"));
+
+        let flattened = env.flatten();
+
+        assert_eq!(flattened.len(), 2);
+        assert!(flattened.parent().is_none());
+        assert_eq!(
+            flattened.lookup_str("var1").unwrap().as_number().unwrap(),
+            42.0
+        );
+        assert_eq!(
+            flattened.lookup_str("var2").unwrap().as_string().unwrap(),
+            "test"
+        );
+    }
+
+    #[test]
+    fn test_environment_flatten_preserves_shadowing_order() {
+        // Test that flattening preserves correct shadowing behavior
+        // where inner scopes override outer scopes
+        let mut outer = Environment::new();
+        outer.define_str("x", Value::number(1.0));
+        outer.define_str("y", Value::number(10.0));
+
+        let mut middle = Environment::new_scope(&outer);
+        middle.define_str("x", Value::number(2.0)); // Shadows outer x
+        middle.define_str("z", Value::number(20.0));
+
+        let mut inner = Environment::new_scope(&middle);
+        inner.define_str("x", Value::number(3.0)); // Shadows middle x
+        inner.define_str("w", Value::number(30.0));
+
+        let flattened = inner.flatten();
+
+        // x should have the innermost value (3.0)
+        assert_eq!(flattened.lookup_str("x").unwrap().as_number().unwrap(), 3.0);
+        // y should come from outer scope
+        assert_eq!(
+            flattened.lookup_str("y").unwrap().as_number().unwrap(),
+            10.0
+        );
+        // z should come from middle scope
+        assert_eq!(
+            flattened.lookup_str("z").unwrap().as_number().unwrap(),
+            20.0
+        );
+        // w should come from inner scope
+        assert_eq!(
+            flattened.lookup_str("w").unwrap().as_number().unwrap(),
+            30.0
+        );
+
+        assert_eq!(flattened.len(), 4);
+        assert!(flattened.parent().is_none());
+    }
+
+    #[test]
+    fn test_environment_flatten_with_complex_values() {
+        // Test flattening with various value types
+        let mut parent = Environment::new();
+        parent.define_str("number", Value::number(42.0));
+        parent.define_str("boolean", Value::boolean(true));
+        parent.define_str("list", Value::List(crate::types::List::new()));
+
+        let mut child = Environment::new_scope(&parent);
+        child.define_str("string", Value::string("hello"));
+        child.define_str("symbol", Value::symbol("test-symbol"));
+
+        let flattened = child.flatten();
+
+        assert_eq!(flattened.len(), 5);
+        assert!(flattened.lookup_str("number").unwrap().is_number());
+        assert!(flattened.lookup_str("boolean").unwrap().is_boolean());
+        assert!(flattened.lookup_str("list").unwrap().is_list());
+        assert!(flattened.lookup_str("string").unwrap().is_string());
+        assert!(flattened.lookup_str("symbol").unwrap().is_symbol());
+    }
+
+    #[test]
+    fn test_environment_flatten_static_lifetime() {
+        // Test that flatten returns Environment<'static>
+        let mut env = Environment::new();
+        env.define_str("test", Value::number(123.0));
+
+        let flattened = env.flatten();
+
+        // This should compile without lifetime issues
+        fn takes_static_env(_env: Environment<'static>) {}
+        takes_static_env(flattened);
     }
 }

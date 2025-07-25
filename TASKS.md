@@ -554,25 +554,63 @@ runtime/
 - Parameter lists and body storage ✅
 - Closure capture implementation ✅
 
-#### T3.1.2: Implement `lambda` special form
+#### T3.1.2: Implement `lambda` special form ✅
 **Deliverables**:
-- Lambda expression parsing and evaluation
-- Closure creation with environment capture
-- Parameter binding logic
+- Lambda expression parsing and evaluation ✅
+- Closure creation with environment capture ✅
+- Parameter binding logic ✅
 
-**File Structure Note**: This task should expand the special_forms directory:
+**Implementation Details**:
+- Created `lambda.rs` module in `special_forms/`
+- Added `Lambda` variant to `SpecialForm` enum
+- Implemented `eval_lambda` function with comprehensive parameter validation
+- Added environment flattening for closure capture (resolves lifetime constraints)
+- Comprehensive test coverage including edge cases and error conditions
+- Integration tests verify end-to-end lambda creation functionality
+
+**File Structure Updated**:
 ```
 runtime/
 ├── special_forms/
-│   ├── mod.rs          # dispatch (update to include lambda)
+│   ├── mod.rs          # dispatch (updated to include lambda) ✅
 │   ├── control_flow.rs # if
 │   ├── binding.rs      # define, let
-│   └── function.rs     # lambda
+│   └── lambda.rs       # lambda ✅
 └── builtins/
     ├── mod.rs          # dispatch
     ├── arithmetic.rs   # +, -, *, /, =, <, >, etc.
     ├── list.rs         # car, cdr, cons, list, null?
     └── predicates.rs   # number?, boolean?, string?, etc.
+```
+
+**Tests Added**:
+```
+lambda::tests::test_lambda_no_parameters ✅
+lambda::tests::test_lambda_single_parameter ✅ 
+lambda::tests::test_lambda_multiple_parameters ✅
+lambda::tests::test_lambda_environment_capture ✅
+lambda::tests::test_lambda_arity_errors ✅
+lambda::tests::test_lambda_parameter_validation_errors ✅
+lambda::tests::test_lambda_duplicate_parameters ✅
+lambda::tests::test_lambda_parameter_list_parsing ✅
+lambda::tests::test_validate_parameters ✅
+lambda::tests::test_lambda_edge_cases ✅
+lambda::tests::test_lambda_procedure_display ✅
+lambda::tests::test_lambda_with_keyword_parameter_names ✅
+special_forms::tests::test_dispatch_lambda_special_form ✅
+```
+
+**Integration Tests**:
+```
+test_integration_lambda_creation_basic ✅
+test_integration_lambda_creation_no_parameters ✅
+test_integration_lambda_creation_multiple_parameters ✅
+test_integration_lambda_environment_capture ✅
+test_integration_lambda_error_cases ✅
+test_integration_lambda_with_define ✅
+test_integration_lambda_nested_environments ✅
+test_integration_lambda_complex_body ✅
+test_integration_lambda_with_special_form_names ✅
 ```
 
 #### T3.1.3: Implement function application
@@ -1066,14 +1104,14 @@ cargo fmt --check            # Formatting verification
 ## Progress Tracking
 
 ### Overall Status
-**Current Phase**: Phase 2 (Basic Interpreter)
-**Overall Progress**: 35% (28/81 tasks completed)
+**Current Phase**: Phase 3 (Advanced Language Features)
+**Overall Progress**: 36% (29/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
-- **Phase 2**: ☐ 85% (17/20 tasks) - Basic Interpreter (Section 2.4 COMPLETE)
-- **Phase 3**: ☐ 5% (1/20 tasks) - Advanced Features (Section 3.1 in progress)
+- **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
+- **Phase 3**: ☐ 10% (2/20 tasks) - Advanced Features (Section 3.1 in progress)
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
@@ -1110,11 +1148,12 @@ cargo fmt --check            # Formatting verification
 - ✅ T2.4.2: Implement `let` binding forms
 - ✅ T2.4.3: Create identifier binding tests
 - ✅ T3.1.1: Implement `Procedure` enum
+- ✅ T3.1.2: Implement `lambda` special form
 
 ### Immediate Next Steps
-1. **T3.1.2**: Implement `lambda` special form (🔥 Priority - Continue Phase 3.1 Function System)
-2. **T3.1.3**: Implement function application
-3. **T3.1.4**: Implement tail call optimization
+1. **T3.1.3**: Implement function application (🔥 Priority - Continue Phase 3.1 Function System)
+2. **T3.1.4**: Implement tail call optimization
+3. **T3.1.5**: Create function system tests
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

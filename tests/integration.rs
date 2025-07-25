@@ -6,6 +6,8 @@
 //! runtime environment components.
 
 use twine_scheme::Result;
+use twine_scheme::runtime::Environment;
+use twine_scheme::types::{Symbol, Value};
 
 // Helper function for end-to-end evaluation testing
 fn eval_source(
@@ -1139,4 +1141,196 @@ fn test_integration_comprehensive_evaluation() {
     assert_eq!(list.get(0).unwrap().as_number().unwrap(), 15.0); // 5 + 10
     assert_eq!(list.get(1).unwrap().as_number().unwrap(), 50.0); // 5 * 10
     assert_eq!(list.get(2).unwrap().as_number().unwrap(), 20.0); // 100 / 5
+}
+
+#[test]
+fn test_integration_lambda_creation_basic() {
+    let mut env = Environment::new();
+
+    // Test basic lambda creation: (lambda (x) x)
+    let identity_lambda = "(lambda (x) x)";
+    let result = eval_source(identity_lambda, &mut env).unwrap();
+
+    assert!(result.is_procedure());
+    let proc = result.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+    assert_eq!(proc.arity(), Some(1));
+    assert_eq!(proc.name(), "<lambda>");
+}
+
+#[test]
+fn test_integration_lambda_creation_no_parameters() {
+    let mut env = Environment::new();
+
+    // Test lambda with no parameters: (lambda () 42)
+    let constant_lambda = "(lambda () 42)";
+    let result = eval_source(constant_lambda, &mut env).unwrap();
+
+    assert!(result.is_procedure());
+    let proc = result.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+    assert_eq!(proc.arity(), Some(0));
+}
+
+#[test]
+fn test_integration_lambda_creation_multiple_parameters() {
+    let mut env = Environment::new();
+
+    // Test lambda with multiple parameters: (lambda (x y z) (+ x y z))
+    let multi_param_lambda = "(lambda (x y z) (+ x y z))";
+    let result = eval_source(multi_param_lambda, &mut env).unwrap();
+
+    assert!(result.is_procedure());
+    let proc = result.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+    assert_eq!(proc.arity(), Some(3));
+}
+
+#[test]
+fn test_integration_lambda_environment_capture() {
+    let mut env = Environment::new();
+
+    // Define a value in the environment
+    let define_expr = "(define outer-value 100)";
+    eval_source(define_expr, &mut env).unwrap();
+
+    // Create lambda that references the outer value
+    let capturing_lambda = "(lambda (x) (+ x outer-value))";
+    let result = eval_source(capturing_lambda, &mut env).unwrap();
+
+    assert!(result.is_procedure());
+    let proc = result.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+
+    // Verify the lambda captured the environment
+    let captured_env = proc.env().unwrap();
+    let captured_value = captured_env.lookup(&Symbol::new("outer-value")).unwrap();
+    assert_eq!(captured_value.as_number().unwrap(), 100.0);
+}
+
+#[test]
+fn test_integration_lambda_error_cases() {
+    let mut env = Environment::new();
+
+    // Test lambda with wrong arity
+    let wrong_arity = "(lambda)";
+    let result = eval_source(wrong_arity, &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("lambda: expected 2 arguments")
+    );
+
+    // Test lambda with non-list parameter
+    let invalid_params = "(lambda x 42)";
+    let result = eval_source(invalid_params, &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("parameters must be enclosed in parentheses")
+    );
+
+    // Test lambda with duplicate parameters
+    let duplicate_params = "(lambda (x x) 42)";
+    let result = eval_source(duplicate_params, &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("duplicate parameter")
+    );
+
+    // Test lambda with non-symbol parameter
+    let non_symbol_param = "(lambda (42) x)";
+    let result = eval_source(non_symbol_param, &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("parameter must be a symbol")
+    );
+}
+
+#[test]
+fn test_integration_lambda_with_define() {
+    let mut env = Environment::new();
+
+    // Define a lambda procedure
+    let define_lambda = "(define square (lambda (x) (* x x)))";
+    let result = eval_source(define_lambda, &mut env).unwrap();
+    assert_eq!(result, Value::Nil);
+
+    // Verify the lambda was stored correctly
+    let square_proc = env.lookup(&Symbol::new("square")).unwrap();
+    assert!(square_proc.is_procedure());
+    let proc = square_proc.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+    assert_eq!(proc.arity(), Some(1));
+}
+
+#[test]
+fn test_integration_lambda_nested_environments() {
+    let mut env = Environment::new();
+
+    // Create nested environments with lambda
+    let nested_expr = r#"
+        (let ((outer 10))
+          (lambda (x)
+            (let ((inner 5))
+              (+ x outer inner))))
+    "#;
+
+    let result = eval_source(nested_expr, &mut env).unwrap();
+    assert!(result.is_procedure());
+    let proc = result.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+
+    // The lambda should capture the lexical environment
+    let captured_env = proc.env().unwrap();
+    let outer_value = captured_env.lookup(&Symbol::new("outer")).unwrap();
+    assert_eq!(outer_value.as_number().unwrap(), 10.0);
+}
+
+#[test]
+fn test_integration_lambda_complex_body() {
+    let mut env = Environment::new();
+
+    // Test lambda with complex body expression
+    let complex_lambda = r#"
+        (lambda (x)
+          (if (> x 0)
+            (* x 2)
+            (- x)))
+    "#;
+
+    let result = eval_source(complex_lambda, &mut env).unwrap();
+    assert!(result.is_procedure());
+    let proc = result.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+    assert_eq!(proc.arity(), Some(1));
+}
+
+#[test]
+fn test_integration_lambda_with_special_form_names() {
+    let mut env = Environment::new();
+
+    // Lambda can use special form names as parameter names
+    let special_names_lambda = "(lambda (if define lambda) (+ if define lambda))";
+    let result = eval_source(special_names_lambda, &mut env).unwrap();
+
+    assert!(result.is_procedure());
+    let proc = result.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+    assert_eq!(proc.arity(), Some(3));
+
+    let params = proc.params().unwrap();
+    assert_eq!(params[0], Symbol::new("if"));
+    assert_eq!(params[1], Symbol::new("define"));
+    assert_eq!(params[2], Symbol::new("lambda"));
 }

@@ -23,6 +23,9 @@ pub enum SpecialForm {
     Define,
     Let,
 
+    // Function creation
+    Lambda,
+
     // Concurrency forms
     Async,
 }
@@ -34,6 +37,7 @@ impl SpecialForm {
             SpecialForm::If => "if",
             SpecialForm::Define => "define",
             SpecialForm::Let => "let",
+            SpecialForm::Lambda => "lambda",
             SpecialForm::Async => "async",
         }
     }
@@ -44,6 +48,7 @@ impl SpecialForm {
             SpecialForm::If => control_flow::eval_if(args, env),
             SpecialForm::Define => binding::eval_define(args, env),
             SpecialForm::Let => binding::eval_let(args, env),
+            SpecialForm::Lambda => lambda::eval_lambda(args, env),
             SpecialForm::Async => concurrency::eval_async(args, env),
         }
     }
@@ -54,6 +59,7 @@ impl SpecialForm {
             "if" => Some(SpecialForm::If),
             "define" => Some(SpecialForm::Define),
             "let" => Some(SpecialForm::Let),
+            "lambda" => Some(SpecialForm::Lambda),
             "async" => Some(SpecialForm::Async),
             _ => None,
         }
@@ -63,6 +69,7 @@ impl SpecialForm {
 pub mod binding;
 pub mod concurrency;
 pub mod control_flow;
+pub mod lambda;
 
 /// Dispatch a special form evaluation
 ///
@@ -147,8 +154,8 @@ mod tests {
         let result = dispatch("unknown-form", &args, &mut env);
         assert!(result.is_none());
 
-        // Test with future special form that doesn't exist yet
-        let result = dispatch("lambda", &args, &mut env);
+        // Test with unknown special form that doesn't exist
+        let result = dispatch("unknown-future-form", &args, &mut env);
         assert!(result.is_none());
     }
 
@@ -166,6 +173,25 @@ mod tests {
 
         let result = dispatch("let", &args, &mut env).unwrap().unwrap();
         assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_dispatch_lambda_special_form() {
+        let mut env = Environment::new();
+
+        // Test lambda special form dispatch: (lambda (x) x)
+        let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
+        let body = Expression::atom(Value::symbol("x"));
+        let args = vec![params, body];
+
+        let result = dispatch("lambda", &args, &mut env).unwrap().unwrap();
+        if let Value::Procedure(proc) = result {
+            assert!(proc.is_lambda());
+            assert_eq!(proc.arity(), Some(1));
+            assert_eq!(proc.name(), "<lambda>");
+        } else {
+            panic!("Expected lambda procedure");
+        }
     }
 
     #[test]
@@ -191,6 +217,7 @@ mod tests {
         assert_eq!(SpecialForm::If.name(), "if");
         assert_eq!(SpecialForm::Define.name(), "define");
         assert_eq!(SpecialForm::Let.name(), "let");
+        assert_eq!(SpecialForm::Lambda.name(), "lambda");
         assert_eq!(SpecialForm::Async.name(), "async");
     }
 
@@ -199,12 +226,13 @@ mod tests {
         assert_eq!(SpecialForm::from_name("if"), Some(SpecialForm::If));
         assert_eq!(SpecialForm::from_name("define"), Some(SpecialForm::Define));
         assert_eq!(SpecialForm::from_name("let"), Some(SpecialForm::Let));
+        assert_eq!(SpecialForm::from_name("lambda"), Some(SpecialForm::Lambda));
         assert_eq!(SpecialForm::from_name("async"), Some(SpecialForm::Async));
 
         // Test unknown names
         assert_eq!(SpecialForm::from_name("unknown"), None);
         assert_eq!(SpecialForm::from_name(""), None);
-        assert_eq!(SpecialForm::from_name("lambda"), None);
+        assert_eq!(SpecialForm::from_name("unknown-form"), None);
     }
 
     #[test]
@@ -238,6 +266,18 @@ mod tests {
         let args = vec![bindings, body];
         let result = SpecialForm::Let.call(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(100.0));
+
+        // Test lambda special form
+        let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
+        let body = Expression::atom(Value::symbol("x"));
+        let args = vec![params, body];
+        let result = SpecialForm::Lambda.call(&args, &mut env).unwrap();
+        if let Value::Procedure(proc) = result {
+            assert!(proc.is_lambda());
+            assert_eq!(proc.arity(), Some(1));
+        } else {
+            panic!("Expected lambda procedure");
+        }
     }
 
     #[test]
@@ -279,6 +319,7 @@ mod tests {
         assert!(set.contains(&SpecialForm::If));
         assert!(set.contains(&SpecialForm::Define));
         assert!(!set.contains(&SpecialForm::Let));
+        assert!(!set.contains(&SpecialForm::Lambda));
     }
 
     #[test]
