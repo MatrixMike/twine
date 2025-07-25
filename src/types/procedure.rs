@@ -3,17 +3,9 @@
 //! This module implements the procedure system for Scheme functions,
 //! including built-in procedures and user-defined lambdas with closures.
 
-use crate::error::Result;
 use crate::parser::Expression;
-use crate::runtime::Environment;
-use crate::types::{Symbol, Value};
-use smol_str::SmolStr;
-
-/// Function signature for built-in procedures
-///
-/// Built-in procedures take a slice of evaluated arguments and return a Result.
-/// This enables proper error handling and integration with the evaluation system.
-pub type BuiltinFn = fn(&[Value]) -> Result<Value>;
+use crate::runtime::{Environment, builtins::Builtin};
+use crate::types::Symbol;
 
 /// Procedure types in Scheme
 ///
@@ -23,14 +15,9 @@ pub type BuiltinFn = fn(&[Value]) -> Result<Value>;
 pub enum Procedure {
     /// Built-in procedure implemented in Rust
     ///
-    /// Built-in procedures are native Rust functions that implement
-    /// core Scheme functionality like arithmetic, list operations, and I/O.
-    Builtin {
-        /// Display name of the procedure for error messages and debugging
-        name: SmolStr,
-        /// Rust function implementing the procedure
-        function: BuiltinFn,
-    },
+    /// Built-in procedures are represented by a Builtin enum variant,
+    /// eliminating the need to store redundant name and function pointer data.
+    Builtin(Builtin),
 
     /// User-defined lambda procedure with closure
     ///
@@ -52,16 +39,12 @@ impl Procedure {
     /// Create a new built-in procedure
     ///
     /// # Arguments
-    /// * `name` - Display name for the procedure
-    /// * `function` - Rust function implementing the procedure
+    /// * `builtin` - The specific builtin procedure variant
     ///
     /// # Returns
     /// A new `Procedure::Builtin` instance
-    pub fn builtin(name: &str, function: BuiltinFn) -> Self {
-        Procedure::Builtin {
-            name: SmolStr::new(name),
-            function,
-        }
+    pub fn builtin(builtin: Builtin) -> Self {
+        Procedure::Builtin(builtin)
     }
 
     /// Create a new lambda procedure
@@ -87,14 +70,14 @@ impl Procedure {
     /// For lambda procedures, returns a generic lambda description.
     pub fn name(&self) -> &str {
         match self {
-            Procedure::Builtin { name, .. } => name.as_str(),
+            Procedure::Builtin(builtin) => builtin.name(),
             Procedure::Lambda { .. } => "<lambda>",
         }
     }
 
     /// Check if this is a built-in procedure
     pub fn is_builtin(&self) -> bool {
-        matches!(self, Procedure::Builtin { .. })
+        matches!(self, Procedure::Builtin(_))
     }
 
     /// Check if this is a lambda procedure
@@ -109,7 +92,7 @@ impl Procedure {
     /// For lambda procedures, returns the parameter count.
     pub fn arity(&self) -> Option<usize> {
         match self {
-            Procedure::Builtin { .. } => None, // Arity varies for built-ins
+            Procedure::Builtin(_) => None, // Arity varies for built-ins
             Procedure::Lambda { params, .. } => Some(params.len()),
         }
     }
@@ -117,7 +100,7 @@ impl Procedure {
     /// Get a reference to the parameters (lambda procedures only)
     pub fn params(&self) -> Option<&[Symbol]> {
         match self {
-            Procedure::Builtin { .. } => None,
+            Procedure::Builtin(_) => None,
             Procedure::Lambda { params, .. } => Some(params),
         }
     }
@@ -125,7 +108,7 @@ impl Procedure {
     /// Get a reference to the body expression (lambda procedures only)
     pub fn body(&self) -> Option<&Expression> {
         match self {
-            Procedure::Builtin { .. } => None,
+            Procedure::Builtin(_) => None,
             Procedure::Lambda { body, .. } => Some(body.as_ref()),
         }
     }
@@ -133,7 +116,7 @@ impl Procedure {
     /// Get a reference to the captured environment (lambda procedures only)
     pub fn env(&self) -> Option<&Environment<'static>> {
         match self {
-            Procedure::Builtin { .. } => None,
+            Procedure::Builtin(_) => None,
             Procedure::Lambda { env, .. } => Some(env),
         }
     }
@@ -142,11 +125,8 @@ impl Procedure {
 impl PartialEq for Procedure {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            // Built-in procedures are equal if they have the same name
-            // (function pointers are not easily comparable)
-            (Procedure::Builtin { name: name1, .. }, Procedure::Builtin { name: name2, .. }) => {
-                name1 == name2
-            }
+            // Built-in procedures are equal if they have the same kind
+            (Procedure::Builtin(kind1), Procedure::Builtin(kind2)) => kind1 == kind2,
 
             // Lambda procedures are equal if they have the same parameters and body
             // (environments are not easily comparable)
@@ -174,7 +154,7 @@ impl PartialEq for Procedure {
 impl std::fmt::Display for Procedure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Procedure::Builtin { name, .. } => write!(f, "#<builtin:{}>", name),
+            Procedure::Builtin(builtin) => write!(f, "#<builtin:{}>", builtin.name()),
             Procedure::Lambda { params, .. } => {
                 write!(f, "#<lambda:")?;
                 for (i, param) in params.iter().enumerate() {
@@ -194,21 +174,13 @@ mod tests {
     use super::*;
     use crate::types::Value;
 
-    // Sample builtin function for testing
-    fn sample_builtin(args: &[Value]) -> Result<Value> {
-        if args.len() != 1 {
-            return Err(crate::Error::runtime_error("Expected 1 argument"));
-        }
-        Ok(args[0].clone())
-    }
-
     #[test]
     fn test_builtin_procedure_creation() {
-        let proc = Procedure::builtin("identity", sample_builtin);
+        let proc = Procedure::builtin(Builtin::Add);
 
         assert!(proc.is_builtin());
         assert!(!proc.is_lambda());
-        assert_eq!(proc.name(), "identity");
+        assert_eq!(proc.name(), "+");
         assert_eq!(proc.arity(), None); // Built-ins don't report arity
     }
 
@@ -232,7 +204,7 @@ mod tests {
     #[test]
     fn test_procedure_accessors() {
         // Test builtin accessors
-        let builtin = Procedure::builtin("test", sample_builtin);
+        let builtin = Procedure::builtin(Builtin::Add);
         assert!(builtin.params().is_none());
         assert!(builtin.body().is_none());
         assert!(builtin.env().is_none());
@@ -250,13 +222,13 @@ mod tests {
 
     #[test]
     fn test_procedure_equality() {
-        // Same name built-ins are equal
-        let builtin1 = Procedure::builtin("add", sample_builtin);
-        let builtin2 = Procedure::builtin("add", sample_builtin);
+        // Same kind built-ins are equal
+        let builtin1 = Procedure::builtin(Builtin::Add);
+        let builtin2 = Procedure::builtin(Builtin::Add);
         assert_eq!(builtin1, builtin2);
 
-        // Different name built-ins are not equal
-        let builtin3 = Procedure::builtin("sub", sample_builtin);
+        // Different kind built-ins are not equal
+        let builtin3 = Procedure::builtin(Builtin::Subtract);
         assert_ne!(builtin1, builtin3);
 
         // Same lambda procedures are equal
@@ -280,8 +252,8 @@ mod tests {
 
     #[test]
     fn test_procedure_display() {
-        let builtin = Procedure::builtin("add", sample_builtin);
-        assert_eq!(format!("{}", builtin), "#<builtin:add>");
+        let builtin = Procedure::builtin(Builtin::Add);
+        assert_eq!(format!("{}", builtin), "#<builtin:+>");
 
         let params = vec![Symbol::new("x"), Symbol::new("y")];
         let body = Expression::atom(Value::symbol("x"));
@@ -299,10 +271,10 @@ mod tests {
 
     #[test]
     fn test_procedure_debug_output() {
-        let builtin = Procedure::builtin("test", sample_builtin);
+        let builtin = Procedure::builtin(Builtin::Add);
         let debug_output = format!("{:?}", builtin);
         assert!(debug_output.contains("Builtin"));
-        assert!(debug_output.contains("test"));
+        assert!(debug_output.contains("Add"));
 
         let params = vec![Symbol::new("x")];
         let body = Expression::atom(Value::symbol("x"));
@@ -317,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_procedure_clone() {
-        let builtin = Procedure::builtin("test", sample_builtin);
+        let builtin = Procedure::builtin(Builtin::Add);
         let builtin_clone = builtin.clone();
         assert_eq!(builtin, builtin_clone);
 
@@ -328,4 +300,6 @@ mod tests {
         let lambda_clone = lambda.clone();
         assert_eq!(lambda, lambda_clone);
     }
+
+    // Tests for the Builtin enum are now in the builtins module
 }

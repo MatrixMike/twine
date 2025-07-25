@@ -39,7 +39,7 @@ mod tests {
         let _string: ArcString = ArcString::new("test");
         let _symbol: Symbol = Symbol::new("test");
         let _list: List = List::new();
-        let _proc: Procedure = Procedure::builtin("test", |_| Ok(Value::nil()));
+        let _proc: Procedure = Procedure::builtin(crate::runtime::builtins::Builtin::Add);
         let _value: Value = Value::nil();
 
         // Test that types work together

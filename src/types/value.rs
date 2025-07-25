@@ -112,8 +112,8 @@ impl Value {
     }
 
     /// Create a new builtin procedure value
-    pub fn builtin_procedure(name: &str, function: super::procedure::BuiltinFn) -> Self {
-        Value::Procedure(Procedure::builtin(name, function))
+    pub fn builtin_procedure(builtin: crate::runtime::builtins::Builtin) -> Self {
+        Value::Procedure(Procedure::builtin(builtin))
     }
 
     /// Create the nil value
@@ -780,34 +780,29 @@ mod tests {
     #[test]
     fn test_procedure_value_creation() {
         // Test builtin procedure creation
-        fn sample_builtin(args: &[Value]) -> crate::error::Result<Value> {
-            Ok(Value::number(args.len() as f64))
-        }
+        use crate::runtime::builtins::Builtin;
 
-        let builtin = Value::builtin_procedure("test", sample_builtin);
+        let builtin = Value::builtin_procedure(Builtin::Add);
         assert!(builtin.is_procedure());
         assert!(!builtin.is_number());
         assert_eq!(builtin.type_name(), "procedure");
 
         // Test procedure creation from Procedure
-        let proc = Procedure::builtin("add", sample_builtin);
+        let proc = Procedure::builtin(Builtin::Add);
         let proc_value = Value::procedure(proc);
         assert!(proc_value.is_procedure());
-        assert_eq!(proc_value.type_name(), "procedure");
     }
 
     #[test]
     fn test_procedure_value_accessors() {
-        fn sample_builtin(_args: &[Value]) -> crate::error::Result<Value> {
-            Ok(Value::nil())
-        }
+        use crate::runtime::builtins::Builtin;
 
-        let builtin = Value::builtin_procedure("test", sample_builtin);
+        let builtin = Value::builtin_procedure(Builtin::Add);
 
         // Test procedure extraction
         let proc = builtin.as_procedure().unwrap();
         assert!(proc.is_builtin());
-        assert_eq!(proc.name(), "test");
+        assert_eq!(proc.name(), "+");
 
         // Test non-procedure returns None
         let number = Value::number(42.0);
@@ -816,12 +811,10 @@ mod tests {
 
     #[test]
     fn test_procedure_value_display() {
-        fn sample_builtin(_: &[Value]) -> crate::error::Result<Value> {
-            Ok(Value::nil())
-        }
+        use crate::runtime::builtins::Builtin;
 
-        let builtin = Value::builtin_procedure("add", sample_builtin);
-        assert_eq!(format!("{}", builtin), "#<builtin:add>");
+        let builtin = Value::builtin_procedure(Builtin::Add);
+        assert_eq!(format!("{}", builtin), "#<builtin:+>");
 
         // Test lambda procedure display
         let params = vec![Symbol::new("x")];
@@ -833,13 +826,11 @@ mod tests {
 
     #[test]
     fn test_procedure_value_equality() {
-        fn sample_builtin(_: &[Value]) -> crate::error::Result<Value> {
-            Ok(Value::nil())
-        }
+        use crate::runtime::builtins::Builtin;
 
-        let builtin1 = Value::builtin_procedure("add", sample_builtin);
-        let builtin2 = Value::builtin_procedure("add", sample_builtin);
-        let builtin3 = Value::builtin_procedure("sub", sample_builtin);
+        let builtin1 = Value::builtin_procedure(Builtin::Add);
+        let builtin2 = Value::builtin_procedure(Builtin::Add);
+        let builtin3 = Value::builtin_procedure(Builtin::Subtract);
 
         // Same name builtins are equal
         assert_eq!(builtin1, builtin2);
@@ -854,14 +845,11 @@ mod tests {
 
     #[test]
     fn test_procedure_value_thread_safety() {
+        use crate::runtime::builtins::Builtin;
         use std::sync::Arc;
         use std::thread;
 
-        fn sample_builtin(args: &[Value]) -> crate::error::Result<Value> {
-            Ok(Value::number(args.len() as f64))
-        }
-
-        let proc = Arc::new(Value::builtin_procedure("test", sample_builtin));
+        let proc = Arc::new(Value::builtin_procedure(Builtin::Add));
         let mut handles = vec![];
 
         // Test sharing procedure across threads
@@ -873,7 +861,7 @@ mod tests {
                 assert_eq!(proc_clone.type_name(), "procedure");
 
                 let extracted = proc_clone.as_procedure().unwrap();
-                assert_eq!(extracted.name(), "test");
+                assert_eq!(extracted.name(), "+");
                 assert!(extracted.is_builtin());
 
                 i
