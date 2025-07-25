@@ -71,24 +71,6 @@ pub mod concurrency;
 pub mod control_flow;
 pub mod lambda;
 
-/// Dispatch a special form evaluation
-///
-/// This function serves as the central dispatch point for all special forms.
-/// It returns `Some(result)` if the name corresponds to a special form, or
-/// `None` if the name is not a special form.
-///
-/// # Arguments
-/// * `name` - The special form name
-/// * `args` - The unevaluated argument expressions (special forms control evaluation)
-/// * `env` - The environment for evaluation context
-///
-/// # Returns
-/// * `Option<Result<Value>>` - Some(result) for special forms, None for unknown identifiers
-pub fn dispatch(name: &str, args: Vec<Expression>, env: &mut Environment) -> Option<Result<Value>> {
-    // Try to parse as a special form
-    SpecialForm::from_name(name).map(|special_form| special_form.call(args, env))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,31 +79,33 @@ mod tests {
     use crate::types::{Symbol, Value};
 
     #[test]
-    fn test_dispatch_if_special_form() {
+    fn test_if_special_form_direct() {
         let mut env = Environment::new();
 
-        // Test if special form dispatch
+        // Test if special form direct access
         let args = vec![
             Expression::atom(Value::boolean(true)),
             Expression::atom(Value::string("yes")),
             Expression::atom(Value::string("no")),
         ];
 
-        let result = dispatch("if", args, &mut env).unwrap().unwrap();
+        let special_form = SpecialForm::from_name("if").unwrap();
+        let result = special_form.call(args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
     }
 
     #[test]
-    fn test_dispatch_define_special_form() {
+    fn test_define_special_form_direct() {
         let mut env = Environment::new();
 
-        // Test define special form dispatch
+        // Test define special form direct access
         let args = vec![
             Expression::atom(Value::symbol("x")),
             Expression::atom(Value::number(42.0)),
         ];
 
-        let result = dispatch("define", args, &mut env).unwrap().unwrap();
+        let special_form = SpecialForm::from_name("define").unwrap();
+        let result = special_form.call(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created
@@ -129,13 +113,14 @@ mod tests {
     }
 
     #[test]
-    fn test_dispatch_async_special_form() {
+    fn test_async_special_form_direct() {
         let mut env = Environment::new();
 
-        // Test async special form dispatch - currently returns not implemented error
+        // Test async special form direct access - currently returns not implemented error
         let args = vec![Expression::atom(Value::number(42.0))];
 
-        let result = dispatch("async", args, &mut env).unwrap();
+        let special_form = SpecialForm::from_name("async").unwrap();
+        let result = special_form.call(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -146,24 +131,21 @@ mod tests {
     }
 
     #[test]
-    fn test_dispatch_unknown_special_form() {
-        let mut env = Environment::new();
-        let args = vec![Expression::atom(Value::number(1.0))];
-
+    fn test_unknown_special_form() {
         // Unknown special form should return None
-        let result = dispatch("unknown-form", args.clone(), &mut env);
+        let result = SpecialForm::from_name("unknown-form");
         assert!(result.is_none());
 
         // Test with unknown special form that doesn't exist
-        let result = dispatch("unknown-future-form", args, &mut env);
+        let result = SpecialForm::from_name("unknown-future-form");
         assert!(result.is_none());
     }
 
     #[test]
-    fn test_dispatch_let_special_form() {
+    fn test_let_special_form_direct() {
         let mut env = Environment::new();
 
-        // Test let special form dispatch: (let ((x 42)) x)
+        // Test let special form direct access: (let ((x 42)) x)
         let bindings = Expression::List(vec![Expression::List(vec![
             Expression::atom(Value::symbol("x")),
             Expression::atom(Value::number(42.0)),
@@ -171,20 +153,22 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
         let args = vec![bindings, body];
 
-        let result = dispatch("let", args, &mut env).unwrap().unwrap();
+        let special_form = SpecialForm::from_name("let").unwrap();
+        let result = special_form.call(args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
     }
 
     #[test]
-    fn test_dispatch_lambda_special_form() {
+    fn test_lambda_special_form_direct() {
         let mut env = Environment::new();
 
-        // Test lambda special form dispatch: (lambda (x) x)
+        // Test lambda special form direct access: (lambda (x) x)
         let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
         let body = Expression::atom(Value::symbol("x"));
         let args = vec![params, body];
 
-        let result = dispatch("lambda", args, &mut env).unwrap().unwrap();
+        let special_form = SpecialForm::from_name("lambda").unwrap();
+        let result = special_form.call(args, &mut env).unwrap();
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
             assert_eq!(proc.arity(), Some(1));
@@ -195,14 +179,15 @@ mod tests {
     }
 
     #[test]
-    fn test_dispatch_error_propagation() {
+    fn test_special_form_error_propagation() {
         let mut env = Environment::new();
 
         // Test that errors from special forms are properly propagated
         // if with wrong arity should error
         let args = vec![Expression::atom(Value::boolean(true))]; // Missing consequent and alternative
 
-        let result = dispatch("if", args, &mut env).unwrap();
+        let special_form = SpecialForm::from_name("if").unwrap();
+        let result = special_form.call(args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -343,21 +328,21 @@ mod tests {
     }
 
     #[test]
-    fn test_dispatch_uses_special_form_enum() {
+    fn test_special_form_enum_usage() {
         let mut env = Environment::new();
 
-        // Test that dispatch properly uses the SpecialForm enum internally
+        // Test that SpecialForm enum works correctly
         let args = vec![
             Expression::atom(Value::boolean(true)),
             Expression::atom(Value::string("yes")),
             Expression::atom(Value::string("no")),
         ];
-        let result = dispatch("if", args, &mut env).unwrap().unwrap();
+        let special_form = SpecialForm::from_name("if").unwrap();
+        let result = special_form.call(args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
 
         // Test that unknown special forms return None
-        let args = vec![Expression::atom(Value::boolean(true))];
-        let result = dispatch("unknown-form", args, &mut env);
+        let result = SpecialForm::from_name("unknown-form");
         assert!(result.is_none());
     }
 }

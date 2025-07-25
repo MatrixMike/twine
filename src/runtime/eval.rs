@@ -6,7 +6,7 @@
 
 use crate::error::{Error, Result};
 use crate::parser::Expression;
-use crate::types::{List, Value};
+use crate::types::{List, Symbol, Value};
 
 use super::{Environment, builtins, special_forms};
 
@@ -70,50 +70,69 @@ fn eval_list(elements: Vec<Expression>, env: &mut Environment) -> Result<Value> 
     }
 
     // Non-empty lists can be special forms or procedure calls
-    let first_expr = &elements[0];
-    let rest_exprs = &elements[1..];
+    let mut elements_iter = elements.into_iter();
+    let first_expr = elements_iter.next().unwrap();
+    let rest_exprs: Vec<Expression> = elements_iter.collect();
 
-    // Check if the first expression is a special form or procedure identifier
-    if let Expression::Atom(Value::Symbol(identifier)) = first_expr {
-        // Handle special forms first (these have special evaluation rules)
-        // Clone the rest_exprs for special forms since they need owned expressions
-        if let Some(result) = special_forms::dispatch(identifier.as_str(), rest_exprs.to_vec(), env)
-        {
-            return result;
+    match first_expr {
+        Expression::Atom(Value::Symbol(identifier)) => {
+            eval_symbol_call(identifier, rest_exprs, env)
         }
-
-        // Not a special form, try builtin procedures
-        // Evaluate all arguments for procedure calls
-        let mut args = Vec::new();
-        for arg_expr in rest_exprs {
-            args.push(eval(arg_expr.clone(), env)?);
-        }
-
-        // Handle builtin procedures through centralized dispatch
-        if let Some(result) = builtins::dispatch(identifier.as_str(), &args) {
-            result
-        } else {
-            // Not a builtin procedure, try to evaluate as normal procedure call
-            let _procedure = eval(first_expr.clone(), env)?;
-            Err(Error::runtime_error(&format!(
-                "Unknown procedure: '{identifier}'"
-            )))
-        }
-    } else {
-        // Evaluate the procedure expression and handle other types of procedures
-        let procedure = eval(first_expr.clone(), env)?;
-
-        // Evaluate all arguments
-        let mut args = Vec::new();
-        for arg_expr in rest_exprs {
-            args.push(eval(arg_expr.clone(), env)?);
-        }
-
-        Err(Error::runtime_error(&format!(
-            "Procedure call expects symbol, got {}",
-            procedure.type_name()
-        )))
+        first_expr => eval_complex_call(first_expr, rest_exprs, env),
     }
+}
+
+/// Evaluate a procedure call where the first element is a symbol
+fn eval_symbol_call(
+    identifier: Symbol,
+    rest_exprs: Vec<Expression>,
+    env: &mut Environment,
+) -> Result<Value> {
+    // Handle special forms first (these have special evaluation rules)
+    if let Some(special_form) = special_forms::SpecialForm::from_name(identifier.as_str()) {
+        return special_form.call(rest_exprs, env);
+    }
+
+    // Not a special form, try builtin procedures
+    let args = eval_arguments(rest_exprs, env)?;
+
+    // Handle builtin procedures through direct lookup
+    if let Some(builtin) = builtins::Builtin::from_name(identifier.as_str()) {
+        builtin.call(&args)
+    } else {
+        // Not a builtin procedure, try to evaluate as normal procedure call
+        let error_msg = format!("Unknown procedure: '{}'", identifier.as_str());
+        let first_expr_owned = Expression::Atom(Value::Symbol(identifier));
+        let _procedure = eval(first_expr_owned, env)?;
+        Err(Error::runtime_error(&error_msg))
+    }
+}
+
+/// Evaluate a procedure call where the first element is not a simple symbol
+fn eval_complex_call(
+    first_expr: Expression,
+    rest_exprs: Vec<Expression>,
+    env: &mut Environment,
+) -> Result<Value> {
+    // Evaluate the procedure expression and handle other types of procedures
+    let procedure = eval(first_expr, env)?;
+
+    // Evaluate all arguments
+    let _args = eval_arguments(rest_exprs, env)?;
+
+    Err(Error::runtime_error(&format!(
+        "Procedure call expects symbol, got {}",
+        procedure.type_name()
+    )))
+}
+
+/// Evaluate a list of argument expressions into values
+fn eval_arguments(exprs: Vec<Expression>, env: &mut Environment) -> Result<Vec<Value>> {
+    let mut args = Vec::new();
+    for expr in exprs {
+        args.push(eval(expr, env)?);
+    }
+    Ok(args)
 }
 
 /// Evaluate a quoted expression

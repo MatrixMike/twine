@@ -109,138 +109,135 @@ pub use arithmetic::{
 // Re-export list functions for convenience
 pub use list::{car, cdr, cons, list, null_p};
 
-/// Dispatch a builtin procedure call
-///
-/// This function serves as the central dispatch point for all builtin procedures.
-/// It returns `Some(result)` if the name corresponds to a builtin procedure, or
-/// `None` if the name is not a builtin.
-///
-/// # Arguments
-/// * `name` - The procedure name
-/// * `args` - The evaluated arguments to pass to the procedure
-///
-/// # Returns
-/// * `Option<Result<Value>>` - Some(result) for builtins, None for unknown names
-pub fn dispatch(name: &str, args: &[Value]) -> Option<Result<Value>> {
-    // Try to parse as a builtin procedure
-    Builtin::from_name(name).map(|builtin| builtin.call(args))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_dispatch_arithmetic_operations() {
+    fn test_builtin_arithmetic_operations() {
         // Test addition
-        let result = dispatch("+", &[Value::number(1.0), Value::number(2.0)])
-            .unwrap()
+        let builtin = Builtin::from_name("+").unwrap();
+        let result = builtin
+            .call(&[Value::number(1.0), Value::number(2.0)])
             .unwrap();
         assert_eq!(result.as_number().unwrap(), 3.0);
 
         // Test subtraction
-        let result = dispatch("-", &[Value::number(5.0), Value::number(3.0)])
-            .unwrap()
+        let builtin = Builtin::from_name("-").unwrap();
+        let result = builtin
+            .call(&[Value::number(5.0), Value::number(3.0)])
             .unwrap();
         assert_eq!(result.as_number().unwrap(), 2.0);
 
         // Test multiplication
-        let result = dispatch("*", &[Value::number(3.0), Value::number(4.0)])
-            .unwrap()
+        let builtin = Builtin::from_name("*").unwrap();
+        let result = builtin
+            .call(&[Value::number(3.0), Value::number(4.0)])
             .unwrap();
         assert_eq!(result.as_number().unwrap(), 12.0);
 
         // Test division
-        let result = dispatch("/", &[Value::number(8.0), Value::number(2.0)])
-            .unwrap()
+        let builtin = Builtin::from_name("/").unwrap();
+        let result = builtin
+            .call(&[Value::number(8.0), Value::number(2.0)])
             .unwrap();
         assert_eq!(result.as_number().unwrap(), 4.0);
     }
 
     #[test]
-    fn test_dispatch_comparison_operations() {
+    fn test_builtin_comparison_operations() {
         // Test equality
-        let result = dispatch("=", &[Value::number(5.0), Value::number(5.0)])
-            .unwrap()
+        let builtin = Builtin::from_name("=").unwrap();
+        let result = builtin
+            .call(&[Value::number(5.0), Value::number(5.0)])
             .unwrap();
         assert!(result.as_boolean().unwrap());
 
         // Test less than
-        let result = dispatch("<", &[Value::number(3.0), Value::number(5.0)])
-            .unwrap()
+        let builtin = Builtin::from_name("<").unwrap();
+        let result = builtin
+            .call(&[Value::number(3.0), Value::number(5.0)])
             .unwrap();
         assert!(result.as_boolean().unwrap());
 
         // Test greater than
-        let result = dispatch(">", &[Value::number(5.0), Value::number(3.0)])
-            .unwrap()
+        let builtin = Builtin::from_name(">").unwrap();
+        let result = builtin
+            .call(&[Value::number(5.0), Value::number(3.0)])
             .unwrap();
         assert!(result.as_boolean().unwrap());
 
         // Test less than or equal
-        let result = dispatch("<=", &[Value::number(3.0), Value::number(3.0)])
-            .unwrap()
+        let builtin = Builtin::from_name("<=").unwrap();
+        let result = builtin
+            .call(&[Value::number(3.0), Value::number(3.0)])
             .unwrap();
         assert!(result.as_boolean().unwrap());
 
         // Test greater than or equal
-        let result = dispatch(">=", &[Value::number(5.0), Value::number(3.0)])
-            .unwrap()
+        let builtin = Builtin::from_name(">=").unwrap();
+        let result = builtin
+            .call(&[Value::number(5.0), Value::number(3.0)])
             .unwrap();
         assert!(result.as_boolean().unwrap());
     }
 
     #[test]
-    fn test_dispatch_unknown_procedure() {
+    fn test_unknown_builtin_procedure() {
         // Unknown procedure should return None
-        let result = dispatch("unknown-proc", &[Value::number(1.0)]);
+        let result = Builtin::from_name("unknown-proc");
         assert!(result.is_none());
 
         // Test with unknown builtin
-        let result = dispatch("unknown-builtin", &[Value::number(1.0)]);
+        let result = Builtin::from_name("unknown-builtin");
         assert!(result.is_none());
     }
 
     #[test]
-    fn test_dispatch_error_propagation() {
+    fn test_builtin_error_propagation() {
         // Test that errors from builtin functions are properly propagated
-        let result = dispatch("+", &[Value::number(1.0), Value::string("not a number")]).unwrap();
+        let builtin = Builtin::from_name("+").unwrap();
+        let result = builtin.call(&[Value::number(1.0), Value::string("not a number")]);
         assert!(result.is_err());
 
         // Test arity errors
-        let result = dispatch("=", &[Value::number(1.0)]).unwrap();
+        let builtin = Builtin::from_name("=").unwrap();
+        let result = builtin.call(&[Value::number(1.0)]);
         assert!(result.is_err());
 
         // Test division by zero
-        let result = dispatch("/", &[Value::number(1.0), Value::number(0.0)]).unwrap();
+        let builtin = Builtin::from_name("/").unwrap();
+        let result = builtin.call(&[Value::number(1.0), Value::number(0.0)]);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_dispatch_list_operations() {
+    fn test_builtin_list_operations() {
         // Test car
         let list = Value::list(vec![Value::number(1.0), Value::number(2.0)]);
-        let result = dispatch("car", &[list]).unwrap().unwrap();
+        let builtin = Builtin::from_name("car").unwrap();
+        let result = builtin.call(&[list]).unwrap();
         assert_eq!(result, Value::number(1.0));
 
         // Test cdr
         let list = Value::list(vec![Value::number(1.0), Value::number(2.0)]);
-        let result = dispatch("cdr", &[list]).unwrap().unwrap();
+        let builtin = Builtin::from_name("cdr").unwrap();
+        let result = builtin.call(&[list]).unwrap();
         assert_eq!(result, Value::list(vec![Value::number(2.0)]));
 
         // Test cons
         let tail = Value::list(vec![Value::number(2.0)]);
-        let result = dispatch("cons", &[Value::number(1.0), tail])
-            .unwrap()
-            .unwrap();
+        let builtin = Builtin::from_name("cons").unwrap();
+        let result = builtin.call(&[Value::number(1.0), tail]).unwrap();
         assert_eq!(
             result,
             Value::list(vec![Value::number(1.0), Value::number(2.0)])
         );
 
         // Test list
-        let result = dispatch("list", &[Value::number(1.0), Value::string("hello")])
-            .unwrap()
+        let builtin = Builtin::from_name("list").unwrap();
+        let result = builtin
+            .call(&[Value::number(1.0), Value::string("hello")])
             .unwrap();
         assert_eq!(
             result,
@@ -249,11 +246,12 @@ mod tests {
 
         // Test null?
         let empty = Value::empty_list();
-        let result = dispatch("null?", &[empty]).unwrap().unwrap();
+        let builtin = Builtin::from_name("null?").unwrap();
+        let result = builtin.call(&[empty]).unwrap();
         assert_eq!(result, Value::boolean(true));
 
         let non_empty = Value::list(vec![Value::number(1.0)]);
-        let result = dispatch("null?", &[non_empty]).unwrap().unwrap();
+        let result = builtin.call(&[non_empty]).unwrap();
         assert_eq!(result, Value::boolean(false));
     }
 
@@ -420,15 +418,16 @@ mod tests {
     }
 
     #[test]
-    fn test_dispatch_uses_builtin_enum() {
-        // Test that dispatch properly uses the Builtin enum internally
-        let result = dispatch("+", &[Value::number(1.0), Value::number(2.0)])
-            .unwrap()
+    fn test_builtin_enum_usage() {
+        // Test that Builtin enum works correctly
+        let builtin = Builtin::from_name("+").unwrap();
+        let result = builtin
+            .call(&[Value::number(1.0), Value::number(2.0)])
             .unwrap();
         assert_eq!(result, Value::number(3.0));
 
         // Test that unknown procedures return None
-        let result = dispatch("unknown-builtin", &[Value::number(1.0)]);
+        let result = Builtin::from_name("unknown-builtin");
         assert!(result.is_none());
     }
 }
