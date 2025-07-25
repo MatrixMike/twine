@@ -268,6 +268,13 @@ pub struct ArcString(Arc<String>);
   1. End-to-end tests for user-facing functionality and acceptance criteria
   2. Module integration tests for component interaction verification
   3. Unit tests for implementation details and edge cases
+- **Test Quality Standards**:
+  - **No Print-Only Tests**: Don't write tests that just print output without performing logic or assertions
+  - **Use Real Assertions**: Tests should verify expected behavior with proper assertions
+- **Temporary File Management**:
+  - **Clean Up After Use**: Always delete temporary test files or binary files after using them
+  - **No Abandoned Files**: Don't leave temporary `tests/*.rs` or `src/bin/*.rs` files in the repository
+  - **Development Hygiene**: Remove experimental code files when done exploring or debugging
 
 ---
 
