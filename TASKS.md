@@ -547,12 +547,12 @@ runtime/
 
 ### 3.1 Function Definition and Application
 
-#### T3.1.1: Implement `Procedure` enum
+#### T3.1.1: Implement `Procedure` enum ✅
 **Prerequisites**: Identifier binding complete
 **Deliverables**:
-- Create `Builtin` and `Lambda` variants
-- Parameter lists and body storage
-- Closure capture implementation
+- Create `Builtin` and `Lambda` variants ✅
+- Parameter lists and body storage ✅
+- Closure capture implementation ✅
 
 #### T3.1.2: Implement `lambda` special form
 **Deliverables**:
@@ -1067,13 +1067,13 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 2 (Basic Interpreter)
-**Overall Progress**: 33% (27/81 tasks completed)
+**Overall Progress**: 35% (28/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ☐ 85% (17/20 tasks) - Basic Interpreter (Section 2.4 COMPLETE)
-- **Phase 3**: ☐ 0% (0/20 tasks) - Advanced Features
+- **Phase 3**: ☐ 5% (1/20 tasks) - Advanced Features (Section 3.1 in progress)
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
@@ -1109,11 +1109,12 @@ cargo fmt --check            # Formatting verification
 - ✅ T2.4.1: Implement `define` special form
 - ✅ T2.4.2: Implement `let` binding forms
 - ✅ T2.4.3: Create identifier binding tests
+- ✅ T3.1.1: Implement `Procedure` enum
 
 ### Immediate Next Steps
-1. **T3.1.1**: Implement `Procedure` enum (🔥 Priority - Begin Phase 3.1 Function System)
-2. **T3.1.2**: Implement `lambda` special form
-3. **T3.1.3**: Implement function application
+1. **T3.1.2**: Implement `lambda` special form (🔥 Priority - Continue Phase 3.1 Function System)
+2. **T3.1.3**: Implement function application
+3. **T3.1.4**: Implement tail call optimization
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

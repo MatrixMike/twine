@@ -7,7 +7,7 @@
 use crate::error::Result;
 use crate::parser::Expression;
 use crate::runtime::environment::Environment;
-use crate::types::{Symbol, Value};
+use crate::types::Value;
 
 pub mod binding;
 pub mod concurrency;
@@ -20,18 +20,14 @@ pub mod control_flow;
 /// or `None` if the symbol is not a special form.
 ///
 /// # Arguments
-/// * `identifier` - The special form name as a Symbol
+/// * `name` - The special form name
 /// * `args` - The unevaluated argument expressions (special forms control evaluation)
 /// * `env` - The environment for evaluation context
 ///
 /// # Returns
 /// * `Option<Result<Value>>` - Some(result) for special forms, None for unknown identifiers
-pub fn dispatch(
-    identifier: &Symbol,
-    args: &[Expression],
-    env: &mut Environment,
-) -> Option<Result<Value>> {
-    match identifier.as_str() {
+pub fn dispatch(name: &str, args: &[Expression], env: &mut Environment) -> Option<Result<Value>> {
+    match name {
         // Control flow expressions
         "if" => Some(control_flow::eval_if(args, env)),
 
@@ -42,7 +38,7 @@ pub fn dispatch(
         // Concurrency forms
         "async" => Some(concurrency::eval_async(args, env)),
 
-        // Return None for unknown identifiers - not a special form
+        // Return None for unknown names - not a special form
         _ => None,
     }
 }
@@ -52,7 +48,7 @@ mod tests {
     use super::*;
     use crate::parser::Expression;
     use crate::runtime::environment::Environment;
-    use crate::types::Value;
+    use crate::types::{Symbol, Value};
 
     #[test]
     fn test_dispatch_if_special_form() {
@@ -65,9 +61,7 @@ mod tests {
             Expression::atom(Value::string("no")),
         ];
 
-        let result = dispatch(&Symbol::new("if"), &args, &mut env)
-            .unwrap()
-            .unwrap();
+        let result = dispatch("if", &args, &mut env).unwrap().unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
     }
 
@@ -81,9 +75,7 @@ mod tests {
             Expression::atom(Value::number(42.0)),
         ];
 
-        let result = dispatch(&Symbol::new("define"), &args, &mut env)
-            .unwrap()
-            .unwrap();
+        let result = dispatch("define", &args, &mut env).unwrap().unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created
@@ -97,7 +89,7 @@ mod tests {
         // Test async special form dispatch - currently returns not implemented error
         let args = vec![Expression::atom(Value::number(42.0))];
 
-        let result = dispatch(&Symbol::new("async"), &args, &mut env).unwrap();
+        let result = dispatch("async", &args, &mut env).unwrap();
         assert!(result.is_err());
         assert!(
             result
@@ -113,11 +105,11 @@ mod tests {
         let args = vec![Expression::atom(Value::number(1.0))];
 
         // Unknown special form should return None
-        let result = dispatch(&Symbol::new("unknown-form"), &args, &mut env);
+        let result = dispatch("unknown-form", &args, &mut env);
         assert!(result.is_none());
 
         // Test with future special form that doesn't exist yet
-        let result = dispatch(&Symbol::new("lambda"), &args, &mut env);
+        let result = dispatch("lambda", &args, &mut env);
         assert!(result.is_none());
     }
 
@@ -133,9 +125,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
         let args = vec![bindings, body];
 
-        let result = dispatch(&Symbol::new("let"), &args, &mut env)
-            .unwrap()
-            .unwrap();
+        let result = dispatch("let", &args, &mut env).unwrap().unwrap();
         assert_eq!(result, Value::number(42.0));
     }
 
@@ -147,7 +137,7 @@ mod tests {
         // if with wrong arity should error
         let args = vec![Expression::atom(Value::boolean(true))]; // Missing consequent and alternative
 
-        let result = dispatch(&Symbol::new("if"), &args, &mut env).unwrap();
+        let result = dispatch("if", &args, &mut env).unwrap();
         assert!(result.is_err());
         assert!(
             result

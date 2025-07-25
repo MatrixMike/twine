@@ -20,6 +20,7 @@ pub mod value;
 // Re-export core types for convenience
 pub use list::List;
 pub use number::Number;
+pub use procedure::Procedure;
 pub use string::ArcString;
 pub use symbol::Symbol;
 pub use value::Value;
@@ -38,6 +39,7 @@ mod tests {
         let _string: ArcString = ArcString::new("test");
         let _symbol: Symbol = Symbol::new("test");
         let _list: List = List::new();
+        let _proc: Procedure = Procedure::builtin("test", |_| Ok(Value::nil()));
         let _value: Value = Value::nil();
 
         // Test that types work together
@@ -71,6 +73,10 @@ mod tests {
         assert_eq!(
             std::any::type_name::<Value>(),
             "twine_scheme::types::value::Value"
+        );
+        assert_eq!(
+            std::any::type_name::<Procedure>(),
+            "twine_scheme::types::procedure::Procedure"
         );
     }
 }

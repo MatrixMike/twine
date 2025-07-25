@@ -44,9 +44,11 @@ pub fn eval(expr: &Expression, env: &mut Environment) -> Result<Value> {
 fn eval_atom(value: &Value, env: &Environment) -> Result<Value> {
     match value {
         // Self-evaluating values
-        Value::Number(_) | Value::Boolean(_) | Value::String(_) | Value::List(_) => {
-            Ok(value.clone())
-        }
+        Value::Number(_)
+        | Value::Boolean(_)
+        | Value::String(_)
+        | Value::List(_)
+        | Value::Procedure(_) => Ok(value.clone()),
 
         // Symbols need environment lookup
         Value::Symbol(identifier) => env.lookup(identifier),
@@ -74,7 +76,7 @@ fn eval_list(elements: &[Expression], env: &mut Environment) -> Result<Value> {
     // Check if the first expression is a special form or procedure identifier
     if let Expression::Atom(Value::Symbol(identifier)) = first_expr {
         // Handle special forms first (these have special evaluation rules)
-        if let Some(result) = special_forms::dispatch(identifier, rest_exprs, env) {
+        if let Some(result) = special_forms::dispatch(identifier.as_str(), rest_exprs, env) {
             result
         } else {
             // Not a special form, try builtin procedures
@@ -85,7 +87,7 @@ fn eval_list(elements: &[Expression], env: &mut Environment) -> Result<Value> {
             }
 
             // Handle builtin procedures through centralized dispatch
-            if let Some(result) = builtins::dispatch(identifier, &args) {
+            if let Some(result) = builtins::dispatch(identifier.as_str(), &args) {
                 result
             } else {
                 // Not a builtin procedure, try to evaluate as normal procedure call

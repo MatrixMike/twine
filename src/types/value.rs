@@ -2,7 +2,7 @@
 //!
 //! Implements the main Value enum with construction and extraction methods.
 
-use super::{ArcString, List, Number, Symbol};
+use super::{ArcString, List, Number, Procedure, Symbol};
 use smol_str::SmolStr;
 
 /// The core value type for all Scheme data
@@ -36,6 +36,12 @@ pub enum Value {
     /// Uses List wrapper around `Arc<Vec<Value>>` for efficient sharing
     /// while maintaining immutability.
     List(List),
+
+    /// Procedure values (functions)
+    ///
+    /// Represents callable entities including built-in procedures
+    /// and user-defined lambda procedures with closures.
+    Procedure(Procedure),
 
     /// The nil/null value
     ///
@@ -100,6 +106,16 @@ impl Value {
         Value::List(List::new())
     }
 
+    /// Create a new procedure value from a Procedure
+    pub fn procedure(proc: Procedure) -> Self {
+        Value::Procedure(proc)
+    }
+
+    /// Create a new builtin procedure value
+    pub fn builtin_procedure(name: &str, function: super::procedure::BuiltinFn) -> Self {
+        Value::Procedure(Procedure::builtin(name, function))
+    }
+
     /// Create the nil value
     pub fn nil() -> Self {
         Value::Nil
@@ -133,6 +149,11 @@ impl Value {
     /// Check if this value is a list
     pub fn is_list(&self) -> bool {
         matches!(self, Value::List(_))
+    }
+
+    /// Check if this value is a procedure
+    pub fn is_procedure(&self) -> bool {
+        matches!(self, Value::Procedure(_))
     }
 
     /// Check if this value is truthy in Scheme semantics
@@ -186,10 +207,18 @@ impl Value {
         }
     }
 
-    /// Get the list value if this is a list
+    /// Extract the list value if this is a list
     pub fn as_list(&self) -> Option<&List> {
         match self {
-            Value::List(l) => Some(l),
+            Value::List(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    /// Extract the procedure value if this is a procedure
+    pub fn as_procedure(&self) -> Option<&Procedure> {
+        match self {
+            Value::Procedure(proc) => Some(proc),
             _ => None,
         }
     }
@@ -202,6 +231,7 @@ impl Value {
             Value::String(_) => "string",
             Value::Symbol(_) => "symbol",
             Value::List(_) => "list",
+            Value::Procedure(_) => "procedure",
             Value::Nil => "nil",
         }
     }
@@ -220,6 +250,7 @@ impl std::fmt::Display for Value {
             Value::String(s) => write!(f, "\"{}\"", s.as_str().replace('"', "\\\"")),
             Value::Symbol(s) => write!(f, "{s}"),
             Value::List(l) => write!(f, "{l}"),
+            Value::Procedure(p) => write!(f, "{p}"),
             Value::Nil => write!(f, "()"),
         }
     }
@@ -734,6 +765,116 @@ mod tests {
                 let _str_clone = str_val.clone();
                 let _sym_clone = sym.clone();
                 let _list_clone = list_val.clone();
+
+                i
+            });
+            handles.push(handle);
+        }
+
+        // Verify all threads complete successfully
+        for (expected_id, handle) in handles.into_iter().enumerate() {
+            assert_eq!(handle.join().unwrap(), expected_id);
+        }
+    }
+
+    #[test]
+    fn test_procedure_value_creation() {
+        // Test builtin procedure creation
+        fn sample_builtin(args: &[Value]) -> crate::error::Result<Value> {
+            Ok(Value::number(args.len() as f64))
+        }
+
+        let builtin = Value::builtin_procedure("test", sample_builtin);
+        assert!(builtin.is_procedure());
+        assert!(!builtin.is_number());
+        assert_eq!(builtin.type_name(), "procedure");
+
+        // Test procedure creation from Procedure
+        let proc = Procedure::builtin("add", sample_builtin);
+        let proc_value = Value::procedure(proc);
+        assert!(proc_value.is_procedure());
+        assert_eq!(proc_value.type_name(), "procedure");
+    }
+
+    #[test]
+    fn test_procedure_value_accessors() {
+        fn sample_builtin(_args: &[Value]) -> crate::error::Result<Value> {
+            Ok(Value::nil())
+        }
+
+        let builtin = Value::builtin_procedure("test", sample_builtin);
+
+        // Test procedure extraction
+        let proc = builtin.as_procedure().unwrap();
+        assert!(proc.is_builtin());
+        assert_eq!(proc.name(), "test");
+
+        // Test non-procedure returns None
+        let number = Value::number(42.0);
+        assert!(number.as_procedure().is_none());
+    }
+
+    #[test]
+    fn test_procedure_value_display() {
+        fn sample_builtin(_: &[Value]) -> crate::error::Result<Value> {
+            Ok(Value::nil())
+        }
+
+        let builtin = Value::builtin_procedure("add", sample_builtin);
+        assert_eq!(format!("{}", builtin), "#<builtin:add>");
+
+        // Test lambda procedure display
+        let params = vec![Symbol::new("x")];
+        let body = crate::parser::Expression::atom(Value::symbol("x"));
+        let env = crate::runtime::Environment::new();
+        let lambda = Value::procedure(Procedure::lambda(params, body, env));
+        assert_eq!(format!("{}", lambda), "#<lambda:x>");
+    }
+
+    #[test]
+    fn test_procedure_value_equality() {
+        fn sample_builtin(_: &[Value]) -> crate::error::Result<Value> {
+            Ok(Value::nil())
+        }
+
+        let builtin1 = Value::builtin_procedure("add", sample_builtin);
+        let builtin2 = Value::builtin_procedure("add", sample_builtin);
+        let builtin3 = Value::builtin_procedure("sub", sample_builtin);
+
+        // Same name builtins are equal
+        assert_eq!(builtin1, builtin2);
+
+        // Different name builtins are not equal
+        assert_ne!(builtin1, builtin3);
+
+        // Procedure is not equal to other types
+        assert_ne!(builtin1, Value::number(42.0));
+        assert_ne!(builtin1, Value::string("add"));
+    }
+
+    #[test]
+    fn test_procedure_value_thread_safety() {
+        use std::sync::Arc;
+        use std::thread;
+
+        fn sample_builtin(args: &[Value]) -> crate::error::Result<Value> {
+            Ok(Value::number(args.len() as f64))
+        }
+
+        let proc = Arc::new(Value::builtin_procedure("test", sample_builtin));
+        let mut handles = vec![];
+
+        // Test sharing procedure across threads
+        for i in 0..5 {
+            let proc_clone = Arc::clone(&proc);
+            let handle = thread::spawn(move || {
+                // Verify procedure is accessible across threads
+                assert!(proc_clone.is_procedure());
+                assert_eq!(proc_clone.type_name(), "procedure");
+
+                let extracted = proc_clone.as_procedure().unwrap();
+                assert_eq!(extracted.name(), "test");
+                assert!(extracted.is_builtin());
 
                 i
             });

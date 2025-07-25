@@ -565,9 +565,10 @@ mod tests {
         let expr_size = mem::size_of::<Expression>();
         let pointer_size = mem::size_of::<usize>();
 
-        // Expression size should be manageable (typically 32-40 bytes on 64-bit)
+        // Expression size should be manageable (now larger due to Procedure variant in Value)
+        // The size increased because Value now includes Procedure which contains Environment
         assert!(
-            expr_size <= 64,
+            expr_size <= 96,
             "Expression size should be reasonable: {} bytes",
             expr_size
         );
