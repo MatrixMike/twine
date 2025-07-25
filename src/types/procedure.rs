@@ -200,7 +200,7 @@ impl std::fmt::Display for Lambda {
             if i > 0 {
                 write!(f, " ")?;
             }
-            write!(f, "{}", param)?;
+            write!(f, "{param}")?;
         }
         write!(f, ">")
     }
@@ -210,7 +210,7 @@ impl std::fmt::Display for Procedure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Procedure::Builtin(builtin) => write!(f, "#<builtin:{}>", builtin.name()),
-            Procedure::Lambda(lambda) => write!(f, "{}", lambda),
+            Procedure::Lambda(lambda) => write!(f, "{lambda}"),
         }
     }
 }
@@ -262,14 +262,14 @@ mod tests {
         let env = Environment::new();
         let lambda = Lambda::new(params, body, env);
 
-        assert_eq!(format!("{}", lambda), "#<lambda:x y>");
+        assert_eq!(format!("{lambda}"), "#<lambda:x y>");
 
         // Test lambda with no parameters
         let no_params = vec![];
         let body = Expression::atom(Value::number(42.0));
         let env = Environment::new();
         let lambda_no_params = Lambda::new(no_params, body, env);
-        assert_eq!(format!("{}", lambda_no_params), "#<lambda:>");
+        assert_eq!(format!("{lambda_no_params}"), "#<lambda:>");
     }
 
     #[test]
@@ -384,26 +384,26 @@ mod tests {
     #[test]
     fn test_procedure_display() {
         let builtin = Procedure::builtin(Builtin::Add);
-        assert_eq!(format!("{}", builtin), "#<builtin:+>");
+        assert_eq!(format!("{builtin}"), "#<builtin:+>");
 
         let params = vec![Symbol::new("x"), Symbol::new("y")];
         let body = Expression::atom(Value::symbol("x"));
         let env = Environment::new();
         let lambda = Procedure::lambda(params, body, env);
-        assert_eq!(format!("{}", lambda), "#<lambda:x y>");
+        assert_eq!(format!("{lambda}"), "#<lambda:x y>");
 
         // Test lambda with no parameters
         let no_params = vec![];
         let body = Expression::atom(Value::number(42.0));
         let env = Environment::new();
         let lambda_no_params = Procedure::lambda(no_params, body, env);
-        assert_eq!(format!("{}", lambda_no_params), "#<lambda:>");
+        assert_eq!(format!("{lambda_no_params}"), "#<lambda:>");
     }
 
     #[test]
     fn test_procedure_debug_output() {
         let builtin = Procedure::builtin(Builtin::Add);
-        let debug_output = format!("{:?}", builtin);
+        let debug_output = format!("{builtin:?}");
         assert!(debug_output.contains("Builtin"));
         assert!(debug_output.contains("Add"));
 
@@ -411,7 +411,7 @@ mod tests {
         let body = Expression::atom(Value::symbol("x"));
         let env = Environment::new();
         let lambda = Procedure::lambda(params, body, env);
-        let debug_output = format!("{:?}", lambda);
+        let debug_output = format!("{lambda:?}");
         assert!(debug_output.contains("Lambda"));
     }
 

@@ -116,7 +116,7 @@ mod tests {
         assert!(!list.is_empty());
 
         // Test list creation from iterator
-        let iter_list = List::from_iter(values.into_iter());
+        let iter_list = List::from_iter(values);
         assert_eq!(iter_list.len(), 3);
 
         // Test default creation
@@ -155,11 +155,11 @@ mod tests {
     fn test_list_display() {
         // Test empty list display
         let empty = List::new();
-        assert_eq!(format!("{}", empty), "()");
+        assert_eq!(format!("{empty}"), "()");
 
         // Test single element list
         let single = List::from_vec(vec![Value::number(42.0)]);
-        assert_eq!(format!("{}", single), "(42)");
+        assert_eq!(format!("{single}"), "(42)");
 
         // Test multi-element list
         let multi = List::from_vec(vec![
@@ -167,7 +167,7 @@ mod tests {
             Value::string("hello"),
             Value::boolean(true),
         ]);
-        assert_eq!(format!("{}", multi), "(1 \"hello\" #t)");
+        assert_eq!(format!("{multi}"), "(1 \"hello\" #t)");
 
         // Test nested list
         let nested = List::from_vec(vec![
@@ -175,7 +175,7 @@ mod tests {
             Value::list(vec![Value::number(2.0), Value::number(3.0)]),
             Value::number(4.0),
         ]);
-        assert_eq!(format!("{}", nested), "(1 (2 3) 4)");
+        assert_eq!(format!("{nested}"), "(1 (2 3) 4)");
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod tests {
         let deep = List::from_vec(vec![Value::list(vec![Value::list(vec![Value::list(
             vec![Value::number(1.0)],
         )])])]);
-        assert_eq!(format!("{}", deep), "((((1))))");
+        assert_eq!(format!("{deep}"), "((((1))))");
     }
 
     #[test]

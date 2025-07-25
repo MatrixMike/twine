@@ -48,7 +48,7 @@ pub fn subtract(args: &[Value]) -> Result<Value> {
             return Err(Error::type_error(
                 "-",
                 "number",
-                &arg.type_name(),
+                arg.type_name(),
                 Some(i + 1),
             ));
         }
@@ -109,7 +109,7 @@ pub fn divide(args: &[Value]) -> Result<Value> {
             return Err(Error::type_error(
                 "/",
                 "number",
-                &arg.type_name(),
+                arg.type_name(),
                 Some(i + 1),
             ));
         }
@@ -153,7 +153,7 @@ pub fn equal(args: &[Value]) -> Result<Value> {
             return Err(Error::type_error(
                 "=",
                 "number",
-                &arg.type_name(),
+                arg.type_name(),
                 Some(i + 1),
             ));
         }
@@ -383,19 +383,19 @@ mod tests {
 
         // Equal numbers
         let result = equal(&[Value::number(5.0), Value::number(5.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Unequal numbers
         let result = equal(&[Value::number(5.0), Value::number(6.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
 
         // Multiple equal numbers
         let result = equal(&[Value::number(3.0), Value::number(3.0), Value::number(3.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Multiple numbers with one different
         let result = equal(&[Value::number(3.0), Value::number(3.0), Value::number(4.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
 
         // Non-numeric argument should error
         let result = equal(&[Value::number(1.0), Value::string("1")]);
@@ -411,16 +411,16 @@ mod tests {
         // Strictly increasing
         let result =
             less_than(&[Value::number(1.0), Value::number(2.0), Value::number(3.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Not strictly increasing
         let result =
             less_than(&[Value::number(1.0), Value::number(2.0), Value::number(2.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
 
         // Decreasing
         let result = less_than(&[Value::number(3.0), Value::number(2.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -432,16 +432,16 @@ mod tests {
         // Strictly decreasing
         let result =
             greater_than(&[Value::number(3.0), Value::number(2.0), Value::number(1.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Not strictly decreasing
         let result =
             greater_than(&[Value::number(3.0), Value::number(2.0), Value::number(2.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
 
         // Increasing
         let result = greater_than(&[Value::number(1.0), Value::number(2.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -454,11 +454,11 @@ mod tests {
             Value::number(3.0),
         ])
         .unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Decreasing should fail
         let result = less_than_or_equal(&[Value::number(3.0), Value::number(2.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]
@@ -471,11 +471,11 @@ mod tests {
             Value::number(1.0),
         ])
         .unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Increasing should fail
         let result = greater_than_or_equal(&[Value::number(1.0), Value::number(2.0)]).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), false);
+        assert!(!result.as_boolean().unwrap());
     }
 
     #[test]

@@ -61,14 +61,10 @@ impl fmt::Display for Error {
                 line,
                 column,
             } => {
-                write!(
-                    f,
-                    "Syntax error at line {}, column {}: {}",
-                    line, column, message
-                )
+                write!(f, "Syntax error at line {line}, column {column}: {message}")
             }
-            Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
-            Error::RuntimeError(msg) => write!(f, "Runtime error: {}", msg),
+            Error::ParseError(msg) => write!(f, "Parse error: {msg}"),
+            Error::RuntimeError(msg) => write!(f, "Runtime error: {msg}"),
             Error::ArityError {
                 procedure,
                 expected,
@@ -92,11 +88,10 @@ impl fmt::Display for Error {
                 if let Some(pos) = position {
                     write!(
                         f,
-                        "{}: expected {} for argument {}, got {}",
-                        procedure, expected, pos, actual
+                        "{procedure}: expected {expected} for argument {pos}, got {actual}"
                     )
                 } else {
-                    write!(f, "{}: expected {}, got {}", procedure, expected, actual)
+                    write!(f, "{procedure}: expected {expected}, got {actual}")
                 }
             }
             Error::EnvironmentError {
@@ -106,17 +101,17 @@ impl fmt::Display for Error {
             } => {
                 let base_msg = match kind {
                     EnvironmentErrorKind::UnboundIdentifier => {
-                        format!("Unbound identifier: '{}'", identifier)
+                        format!("Unbound identifier: '{identifier}'")
                     }
                     EnvironmentErrorKind::InvalidIdentifier => {
-                        format!("Invalid identifier: '{}'", identifier)
+                        format!("Invalid identifier: '{identifier}'")
                     }
                 };
 
                 if let Some(ctx) = context {
-                    write!(f, "{}. {}", base_msg, ctx)
+                    write!(f, "{base_msg}. {ctx}")
                 } else {
-                    write!(f, "{}", base_msg)
+                    write!(f, "{base_msg}")
                 }
             }
         }
@@ -249,7 +244,7 @@ mod tests {
             column: 1,
         };
 
-        let debug_output = format!("{:?}", syntax_error);
+        let debug_output = format!("{syntax_error:?}");
         assert!(debug_output.contains("SyntaxError"));
         assert!(debug_output.contains("test error"));
         assert!(debug_output.contains("line: 1"));

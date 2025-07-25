@@ -93,8 +93,7 @@ fn eval_list(elements: &[Expression], env: &mut Environment) -> Result<Value> {
                 // Not a builtin procedure, try to evaluate as normal procedure call
                 let _procedure = eval(first_expr, env)?;
                 Err(Error::runtime_error(&format!(
-                    "Unknown procedure: '{}'",
-                    identifier
+                    "Unknown procedure: '{identifier}'"
                 )))
             }
         }
@@ -164,7 +163,7 @@ mod tests {
         // Test boolean evaluation
         let bool_expr = Expression::atom(Value::boolean(true));
         let result = eval(&bool_expr, &mut env).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Test string evaluation
         let string_expr = Expression::atom(Value::string("hello"));
@@ -242,7 +241,7 @@ mod tests {
             Expression::atom(Value::number(5.0)),
         ]);
         let result = eval(&eq_expr, &mut env).unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -362,7 +361,7 @@ mod tests {
         let list = result.as_list().unwrap();
         assert_eq!(list.len(), 2);
         assert_eq!(list.get(0).unwrap().as_symbol().unwrap(), "test");
-        assert_eq!(list.get(1).unwrap().as_boolean().unwrap(), true);
+        assert!(list.get(1).unwrap().as_boolean().unwrap());
     }
 
     #[test]

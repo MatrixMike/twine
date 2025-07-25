@@ -99,7 +99,7 @@ impl<'a> Environment<'a> {
             Err(Error::unbound_identifier(identifier.as_str(), None))
         } else {
             let formatted_suggestions: Vec<String> =
-                suggestions.iter().map(|s| format!("'{}'", s)).collect();
+                suggestions.iter().map(|s| format!("'{s}'")).collect();
             let context = format!("Did you mean one of: {}?", formatted_suggestions.join(", "));
             Err(Error::unbound_identifier(
                 identifier.as_str(),
@@ -143,7 +143,7 @@ impl<'a> Environment<'a> {
         self.bindings.contains_key(identifier)
             || self
                 .parent
-                .map_or(false, |parent| parent.contains(identifier))
+                .is_some_and(|parent| parent.contains(identifier))
     }
 
     /// Check if an identifier is defined by string key (convenience method)
@@ -467,7 +467,7 @@ mod tests {
 
         let result = env.lookup_str("y").unwrap();
         assert!(result.is_boolean());
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -505,7 +505,7 @@ mod tests {
 
         let result = child.lookup_str("y").unwrap();
         assert!(result.is_boolean());
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -656,9 +656,7 @@ mod tests {
             if should_suggest {
                 assert!(
                     error_msg.contains("Did you mean"),
-                    "Should suggest for '{}': {}",
-                    typo,
-                    error_msg
+                    "Should suggest for '{typo}': {error_msg}"
                 );
             }
         }
@@ -772,7 +770,7 @@ mod tests {
             child.lookup_str("y").unwrap().as_string().unwrap(),
             "parent"
         ); // Parent's value
-        assert_eq!(child.lookup_str("z").unwrap().as_boolean().unwrap(), true); // Child's value
+        assert!(child.lookup_str("z").unwrap().as_boolean().unwrap()); // Child's value
 
         // Test redefinition in same scope
         child.define_str("z", Value::number(99.0)); // Redefine z
@@ -797,13 +795,12 @@ mod tests {
         let_env.define_str("inner_var", Value::boolean(true));
 
         // Test lookups through environment chain
-        assert_eq!(
+        assert!(
             let_env
                 .lookup_str("inner_var")
                 .unwrap()
                 .as_boolean()
-                .unwrap(),
-            true
+                .unwrap()
         );
         assert_eq!(
             let_env

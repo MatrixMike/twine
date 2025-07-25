@@ -35,10 +35,10 @@ fn test_integration_self_evaluating_atoms() {
 
     // Booleans
     let result = eval_source("#t", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("#f", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     // Strings
     let result = eval_source("\"hello world\"", &mut env).unwrap();
@@ -66,7 +66,7 @@ fn test_integration_symbol_lookup() {
     assert_eq!(result.as_string().unwrap(), "Scheme");
 
     let result = eval_source("flag", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     // Unbound symbol should error
     let result = eval_source("undefined", &mut env);
@@ -118,41 +118,41 @@ fn test_integration_comparison_operations() {
 
     // Equality
     let result = eval_source("(= 5 5)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(= a 5)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(= a b)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     // Less than
     let result = eval_source("(< 3 5)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(< b a)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     // Greater than
     let result = eval_source("(> 5 3)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(> a b)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     // Less than or equal
     let result = eval_source("(<= 3 3)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(<= b a)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     // Greater than or equal
     let result = eval_source("(>= 5 5)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(>= a b)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 }
 
 #[test]
@@ -315,7 +315,7 @@ fn test_integration_basic_list_construction() {
     assert_eq!(list.len(), 3);
     assert_eq!(list.get(0).unwrap().as_number().unwrap(), 42.0);
     assert_eq!(list.get(1).unwrap().as_string().unwrap(), "hello");
-    assert_eq!(list.get(2).unwrap().as_boolean().unwrap(), true);
+    assert!(list.get(2).unwrap().as_boolean().unwrap());
 }
 
 #[test]
@@ -388,25 +388,25 @@ fn test_integration_null_predicate() {
 
     // Test null? with empty list
     let result = eval_source("(null? '())", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     // Test null? with non-empty list
     let result = eval_source("(null? '(1 2 3))", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     // Test null? with single element list
     let result = eval_source("(null? '(only))", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     // Test null? with non-list values
     let result = eval_source("(null? 42)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     let result = eval_source("(null? \"string\")", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     let result = eval_source("(null? #t)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 }
 
 #[test]
@@ -496,10 +496,10 @@ fn test_integration_arithmetic_with_list_length() {
 
     // Test comparison with list elements
     let result = eval_source("(> (car my-list) 0)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(= (car (cdr (cdr my-list))) 3)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 }
 
 #[test]
@@ -551,7 +551,7 @@ fn test_integration_complex_list_arithmetic() {
 
     // Test comparison of list elements
     let result = eval_source("(> (car '(10 5)) (car (cdr '(10 5))))", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 }
 
 #[test]
@@ -669,31 +669,31 @@ fn test_integration_comparison_edge_cases() {
 
     // Test equality with same values
     let result = eval_source("(= 5 5 5)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(= 5 5 6)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     // Test ordering with multiple arguments
     let result = eval_source("(< 1 2 3 4)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(< 1 2 2 4)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     let result = eval_source("(> 4 3 2 1)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     // Test <= and >= with equal values
     let result = eval_source("(<= 1 2 2 3)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(>= 3 2 2 1)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     // Test with negative numbers
     let result = eval_source("(< -5 -2 0 3)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 }
 
 #[test]
@@ -822,7 +822,7 @@ fn test_integration_identifier_binding_with_lists() {
     assert_eq!(result.as_number().unwrap(), 10.0);
 
     let result = eval_source("(null? empty)", &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source("(cons 'prefix symbols)", &mut env).unwrap();
     assert!(result.is_list());

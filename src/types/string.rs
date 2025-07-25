@@ -103,13 +103,13 @@ mod tests {
     #[test]
     fn test_string_display() {
         let s = ArcString::new("Hello, world!");
-        assert_eq!(format!("{}", s), "Hello, world!");
+        assert_eq!(format!("{s}"), "Hello, world!");
 
         let empty = ArcString::new("");
-        assert_eq!(format!("{}", empty), "");
+        assert_eq!(format!("{empty}"), "");
 
         let unicode = ArcString::new("こんにちは");
-        assert_eq!(format!("{}", unicode), "こんにちは");
+        assert_eq!(format!("{unicode}"), "こんにちは");
     }
 
     #[test]

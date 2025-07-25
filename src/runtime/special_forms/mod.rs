@@ -294,7 +294,7 @@ mod tests {
     fn test_special_form_copy_clone() {
         let original = SpecialForm::If;
         let copied = original; // Copy trait
-        let cloned = original.clone(); // Clone trait
+        let cloned = original; // Clone trait
 
         assert_eq!(original, copied);
         assert_eq!(original, cloned);

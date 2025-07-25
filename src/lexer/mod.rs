@@ -323,10 +323,10 @@ mod tests {
         let boolean = Token::Boolean(true);
 
         // Verify Debug formatting works
-        let debug_number = format!("{:?}", number);
-        let debug_string = format!("{:?}", string);
-        let debug_symbol = format!("{:?}", symbol);
-        let debug_boolean = format!("{:?}", boolean);
+        let debug_number = format!("{number:?}");
+        let debug_string = format!("{string:?}");
+        let debug_symbol = format!("{symbol:?}");
+        let debug_boolean = format!("{boolean:?}");
 
         assert!(debug_number.contains("Number"));
         assert!(debug_number.contains("42.5"));
@@ -395,7 +395,7 @@ mod tests {
         assert_eq!(positioned.position, position);
 
         // Test Debug formatting for positioned tokens
-        let debug_output = format!("{:?}", positioned);
+        let debug_output = format!("{positioned:?}");
         assert!(debug_output.contains("PositionedToken"));
         assert!(debug_output.contains("Number"));
         assert!(debug_output.contains("42"));
@@ -778,7 +778,7 @@ mod tests {
             let input = ch.to_string();
             let mut lexer = Lexer::new(input);
             let result = lexer.next_token();
-            assert!(result.is_err(), "Expected error for character '{}'", ch);
+            assert!(result.is_err(), "Expected error for character '{ch}'");
 
             if let Err(Error::SyntaxError {
                 message,
@@ -791,7 +791,7 @@ mod tests {
                 assert_eq!(line, 1);
                 assert_eq!(column, 1);
             } else {
-                panic!("Expected SyntaxError for character '{}'", ch);
+                panic!("Expected SyntaxError for character '{ch}'");
             }
         }
 
@@ -815,8 +815,7 @@ mod tests {
             let result = lexer.next_token();
             assert!(
                 result.is_ok(),
-                "Valid symbol character '{}' should not cause error",
-                ch
+                "Valid symbol character '{ch}' should not cause error"
             );
         }
     }
@@ -1061,7 +1060,7 @@ mod tests {
         // Test very large numbers
         let mut lexer = Lexer::new("123456789.987654321".to_string());
         let token = lexer.next_token().unwrap();
-        assert_eq!(token.token, Token::Number(123456789.987654321));
+        assert_eq!(token.token, Token::Number(123_456_789.987_654_33));
 
         // Test numbers with leading zeros
         let mut lexer = Lexer::new("007".to_string());
@@ -1086,7 +1085,7 @@ mod tests {
         ];
 
         for (input_escape, expected_char) in test_cases {
-            let input = format!("\"{}\"", input_escape);
+            let input = format!("\"{input_escape}\"");
             let mut lexer = Lexer::new(input);
             let token = lexer.next_token().unwrap();
             assert_eq!(token.token, Token::String(expected_char.to_string()));
@@ -1122,11 +1121,7 @@ mod tests {
                 actual_tokens.push(token.token);
             }
 
-            assert_eq!(
-                actual_tokens, expected_tokens,
-                "Failed for input: {}",
-                input
-            );
+            assert_eq!(actual_tokens, expected_tokens, "Failed for input: {input}");
         }
     }
 
@@ -1141,14 +1136,13 @@ mod tests {
         ];
 
         for comment in test_cases {
-            let input = format!("{}\n42", comment);
+            let input = format!("{comment}\n42");
             let mut lexer = Lexer::new(input);
             let token = lexer.next_token().unwrap();
             assert_eq!(
                 token.token,
                 Token::Number(42.0),
-                "Failed for comment: {}",
-                comment
+                "Failed for comment: {comment}"
             );
         }
 
@@ -1167,7 +1161,7 @@ mod tests {
         let whitespace_chars = vec![" ", "\t", "\n", "\r"];
 
         for ws in &whitespace_chars {
-            let input = format!("{}42", ws);
+            let input = format!("{ws}42");
             let mut lexer = Lexer::new(input);
             let token = lexer.next_token().unwrap();
             assert_eq!(token.token, Token::Number(42.0));

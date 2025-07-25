@@ -34,7 +34,7 @@ pub fn car(args: &[Value]) -> Result<Value> {
 
     let list = args[0]
         .as_list()
-        .ok_or_else(|| Error::type_error("car", "list", &args[0].type_name(), None))?;
+        .ok_or_else(|| Error::type_error("car", "list", args[0].type_name(), None))?;
 
     if list.is_empty() {
         return Err(Error::runtime_error("car: cannot take car of empty list"));
@@ -67,7 +67,7 @@ pub fn cdr(args: &[Value]) -> Result<Value> {
 
     let list = args[0]
         .as_list()
-        .ok_or_else(|| Error::type_error("cdr", "list", &args[0].type_name(), None))?;
+        .ok_or_else(|| Error::type_error("cdr", "list", args[0].type_name(), None))?;
 
     if list.is_empty() {
         return Err(Error::runtime_error("cdr: cannot take cdr of empty list"));
@@ -103,7 +103,7 @@ pub fn cons(args: &[Value]) -> Result<Value> {
     let element = &args[0];
     let tail = args[1]
         .as_list()
-        .ok_or_else(|| Error::type_error("cons", "list", &args[1].type_name(), Some(2)))?;
+        .ok_or_else(|| Error::type_error("cons", "list", args[1].type_name(), Some(2)))?;
 
     // Create a new list with the element prepended
     let mut new_values = Vec::with_capacity(tail.len() + 1);

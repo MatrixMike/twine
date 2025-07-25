@@ -373,15 +373,15 @@ mod tests {
             Expression::atom(Value::number(1.0)),
             Expression::atom(Value::number(2.0)),
         ]);
-        assert_eq!(format!("{}", list_expr), "(+ 1 2)");
+        assert_eq!(format!("{list_expr}"), "(+ 1 2)");
 
         // Test empty list display
         let empty_list = Expression::list(vec![]);
-        assert_eq!(format!("{}", empty_list), "()");
+        assert_eq!(format!("{empty_list}"), "()");
 
         // Test quote display
         let quoted_expr = Expression::quote(Expression::atom(Value::symbol("x")));
-        assert_eq!(format!("{}", quoted_expr), "'x");
+        assert_eq!(format!("{quoted_expr}"), "'x");
 
         // Test nested structures
         let nested = Expression::list(vec![
@@ -392,7 +392,7 @@ mod tests {
                 Expression::atom(Value::number(2.0)),
             ]),
         ]);
-        assert_eq!(format!("{}", nested), "(quote (+ 1 2))");
+        assert_eq!(format!("{nested}"), "(quote (+ 1 2))");
     }
 
     #[test]
@@ -403,7 +403,7 @@ mod tests {
             Expression::atom(Value::number(1.0)),
         ]);
 
-        let debug_output = format!("{:?}", expr);
+        let debug_output = format!("{expr:?}");
         assert!(debug_output.contains("List"));
         assert!(debug_output.contains("Atom"));
         // Don't test exact format as Debug output can vary
@@ -434,7 +434,7 @@ mod tests {
         }
 
         // Test display of nested structure
-        let display_output = format!("{}", nested_expr);
+        let display_output = format!("{nested_expr}");
         assert!(display_output.contains("if"));
         assert!(display_output.contains("'positive"));
     }
@@ -452,8 +452,7 @@ mod tests {
         // The size increased because Value now includes Procedure which contains Environment
         assert!(
             expr_size <= 96,
-            "Expression size should be reasonable: {} bytes",
-            expr_size
+            "Expression size should be reasonable: {expr_size} bytes"
         );
 
         // Box<Expression> is exactly pointer-sized
@@ -561,7 +560,7 @@ mod tests {
             ]),
             Expression::atom(Value::number(4.0)),
         ]);
-        assert_eq!(format!("{}", arithmetic), "(+ (* 2 3) 4)");
+        assert_eq!(format!("{arithmetic}"), "(+ (* 2 3) 4)");
 
         // Conditional: (if (> x 0) "positive" "non-positive")
         let conditional = Expression::list(vec![
@@ -575,7 +574,7 @@ mod tests {
             Expression::atom(Value::string("non-positive")),
         ]);
         assert_eq!(
-            format!("{}", conditional),
+            format!("{conditional}"),
             "(if (> x 0) \"positive\" \"non-positive\")"
         );
 
@@ -585,7 +584,7 @@ mod tests {
             Expression::atom(Value::symbol("x")),
             Expression::atom(Value::number(42.0)),
         ]));
-        assert_eq!(format!("{}", quoted_define), "'(define x 42)");
+        assert_eq!(format!("{quoted_define}"), "'(define x 42)");
     }
 
     #[test]
@@ -719,7 +718,7 @@ mod tests {
         let mut parser = Parser::new("#t".to_string()).unwrap();
         let expr = parser.parse_expression().unwrap();
         assert!(expr.expr.is_atom());
-        assert_eq!(expr.expr.as_atom().unwrap().as_boolean().unwrap(), true);
+        assert!(expr.expr.as_atom().unwrap().as_boolean().unwrap());
     }
 
     #[test]

@@ -133,13 +133,13 @@ mod tests {
     #[test]
     fn test_symbol_display() {
         let s = Symbol::new("my-identifier");
-        assert_eq!(format!("{}", s), "my-identifier");
+        assert_eq!(format!("{s}"), "my-identifier");
 
         let empty = Symbol::new("");
-        assert_eq!(format!("{}", empty), "");
+        assert_eq!(format!("{empty}"), "");
 
         let with_special = Symbol::new("string->number");
-        assert_eq!(format!("{}", with_special), "string->number");
+        assert_eq!(format!("{with_special}"), "string->number");
     }
 
     #[test]
@@ -264,8 +264,7 @@ mod tests {
             // All common symbols should be stack-allocated
             assert!(
                 !symbol.is_heap_allocated(),
-                "Symbol '{}' should be stack-allocated",
-                symbol_str
+                "Symbol '{symbol_str}' should be stack-allocated"
             );
         }
     }
@@ -280,7 +279,7 @@ mod tests {
         assert!(!symbol.is_heap_allocated()); // Should be stack allocated
 
         // Test with heap-allocated SmolStr
-        let long_smol = SmolStr::new(&"a".repeat(50));
+        let long_smol = SmolStr::new("a".repeat(50));
         let long_symbol = Symbol::from_smol_str(long_smol);
 
         assert_eq!(long_symbol.len(), 50);
@@ -347,8 +346,7 @@ mod tests {
             // All common Scheme symbols should be stack-allocated
             assert!(
                 !symbol.is_heap_allocated(),
-                "Symbol '{}' should be stack-allocated for efficiency",
-                symbol_text
+                "Symbol '{symbol_text}' should be stack-allocated for efficiency"
             );
         }
 
@@ -369,7 +367,7 @@ mod tests {
         // Test that symbols can be shared across threads
         let short_symbol = Symbol::new("short");
         let long_symbol = Symbol::new(
-            &"very-long-symbol-that-exceeds-twenty-three-bytes-and-should-be-heap-allocated",
+            "very-long-symbol-that-exceeds-twenty-three-bytes-and-should-be-heap-allocated",
         );
 
         // Verify allocation types

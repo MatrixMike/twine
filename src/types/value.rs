@@ -161,10 +161,7 @@ impl Value {
     /// In Scheme, only #f is false. Everything else, including 0, empty lists,
     /// empty strings, and nil, is considered true.
     pub fn is_truthy(&self) -> bool {
-        match self {
-            Value::Boolean(false) => false,
-            _ => true,
-        }
+        !matches!(self, Value::Boolean(false))
     }
 
     /// Get the numeric value if this is a number
@@ -290,11 +287,11 @@ mod tests {
     #[test]
     fn test_value_debug_output() {
         let num = Value::number(3.14);
-        let debug_str = format!("{:?}", num);
+        let debug_str = format!("{num:?}");
         assert!(debug_str.contains("Number"));
 
         let str_val = Value::string("test");
-        let debug_str = format!("{:?}", str_val);
+        let debug_str = format!("{str_val:?}");
         assert!(debug_str.contains("String"));
     }
 
@@ -325,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_type_checking_methods() {
-        let values = vec![
+        let values = [
             Value::number(42.0),
             Value::boolean(true),
             Value::string("hello"),
@@ -381,7 +378,7 @@ mod tests {
         assert_eq!(format!("{}", Value::nil()), "()");
 
         let list = Value::list(vec![Value::number(1.0), Value::number(2.0)]);
-        assert_eq!(format!("{}", list), "(1 2)");
+        assert_eq!(format!("{list}"), "(1 2)");
     }
 
     #[test]
@@ -433,7 +430,7 @@ mod tests {
             let cloned = original.clone();
             assert_eq!(original, cloned);
             assert_eq!(original.type_name(), cloned.type_name());
-            assert_eq!(format!("{}", original), format!("{}", cloned));
+            assert_eq!(format!("{original}"), format!("{}", cloned));
         }
     }
 
@@ -482,17 +479,17 @@ mod tests {
     fn test_special_string_formatting() {
         // Test string with quotes gets properly escaped
         let quoted_str = Value::string("He said \"Hello\"");
-        let display = format!("{}", quoted_str);
+        let display = format!("{quoted_str}");
         assert!(display.contains("\\\""));
         assert_eq!(display, "\"He said \\\"Hello\\\"\"");
 
         // Test empty string
         let empty_str = Value::string("");
-        assert_eq!(format!("{}", empty_str), "\"\"");
+        assert_eq!(format!("{empty_str}"), "\"\"");
 
         // Test string with special characters
         let special = Value::string("Hello\nWorld\t!");
-        assert_eq!(format!("{}", special), "\"Hello\nWorld\t!\"");
+        assert_eq!(format!("{special}"), "\"Hello\nWorld\t!\"");
     }
 
     #[test]
@@ -506,7 +503,7 @@ mod tests {
             ]),
             Value::number(4.0),
         ]);
-        assert_eq!(format!("{}", nested), "(1 (2 (3)) 4)");
+        assert_eq!(format!("{nested}"), "(1 (2 (3)) 4)");
 
         // Test mixed type lists
         let mixed = Value::list(vec![
@@ -516,7 +513,7 @@ mod tests {
             Value::boolean(true),
             Value::nil(),
         ]);
-        assert_eq!(format!("{}", mixed), "(42 \"hello\" world #t ())");
+        assert_eq!(format!("{mixed}"), "(42 \"hello\" world #t ())");
     }
 
     #[test]
@@ -557,7 +554,7 @@ mod tests {
                 assert!(values[5].is_nil());
 
                 // Test cloning values across threads
-                let cloned_values: Vec<Value> = values.iter().cloned().collect();
+                let cloned_values: Vec<Value> = values.to_vec();
                 assert_eq!(cloned_values.len(), 6);
 
                 // Test that cloned values work correctly
@@ -672,7 +669,7 @@ mod tests {
                 }
 
                 // Values should format consistently across threads
-                std::format!("{}", thread_copy)
+                std::format!("{thread_copy}")
             });
             handles.push(handle);
         }
@@ -681,7 +678,7 @@ mod tests {
         let formatted_results: Vec<String> =
             handles.into_iter().map(|h| h.join().unwrap()).collect();
 
-        let expected_format = std::format!("{}", original);
+        let expected_format = std::format!("{original}");
         for result in formatted_results {
             assert_eq!(result, expected_format);
         }
@@ -814,14 +811,14 @@ mod tests {
         use crate::runtime::builtins::Builtin;
 
         let builtin = Value::builtin_procedure(Builtin::Add);
-        assert_eq!(format!("{}", builtin), "#<builtin:+>");
+        assert_eq!(format!("{builtin}"), "#<builtin:+>");
 
         // Test lambda procedure display
         let params = vec![Symbol::new("x")];
         let body = crate::parser::Expression::atom(Value::symbol("x"));
         let env = crate::runtime::Environment::new();
         let lambda = Value::procedure(Procedure::lambda(params, body, env));
-        assert_eq!(format!("{}", lambda), "#<lambda:x>");
+        assert_eq!(format!("{lambda}"), "#<lambda:x>");
     }
 
     #[test]

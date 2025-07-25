@@ -123,11 +123,7 @@ pub use list::{car, cdr, cons, list, null_p};
 /// * `Option<Result<Value>>` - Some(result) for builtins, None for unknown names
 pub fn dispatch(name: &str, args: &[Value]) -> Option<Result<Value>> {
     // Try to parse as a builtin procedure
-    if let Some(builtin) = Builtin::from_name(name) {
-        Some(builtin.call(args))
-    } else {
-        None
-    }
+    Builtin::from_name(name).map(|builtin| builtin.call(args))
 }
 
 #[cfg(test)]
@@ -167,31 +163,31 @@ mod tests {
         let result = dispatch("=", &[Value::number(5.0), Value::number(5.0)])
             .unwrap()
             .unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Test less than
         let result = dispatch("<", &[Value::number(3.0), Value::number(5.0)])
             .unwrap()
             .unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Test greater than
         let result = dispatch(">", &[Value::number(5.0), Value::number(3.0)])
             .unwrap()
             .unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Test less than or equal
         let result = dispatch("<=", &[Value::number(3.0), Value::number(3.0)])
             .unwrap()
             .unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
 
         // Test greater than or equal
         let result = dispatch(">=", &[Value::number(5.0), Value::number(3.0)])
             .unwrap()
             .unwrap();
-        assert_eq!(result.as_boolean().unwrap(), true);
+        assert!(result.as_boolean().unwrap());
     }
 
     #[test]
@@ -416,7 +412,7 @@ mod tests {
     fn test_builtin_copy_clone() {
         let original = Builtin::Add;
         let copied = original; // Copy trait
-        let cloned = original.clone(); // Clone trait
+        let cloned = original; // Clone trait
 
         assert_eq!(original, copied);
         assert_eq!(original, cloned);
