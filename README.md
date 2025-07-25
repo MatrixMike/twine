@@ -30,10 +30,10 @@ This project serves as a comprehensive learning platform for understanding AI ag
 
 For detailed project information, see:
 
-- [`requirements.md`](requirements.md) - Functional requirements, user stories, and acceptance criteria
-- [`design.md`](design.md) - Technical architecture and implementation details
-- [`tasks.md`](tasks.md) - Structured implementation plan and task dependencies
-- [`agent.md`](agent.md) - AI agent development guidelines and workflow
+- [`REQUIREMENTS.md`](REQUIREMENTS.md) - Functional requirements, user stories, and acceptance criteria
+- [`DESIGN.md`](DESIGN.md) - Technical architecture and implementation details
+- [`TASKS.md`](TASKS.md) - Structured implementation plan and task dependencies
+- [`AGENT.md`](AGENT.md) - AI agent development guidelines and workflow
 
 ## Current Features
 

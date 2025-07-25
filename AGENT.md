@@ -3,7 +3,7 @@
 ## Quick Reference
 
 ### Before Every Development Session
-1. ✅ Read `requirements.md`, `design.md`, and `tasks.md`
+1. ✅ Read `REQUIREMENTS.md`, `DESIGN.md`, and `TASKS.md`
 2. ✅ Verify `deps/` structure is up-to-date
 3. ✅ Check current phase and task dependencies
 
@@ -47,23 +47,23 @@ These documents are the single source of truth. ALL implementation decisions mus
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| `requirements.md` | Functional/non-functional requirements, user stories, acceptance criteria | Before any development work |
-| `design.md` | Technical architecture, component specs, concurrency model | Before implementation decisions |
-| `tasks.md` | Structured implementation plan, phases, dependencies | Before starting new tasks |
+| `REQUIREMENTS.md` | Functional/non-functional requirements, user stories, acceptance criteria | Before any development work |
+| `DESIGN.md` | Technical architecture, component specs, concurrency model | Before implementation decisions |
+| `TASKS.md` | Structured implementation plan, phases, dependencies | Before starting new tasks |
 | `README.md` | Project status and capabilities | Keep updated with new features |
 
 ### CRITICAL COMPLIANCE RULES
 - ⚠️ **ZERO DEVIATIONS** permitted from documented specifications
 - ✅ **ALWAYS** reference specific requirement numbers (FR-X, NFR-X, AC-X)
-- ✅ **VERIFY** every implementation against design.md architecture
+- ✅ **VERIFY** every implementation against DESIGN.md architecture
 - ✅ **CHECK** acceptance criteria before marking any task complete
 - 📋 **CITE** relevant sections when making implementation decisions
 - 🚫 **NO ASSUMPTIONS** - if specification is unclear, ask for clarification
 
 ### Before Every Implementation Task
-1. **Read requirements.md** - understand functional requirements and constraints
-2. **Read design.md** - follow technical architecture and component specifications
-3. **Check tasks.md** - verify dependencies and acceptance criteria
+1. **Read REQUIREMENTS.md** - understand functional requirements and constraints
+2. **Read DESIGN.md** - follow technical architecture and component specifications
+3. **Check TASKS.md** - verify dependencies and acceptance criteria
 4. **Reference throughout** - cite specific sections during implementation
 
 ---
@@ -167,10 +167,10 @@ These documents are the single source of truth. ALL implementation decisions mus
 
 ### Starting New Work
 1. **Read Documentation**: Review relevant sections of core docs
-   - **MANDATORY**: Read `requirements.md` for functional requirements (FR-X, NFR-X)
-   - **MANDATORY**: Read `design.md` for technical architecture and component specs
-   - **MANDATORY**: Read `tasks.md` for current phase and task dependencies
-2. **Identify Current Task**: Check `tasks.md` for current phase and requirements
+   - **MANDATORY**: Read `REQUIREMENTS.md` for functional requirements (FR-X, NFR-X)
+   - **MANDATORY**: Read `DESIGN.md` for technical architecture and component specs
+   - **MANDATORY**: Read `TASKS.md` for current phase and task dependencies
+2. **Identify Current Task**: Check `TASKS.md` for current phase and requirements
 3. **Verify Dependencies**: Ensure task dependencies are satisfied
 4. **Understand Acceptance Criteria**: Know what success looks like (AC-X criteria)
 5. **Check Local Dependencies**: Ensure `deps/` structure is current
@@ -187,7 +187,7 @@ These documents are the single source of truth. ALL implementation decisions mus
 1. **Verify Acceptance Criteria**: Ensure all requirements met (cite specific AC-X numbers)
 2. **Run Full Test Suite**: Confirm no regressions
 3. **Update Documentation**: Reflect new capabilities in README.md
-4. **Mark Progress**: Update `tasks.md` with completion status
+4. **Mark Progress**: Update `TASKS.md` with completion status
 5. **Identify Next Task**: Determine next priority in sequence
 
 ---
@@ -195,7 +195,7 @@ These documents are the single source of truth. ALL implementation decisions mus
 ## Agent Behavioral Instructions Management
 
 ### Living Memory Principle
-This document (`agent.md`) serves as **living memory** for all agent behavioral instructions. When you provide new instructions, they MUST be incorporated here to ensure persistence across conversations.
+This document (`AGENT.md`) serves as **living memory** for all agent behavioral instructions. When you provide new instructions, they MUST be incorporated here to ensure persistence across conversations.
 
 ### Update Process
 1. **Immediate Application**: New instructions take effect immediately
@@ -264,7 +264,7 @@ pub struct ArcString(Arc<String>);
   - Example: Testing evaluator + environment interaction within `eval.rs`
   - These verify internal API contracts and component interactions
 - **Unit Tests**: Keep tests for individual functions and components within their respective modules using `#[cfg(test)]`
-- **Test Organization Priority**: 
+- **Test Organization Priority**:
   1. End-to-end tests for user-facing functionality and acceptance criteria
   2. Module integration tests for component interaction verification
   3. Unit tests for implementation details and edge cases
@@ -275,7 +275,7 @@ pub struct ArcString(Arc<String>);
 
 ### Reference Standards (MANDATORY)
 - **Requirements**: ALWAYS cite specific requirement numbers (FR-X, NFR-X)
-- **Design**: ALWAYS reference relevant sections from design.md
+- **Design**: ALWAYS reference relevant sections from DESIGN.md
 - **Acceptance Criteria**: ALWAYS quote specific criteria (AC-X) when validating
 - **Core Principles**: ALWAYS explain alignment with four core principles
 - **Documentation Compliance**: NEVER implement without citing source specifications
@@ -333,7 +333,7 @@ pub struct ArcString(Arc<String>);
 
 ### Code Formatting Requirements
 - **Always Format**: Run `cargo fmt` after making any changes to Rust source code
-- **Consistent Style**: Maintain consistent formatting across the entire codebase  
+- **Consistent Style**: Maintain consistent formatting across the entire codebase
 - **Pre-Commit**: Format code before considering any implementation complete
 - **IDE Integration**: Configure development environment to format on save when possible
 
@@ -362,14 +362,14 @@ pub struct ArcString(Arc<String>);
 | File | Update Trigger | Required Changes |
 |------|----------------|------------------|
 | `README.md` | New features added | Project overview, capabilities, examples |
-| `requirements.md` | Requirements change | Functional requirements, acceptance criteria |
-| `design.md` | Architecture changes | Technical specs, implementation details |
-| `tasks.md` | Task completion | Progress tracking, completion status |
-| `agent.md` | New behavioral instructions | Agent preferences and approaches |
+| `REQUIREMENTS.md` | Requirements change | Functional requirements, acceptance criteria |
+| `DESIGN.md` | Architecture changes | Technical specs, implementation details |
+| `TASKS.md` | Task completion | Progress tracking, completion status |
+| `AGENT.md` | New behavioral instructions | Agent preferences and approaches |
 
 ### Critical Maintenance Rules
 
-#### Progress Tracking in tasks.md
+#### Progress Tracking in TASKS.md
 **MANDATORY**: When updating tasks, ALWAYS update the "Progress Tracking" section:
 - Current completion status for each phase
 - Accurate count of completed vs total tasks
@@ -377,7 +377,7 @@ pub struct ArcString(Arc<String>);
 - Current status of active subsections
 - Next priority task
 
-#### Agent Instructions in agent.md
+#### Agent Instructions in AGENT.md
 **MANDATORY**: When given new behavioral instructions, automatically update this file without being asked to ensure instructions persist across conversations.
 
 ---
@@ -417,7 +417,7 @@ use some_crate::Function; // Now I know exactly what this does
 ```
 
 ### Starting a New Implementation Phase
-1. Read current task requirements in `tasks.md`
+1. Read current task requirements in `TASKS.md`
 2. Check dependencies are satisfied
 3. Review acceptance criteria
 4. Plan minimal implementation approach
