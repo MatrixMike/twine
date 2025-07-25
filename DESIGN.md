@@ -702,42 +702,40 @@ pub struct Macro {
   (newline))
 ```
 
-#### async Built-in Procedure
-**Note**: `async` is implemented as a built-in procedure that takes a thunk and spawns it in a new fiber.
+#### async Special Form
+**Note**: `async` is implemented as a special form that takes a sequence of expressions and spawns them in a new fiber.
 
 ```scheme
-;; async is a built-in procedure that takes a thunk (lambda with no parameters)
+;; async is a special form that takes a sequence of expressions (like begin)
 ;; Usage examples:
-(define task1 (async (lambda () (+ 1 2 3))))           ; Simple expression
-(define task2 (async (lambda () 
+(define task1 (async (+ 1 2 3)))                       ; Single expression
+(define task2 (async 
   (display "Working...")
-  (* 6 7))))                                           ; Multiple expressions
+  (* 6 7)))                                            ; Multiple expressions
 
 ;; Identifier capture example
 (let ((x 10))
-  (async (lambda () (+ x 1))))                         ; Captures x from environment
+  (async (+ x 1)))                                     ; Captures x from environment
 ```
 
-**Evaluation Semantics**: The `async` built-in procedure:
-1. **Takes exactly one argument** - must be a thunk (lambda with no parameters)
-2. **Evaluates the thunk argument** - the lambda is evaluated to a `Procedure` value
-3. **Validates thunk** - ensures the procedure has zero parameters
+**Evaluation Semantics**: The `async` special form:
+1. **Takes zero or more expressions** - expressions are not pre-evaluated
+2. **Creates implicit thunk** - wraps expressions in a closure automatically
+3. **Captures environment** - lexical environment is captured at async call site
 4. **Returns immediately** - returns a `TaskHandle` without blocking
-5. **Spawns fiber** - the thunk will be invoked in a separate fiber
+5. **Spawns fiber** - expressions will be evaluated in a separate fiber
 
-**Procedure Signature**: `(async <thunk>)`
-- **Required**: Must be a thunk: `(lambda () <body>...)`
-- **Examples**: 
-  - `(async (lambda () (+ 1 2)))` - simple thunk
-  - `(async (lambda () (display "hi") (* 3 4)))` - thunk with multiple expressions
-- **Error**: `(async (lambda (x) (* x x)))` - lambda with parameters not allowed
-- **Error**: `(async (+ 1 2))` - not a thunk
+**Special Form Signature**: `(async <expr>...)`
+- **Zero expressions**: `(async)` - returns completed task with nil value
+- **Single expression**: `(async (+ 1 2))` - evaluates expression in fiber
+- **Multiple expressions**: `(async (display "hi") (* 3 4))` - sequential evaluation like begin
+- **No restrictions**: Any valid Scheme expressions allowed
 
-**Design Rationale**: `async` is implemented as a built-in procedure rather than a special form:
-- **Simple Semantics**: Standard function call with evaluated arguments
-- **Type Safety**: Can validate that the argument is actually a zero-parameter procedure
-- **Clear Interface**: Function call semantics are well understood
-- **Implementation Simplicity**: No special evaluation rules needed
+**Design Rationale**: `async` is implemented as a special form rather than a built-in procedure:
+- **Convenient Syntax**: No need to wrap expressions in lambda manually
+- **Natural Feel**: Similar to `begin` and `let` - takes expression sequences
+- **Flexible**: Supports zero, one, or many expressions naturally
+- **Consistent**: Aligns with other special forms that control evaluation
 
 **Key Features**:
 - **Pattern Matching**: R7RS-small syntax-rules patterns

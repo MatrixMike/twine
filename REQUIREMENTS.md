@@ -242,7 +242,7 @@ Hello, World!
 fib
 > (define task1 (async (fib 35)))
 task1
-> (define task2 (async (lambda () (fib 36))))
+> (define task2 (async (fib 36)))
 task2
 > (task-wait task1)
 9227465
@@ -266,7 +266,7 @@ factorial
     (display "Slow task complete\n")
     42))
 slow-task
-> (define task1 (async (lambda () (slow-task))))
+> (define task1 (async (slow-task)))
 Starting slow task
 task1
 > (define task2 (async (+ 10 20)))

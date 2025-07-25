@@ -69,8 +69,8 @@ For detailed project information, see:
 (map square numbers)  ; => (1 4 9 16 25)
 
 ;; Async tasks with fiber concurrency
-(define task1 (async (lambda () (+ 1 2))))
-(define task2 (async (lambda () (* 3 4))))
+(define task1 (async (+ 1 2)))
+(define task2 (async (* 3 4)))
 (+ (task-wait task1) (task-wait task2))  ; => 15
 
 ;; Macros for code transformation

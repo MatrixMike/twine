@@ -783,38 +783,45 @@ runtime/
 **Prerequisites**: Async I/O complete
 **Deliverables**:
 - `spawn-fiber`, `yield`, `current-fiber`, `fiber-status`
-- `async` built-in procedure for convenient fiber creation
 - Fiber control and introspection
 - Error handling for fiber operations
-
-**Implementation Note**: `async` should be implemented as a built-in procedure (not a special form) since it can work with standard function call semantics.
-
-**Async Built-in Procedure Specification**:
-- **Signature**: `(async <thunk>)` - requires exactly one thunk (lambda with no parameters)
-- **Behavior**: Takes an evaluated thunk and spawns it in a new fiber
-- **Validation**: Ensures the argument is a procedure with zero parameters
-- **Return value**: Returns a `TaskHandle` immediately (non-blocking)
-- **Examples**:
-  - `(async (lambda () (+ 1 2)))` - simple thunk
-  - `(async (lambda () (display "hi") (* 3 4)))` - thunk with multiple expressions
-- **Error**: `(async (lambda (x) (* x x)))` - lambda with parameters not allowed
 
 **File Structure Note**: This task should expand the builtins directory to include fiber procedures:
 ```
 runtime/
 ├── special_forms/
-│   ├── mod.rs          # dispatch
+│   ├── mod.rs          # dispatch (update to include async)
 │   ├── control_flow.rs # if
 │   ├── binding.rs      # define, let
-│   └── function.rs     # lambda
+│   ├── function.rs     # lambda
+│   └── concurrency.rs  # async
 └── builtins/
     ├── mod.rs          # dispatch (update to include fibers)
     ├── arithmetic.rs   # +, -, *, /, =, <, >, etc.
     ├── list.rs         # car, cdr, cons, list, null?, append, etc.
     ├── predicates.rs   # number?, boolean?, string?, symbol?, list?, procedure?, null?
     ├── io.rs           # display, newline, read
-    └── fibers.rs       # spawn-fiber, yield, current-fiber, fiber-status, async
+    └── fibers.rs       # spawn-fiber, yield, current-fiber, fiber-status
 ```
+
+#### T4.4.1a: Implement async special form
+**Prerequisites**: Fiber scheduler complete
+**Deliverables**:
+- `async` special form for convenient fiber creation
+- Support for expression sequences like `begin`
+- Environment capture for lexical scoping
+
+**Implementation Note**: `async` should be implemented as a special form (not a built-in procedure) to provide convenient syntax for expression sequences.
+
+**Async Special Form Specification**:
+- **Signature**: `(async <expr>...)` - takes zero or more expressions
+- **Behavior**: Wraps expressions in implicit thunk and spawns in new fiber
+- **Environment**: Captures lexical environment at call site
+- **Return value**: Returns a `TaskHandle` immediately (non-blocking)
+- **Examples**:
+  - `(async (+ 1 2))` - single expression
+  - `(async (display "hi") (* 3 4))` - multiple expressions like begin
+  - `(async)` - empty body, returns task with nil value
 
 #### T4.4.2: Implement task management procedures
 **Deliverables**:
@@ -882,7 +889,7 @@ runtime/
 - `when`, `unless`, `cond` macros
 - `let*`, `letrec` binding macros
 
-**Note**: The `async` procedure is implemented as a built-in function in T4.4.1, not as a macro.
+**Note**: The `async` special form is implemented in T4.4.1a, not as a macro or built-in procedure.
 
 #### T5.2.4: Create macro integration tests
 **Acceptance**: 12+ tests covering macro definition and expansion

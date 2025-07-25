@@ -10,6 +10,7 @@ use crate::runtime::environment::Environment;
 use crate::types::{Symbol, Value};
 
 pub mod binding;
+pub mod concurrency;
 pub mod control_flow;
 
 /// Dispatch a special form evaluation
@@ -37,6 +38,9 @@ pub fn dispatch(
         // Binding and definition forms
         "define" => Some(binding::eval_define(args, env)),
         "let" => Some(binding::eval_let(args, env)),
+
+        // Concurrency forms
+        "async" => Some(concurrency::eval_async(args, env)),
 
         // Return None for unknown identifiers - not a special form
         _ => None,
@@ -84,6 +88,23 @@ mod tests {
 
         // Verify the binding was created
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(42.0));
+    }
+
+    #[test]
+    fn test_dispatch_async_special_form() {
+        let mut env = Environment::new();
+
+        // Test async special form dispatch - currently returns not implemented error
+        let args = vec![Expression::atom(Value::number(42.0))];
+
+        let result = dispatch(&Symbol::new("async"), &args, &mut env).unwrap();
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("not yet implemented")
+        );
     }
 
     #[test]
