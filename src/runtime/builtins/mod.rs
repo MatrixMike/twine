@@ -98,13 +98,14 @@ impl Builtin {
 }
 
 pub mod arithmetic;
+pub mod comparison;
 pub mod list;
 
 // Re-export arithmetic functions for convenience
-pub use arithmetic::{
-    add, divide, equal, greater_than, greater_than_or_equal, less_than, less_than_or_equal,
-    multiply, subtract,
-};
+pub use arithmetic::{add, divide, multiply, subtract};
+
+// Re-export comparison functions for convenience
+pub use comparison::{equal, greater_than, greater_than_or_equal, less_than, less_than_or_equal};
 
 // Re-export list functions for convenience
 pub use list::{car, cdr, cons, list, null_p};
