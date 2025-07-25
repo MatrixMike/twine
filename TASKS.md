@@ -55,8 +55,8 @@ cargo bench              # Benchmarks must run (when applicable)
 - **Update `./scripts/vendor-deps.sh`** after any Cargo.toml changes
 
 #### Documentation Compliance (MANDATORY)
-- ✅ **ALWAYS** read and follow `requirements.md` for functional requirements
-- ✅ **ALWAYS** read and follow `design.md` for technical architecture
+- ✅ **ALWAYS** read and follow `REQUIREMENTS.md` for functional requirements
+- ✅ **ALWAYS** read and follow `DESIGN.md` for technical architecture
 - ✅ **VERIFY** all implementations align with documented specifications
 - ✅ **REFERENCE** specific requirement numbers (FR-X, NFR-X) in task completion
 - ✅ **CHECK** acceptance criteria (AC-X) before marking tasks complete
@@ -65,8 +65,8 @@ cargo bench              # Benchmarks must run (when applicable)
 
 ```bash
 # Before starting ANY task:
-1. Read relevant sections in requirements.md
-2. Read relevant sections in design.md
+1. Read relevant sections in REQUIREMENTS.md
+2. Read relevant sections in DESIGN.md
 3. Understand acceptance criteria
 4. Verify task dependencies are satisfied
 5. Implement according to specifications
