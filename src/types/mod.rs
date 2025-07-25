@@ -20,7 +20,7 @@ pub mod value;
 // Re-export core types for convenience
 pub use list::List;
 pub use number::Number;
-pub use procedure::Procedure;
+pub use procedure::{Lambda, Procedure};
 pub use string::ArcString;
 pub use symbol::Symbol;
 pub use value::Value;
