@@ -70,7 +70,7 @@ pub fn eval_lambda(mut args: Vec<Expression>, env: &Environment) -> Result<Value
 fn parse_parameter_list(params_expr: Expression) -> Result<Vec<Symbol>> {
     match params_expr {
         Expression::List(elements) => {
-            let mut params = Vec::new();
+            let mut params = Vec::with_capacity(elements.len());
 
             for element in elements {
                 match element {

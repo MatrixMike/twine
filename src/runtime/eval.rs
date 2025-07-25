@@ -128,7 +128,7 @@ fn eval_complex_call(
 
 /// Evaluate a list of argument expressions into values
 fn eval_arguments(exprs: Vec<Expression>, env: &mut Environment) -> Result<Vec<Value>> {
-    let mut args = Vec::new();
+    let mut args = Vec::with_capacity(exprs.len());
     for expr in exprs {
         args.push(eval(expr, env)?);
     }
@@ -153,7 +153,7 @@ fn expression_to_value(expr: &Expression) -> Result<Value> {
         Expression::Atom(value) => Ok(value.clone()),
 
         Expression::List(elements) => {
-            let mut values = Vec::new();
+            let mut values = Vec::with_capacity(elements.len());
             for element in elements {
                 values.push(expression_to_value(element)?);
             }

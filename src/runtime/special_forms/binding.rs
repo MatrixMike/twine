@@ -59,7 +59,7 @@ pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<V
             };
 
             // Extract parameters - all must be symbols
-            let mut parameters = Vec::new();
+            let mut parameters = Vec::with_capacity(elements[1..].len());
             for param_expr in &elements[1..] {
                 match param_expr {
                     Expression::Atom(Value::Symbol(param)) => {
@@ -143,8 +143,8 @@ pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Valu
     };
 
     // Parse and validate each binding pair
-    let mut identifiers = Vec::new();
-    let mut expressions = Vec::new();
+    let mut identifiers = Vec::with_capacity(binding_pairs.len());
+    let mut expressions = Vec::with_capacity(binding_pairs.len());
 
     for pair in binding_pairs {
         match pair {
@@ -180,7 +180,7 @@ pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Valu
     }
 
     // Evaluate all expressions in the current environment BEFORE creating bindings
-    let mut values = Vec::new();
+    let mut values = Vec::with_capacity(expressions.len());
     for expr in expressions {
         let value = eval(expr, env)?;
         values.push(value);

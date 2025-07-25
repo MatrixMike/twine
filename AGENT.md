@@ -225,6 +225,15 @@ This document (`AGENT.md`) serves as **living memory** for all agent behavioral 
 - **Exception for test modules**: `use` statements within test functions are acceptable for test-specific imports
 - **Organize imports logically**: Group standard library, external crates, and local crate imports separately
 
+### Performance Guidelines
+- **Use Vec::with_capacity**: Always use `Vec::with_capacity(size)` instead of `Vec::new()` when the final size is known upfront
+- **Examples**: 
+  - `Vec::with_capacity(elements.len())` when converting from another collection
+  - `Vec::with_capacity(exprs.len())` when processing a known number of expressions
+  - `Vec::with_capacity(binding_pairs.len())` when parsing binding lists
+- **Benefits**: Eliminates vector reallocations, reduces memory fragmentation, improves cache locality
+- **Exception**: Use `Vec::new()` only when the final size is genuinely unknown
+
 ### Commenting Style
 - **Focus on Functionality**: Comments should describe what code does and why technical decisions were made
 - **Include Important "Why"**: Explain technical rationale, performance considerations, safety concerns, and non-obvious design choices

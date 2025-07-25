@@ -1111,7 +1111,7 @@ mod tests {
 
         for (input, expected_tokens) in test_cases {
             let mut lexer = Lexer::new(input.to_string());
-            let mut actual_tokens = Vec::new();
+            let mut actual_tokens = Vec::with_capacity(expected_tokens.len());
 
             loop {
                 let token = lexer.next_token().unwrap();
