@@ -26,13 +26,13 @@ use super::{Environment, builtins, special_forms};
 pub fn eval(expr: Expression, env: &mut Environment) -> Result<Value> {
     match expr {
         // Atoms are handled based on their value type
-        Expression::Atom(value) => eval_atom(&value, env),
+        Expression::Atom(value) => eval_atom(value, env),
 
         // Lists represent procedure calls or special forms
         Expression::List(elements) => eval_list(elements, env),
 
         // Quoted expressions prevent evaluation
-        Expression::Quote(boxed_expr) => eval_quote(&boxed_expr),
+        Expression::Quote(boxed_expr) => eval_quote(*boxed_expr),
     }
 }
 
@@ -41,17 +41,17 @@ pub fn eval(expr: Expression, env: &mut Environment) -> Result<Value> {
 /// Atoms are evaluated based on their type:
 /// - Numbers, booleans, strings, and lists are self-evaluating
 /// - Symbols are looked up as identifiers in the environment
-fn eval_atom(value: &Value, env: &Environment) -> Result<Value> {
+fn eval_atom(value: Value, env: &Environment) -> Result<Value> {
     match value {
         // Self-evaluating values
         Value::Number(_)
         | Value::Boolean(_)
         | Value::String(_)
         | Value::List(_)
-        | Value::Procedure(_) => Ok(value.clone()),
+        | Value::Procedure(_) => Ok(value),
 
         // Symbols need environment lookup
-        Value::Symbol(identifier) => env.lookup(identifier),
+        Value::Symbol(identifier) => env.lookup(&identifier),
 
         // Handle nil value
         Value::Nil => Ok(Value::Nil),
@@ -190,7 +190,7 @@ fn call_procedure(
 ///
 /// Quoted expressions prevent evaluation and return the quoted expression
 /// as a value without evaluating it.
-fn eval_quote(expr: &Expression) -> Result<Value> {
+fn eval_quote(expr: Expression) -> Result<Value> {
     // Convert the quoted expression back to a Value
     expression_to_value(expr)
 }
@@ -199,9 +199,9 @@ fn eval_quote(expr: &Expression) -> Result<Value> {
 ///
 /// This is used for quote evaluation where we need to return
 /// the quoted expression as a value without evaluating it.
-fn expression_to_value(expr: &Expression) -> Result<Value> {
+fn expression_to_value(expr: Expression) -> Result<Value> {
     match expr {
-        Expression::Atom(value) => Ok(value.clone()),
+        Expression::Atom(value) => Ok(value),
 
         Expression::List(elements) => {
             let mut values = Vec::with_capacity(elements.len());
@@ -213,7 +213,7 @@ fn expression_to_value(expr: &Expression) -> Result<Value> {
 
         Expression::Quote(boxed_expr) => {
             // Nested quotes - convert the inner expression
-            expression_to_value(boxed_expr)
+            expression_to_value(*boxed_expr)
         }
     }
 }
@@ -418,7 +418,7 @@ mod tests {
     fn test_expression_to_value_conversion() {
         // Test atom conversion
         let number_expr = Expression::atom(Value::number(42.0));
-        let result = expression_to_value(&number_expr).unwrap();
+        let result = expression_to_value(number_expr).unwrap();
         assert_eq!(result.as_number().unwrap(), 42.0);
 
         // Test list conversion
@@ -427,7 +427,7 @@ mod tests {
             Expression::atom(Value::boolean(true)),
         ]);
 
-        let result = expression_to_value(&list_expr).unwrap();
+        let result = expression_to_value(list_expr).unwrap();
         assert!(result.is_list());
 
         let list = result.as_list().unwrap();
