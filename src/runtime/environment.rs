@@ -5,7 +5,8 @@
 //! parent environment chains and are designed to be thread-safe for use
 //! in the fiber-based concurrency system.
 
-use crate::types::{Symbol, Value};
+use crate::runtime::builtins::Builtin;
+use crate::types::{Procedure, Symbol, Value};
 use crate::{Error, Result};
 use std::collections::HashMap;
 
@@ -84,6 +85,12 @@ impl<'a> Environment<'a> {
         // Then check parent environment if it exists
         if let Some(parent) = self.parent {
             return parent.lookup(identifier);
+        }
+
+        // Check for builtin procedures before failing
+        if let Some(builtin) = Builtin::from_name(identifier.as_str()) {
+            let procedure = Procedure::builtin(builtin);
+            return Ok(Value::procedure(procedure));
         }
 
         // Identifier not found - provide detailed error
@@ -1044,9 +1051,187 @@ mod tests {
         env.define_str("test", Value::number(123.0));
 
         let flattened = env.flatten();
-
-        // This should compile without lifetime issues
         fn takes_static_env(_env: Environment<'static>) {}
         takes_static_env(flattened);
+    }
+
+    #[test]
+    fn test_builtin_procedure_lookup() {
+        let env = Environment::new();
+
+        // Test arithmetic builtins
+        let add_result = env.lookup_str("+").unwrap();
+        assert!(add_result.is_procedure());
+        let add_proc = add_result.as_procedure().unwrap();
+        assert!(add_proc.is_builtin());
+        assert_eq!(add_proc.name(), "+");
+
+        let sub_result = env.lookup_str("-").unwrap();
+        assert!(sub_result.is_procedure());
+        let sub_proc = sub_result.as_procedure().unwrap();
+        assert!(sub_proc.is_builtin());
+        assert_eq!(sub_proc.name(), "-");
+
+        let mul_result = env.lookup_str("*").unwrap();
+        assert!(mul_result.is_procedure());
+        let mul_proc = mul_result.as_procedure().unwrap();
+        assert!(mul_proc.is_builtin());
+        assert_eq!(mul_proc.name(), "*");
+
+        let div_result = env.lookup_str("/").unwrap();
+        assert!(div_result.is_procedure());
+        let div_proc = div_result.as_procedure().unwrap();
+        assert!(div_proc.is_builtin());
+        assert_eq!(div_proc.name(), "/");
+
+        // Test comparison builtins
+        let eq_result = env.lookup_str("=").unwrap();
+        assert!(eq_result.is_procedure());
+        let eq_proc = eq_result.as_procedure().unwrap();
+        assert!(eq_proc.is_builtin());
+        assert_eq!(eq_proc.name(), "=");
+
+        let lt_result = env.lookup_str("<").unwrap();
+        assert!(lt_result.is_procedure());
+        let lt_proc = lt_result.as_procedure().unwrap();
+        assert!(lt_proc.is_builtin());
+        assert_eq!(lt_proc.name(), "<");
+
+        let gt_result = env.lookup_str(">").unwrap();
+        assert!(gt_result.is_procedure());
+        let gt_proc = gt_result.as_procedure().unwrap();
+        assert!(gt_proc.is_builtin());
+        assert_eq!(gt_proc.name(), ">");
+
+        // Test list builtins
+        let car_result = env.lookup_str("car").unwrap();
+        assert!(car_result.is_procedure());
+        let car_proc = car_result.as_procedure().unwrap();
+        assert!(car_proc.is_builtin());
+        assert_eq!(car_proc.name(), "car");
+
+        let cdr_result = env.lookup_str("cdr").unwrap();
+        assert!(cdr_result.is_procedure());
+        let cdr_proc = cdr_result.as_procedure().unwrap();
+        assert!(cdr_proc.is_builtin());
+        assert_eq!(cdr_proc.name(), "cdr");
+
+        let cons_result = env.lookup_str("cons").unwrap();
+        assert!(cons_result.is_procedure());
+        let cons_proc = cons_result.as_procedure().unwrap();
+        assert!(cons_proc.is_builtin());
+        assert_eq!(cons_proc.name(), "cons");
+
+        let list_result = env.lookup_str("list").unwrap();
+        assert!(list_result.is_procedure());
+        let list_proc = list_result.as_procedure().unwrap();
+        assert!(list_proc.is_builtin());
+        assert_eq!(list_proc.name(), "list");
+
+        let null_p_result = env.lookup_str("null?").unwrap();
+        assert!(null_p_result.is_procedure());
+        let null_p_proc = null_p_result.as_procedure().unwrap();
+        assert!(null_p_proc.is_builtin());
+        assert_eq!(null_p_proc.name(), "null?");
+    }
+
+    #[test]
+    fn test_builtin_lookup_with_shadowing() {
+        let mut env = Environment::new();
+
+        // First verify builtin is accessible
+        let add_result = env.lookup_str("+").unwrap();
+        assert!(add_result.is_procedure());
+        let add_proc = add_result.as_procedure().unwrap();
+        assert!(add_proc.is_builtin());
+        assert_eq!(add_proc.name(), "+");
+
+        // Shadow the builtin with a user-defined binding
+        env.define_str("+", Value::string("shadowed"));
+
+        // Now lookup should return the user-defined value, not the builtin
+        let shadowed_result = env.lookup_str("+").unwrap();
+        assert!(shadowed_result.is_string());
+        assert_eq!(shadowed_result.as_string().unwrap(), "shadowed");
+        assert!(!shadowed_result.is_procedure());
+    }
+
+    #[test]
+    fn test_builtin_lookup_in_parent_chain() {
+        let parent = Environment::new();
+        let mut child = Environment::new_scope(&parent);
+
+        // Builtin should be accessible from child environment
+        let add_result = child.lookup_str("+").unwrap();
+        assert!(add_result.is_procedure());
+        let add_proc = add_result.as_procedure().unwrap();
+        assert!(add_proc.is_builtin());
+        assert_eq!(add_proc.name(), "+");
+
+        // Define something in child that doesn't shadow builtin
+        child.define_str("x", Value::number(42.0));
+
+        // Builtin should still be accessible
+        let add_result2 = child.lookup_str("+").unwrap();
+        assert!(add_result2.is_procedure());
+        let add_proc2 = add_result2.as_procedure().unwrap();
+        assert!(add_proc2.is_builtin());
+        assert_eq!(add_proc2.name(), "+");
+
+        // User-defined identifier should also be accessible
+        let x_result = child.lookup_str("x").unwrap();
+        assert!(x_result.is_number());
+        assert_eq!(x_result.as_number().unwrap(), 42.0);
+    }
+
+    #[test]
+    fn test_non_builtin_identifier_still_fails() {
+        let env = Environment::new();
+
+        // Non-existent identifier that's not a builtin should still fail
+        let result = env.lookup_str("unknown-identifier");
+        assert!(result.is_err());
+
+        // Verify the error message is about unbound identifier
+        let error = result.unwrap_err();
+        let error_msg = format!("{}", error);
+        assert!(error_msg.contains("Unbound identifier"));
+        assert!(error_msg.contains("unknown-identifier"));
+    }
+
+    #[test]
+    fn test_builtin_lookup_precedence() {
+        let mut parent = Environment::new();
+
+        // Define + in parent
+        parent.define_str("+", Value::string("parent-plus"));
+
+        let mut child = Environment::new_scope(&parent);
+
+        // Child should see parent's definition, not builtin
+        let child_result = child.lookup_str("+").unwrap();
+        assert!(child_result.is_string());
+        assert_eq!(child_result.as_string().unwrap(), "parent-plus");
+
+        // Define + in child
+        child.define_str("+", Value::string("child-plus"));
+
+        // Child should see its own definition
+        let child_result2 = child.lookup_str("+").unwrap();
+        assert!(child_result2.is_string());
+        assert_eq!(child_result2.as_string().unwrap(), "child-plus");
+
+        // Parent should still see its own definition
+        let parent_result = parent.lookup_str("+").unwrap();
+        assert!(parent_result.is_string());
+        assert_eq!(parent_result.as_string().unwrap(), "parent-plus");
+
+        // New environment should see builtin
+        let fresh_env = Environment::new();
+        let fresh_result = fresh_env.lookup_str("+").unwrap();
+        assert!(fresh_result.is_procedure());
+        let fresh_proc = fresh_result.as_procedure().unwrap();
+        assert!(fresh_proc.is_builtin());
+        assert_eq!(fresh_proc.name(), "+");
     }
 }

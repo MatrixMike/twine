@@ -1488,7 +1488,7 @@ fn test_integration_lambda_application_error_cases() {
     let result = eval_source("(x 1 2 3)", &mut env);
     assert!(result.is_err());
     if let Err(Error::RuntimeError(msg)) = result {
-        assert!(msg.contains("'x' is not a procedure, got number"));
+        assert!(msg.contains("is not a procedure, got number"));
     } else {
         panic!("Expected RuntimeError for calling non-procedure");
     }
@@ -1558,4 +1558,115 @@ fn test_integration_lambda_application_comprehensive() {
     // Test with expressions
     let expr_result = eval_source("(add5 (* 2 3))", &mut env).unwrap();
     assert_eq!(expr_result, Value::number(21.0)); // 5 + 6 + 10 = 21
+}
+
+#[test]
+fn test_integration_builtin_procedure_lookup() {
+    let mut env = Environment::new();
+
+    // Test that builtin procedures are automatically available
+    let result = eval_source("(+ 1 2 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(6.0));
+
+    let result = eval_source("(* 4 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(20.0));
+
+    let result = eval_source("(- 10 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(7.0));
+
+    let result = eval_source("(/ 15 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(5.0));
+
+    // Test comparison operations
+    let result = eval_source("(= 5 5)", &mut env).unwrap();
+    assert_eq!(result, Value::boolean(true));
+
+    let result = eval_source("(< 3 5)", &mut env).unwrap();
+    assert_eq!(result, Value::boolean(true));
+
+    let result = eval_source("(> 7 2)", &mut env).unwrap();
+    assert_eq!(result, Value::boolean(true));
+
+    // Test list operations
+    let result = eval_source("(list 1 2 3)", &mut env).unwrap();
+    assert_eq!(
+        result,
+        Value::list(vec![
+            Value::number(1.0),
+            Value::number(2.0),
+            Value::number(3.0)
+        ])
+    );
+
+    let result = eval_source("(car (list 1 2 3))", &mut env).unwrap();
+    assert_eq!(result, Value::number(1.0));
+
+    let result = eval_source("(cdr (list 1 2 3))", &mut env).unwrap();
+    assert_eq!(
+        result,
+        Value::list(vec![Value::number(2.0), Value::number(3.0)])
+    );
+
+    let result = eval_source("(cons 0 (list 1 2))", &mut env).unwrap();
+    assert_eq!(
+        result,
+        Value::list(vec![
+            Value::number(0.0),
+            Value::number(1.0),
+            Value::number(2.0)
+        ])
+    );
+
+    let result = eval_source("(null? (list))", &mut env).unwrap();
+    assert_eq!(result, Value::boolean(true));
+
+    let result = eval_source("(null? (list 1))", &mut env).unwrap();
+    assert_eq!(result, Value::boolean(false));
+}
+
+#[test]
+fn test_integration_builtin_shadowing() {
+    let mut env = Environment::new();
+
+    // Test that builtins work initially
+    let result = eval_source("(+ 2 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(5.0));
+
+    // Shadow the builtin with a user definition
+    eval_source("(define + 42)", &mut env).unwrap();
+
+    // Now + should refer to the user-defined value, not the builtin
+    let result = eval_source("+", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+
+    // Test that other builtins still work
+    let result = eval_source("(* 3 4)", &mut env).unwrap();
+    assert_eq!(result, Value::number(12.0));
+
+    // Test in a new scope
+    eval_source("(let ((+ 100)) +)", &mut env).unwrap();
+    let result = eval_source("(let ((+ 100)) +)", &mut env).unwrap();
+    assert_eq!(result, Value::number(100.0));
+
+    // Original binding should still be shadowed
+    let result = eval_source("+", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_builtin_in_nested_environments() {
+    let mut env = Environment::new();
+
+    // Test builtins work in nested let expressions
+    let result = eval_source("(let ((x 5)) (+ x 3))", &mut env).unwrap();
+    assert_eq!(result, Value::number(8.0));
+
+    // Test builtins work in lambda closures
+    eval_source("(define add-ten (lambda (x) (+ x 10)))", &mut env).unwrap();
+    let result = eval_source("(add-ten 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(15.0));
+
+    // Test complex nested expression with multiple builtins
+    let result = eval_source("(let ((a 2) (b 3)) (* (+ a b) (- 10 4)))", &mut env).unwrap();
+    assert_eq!(result, Value::number(30.0)); // (2 + 3) * (10 - 4) = 5 * 6 = 30
 }
