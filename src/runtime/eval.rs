@@ -94,17 +94,25 @@ fn eval_symbol_call(
     }
 
     // Not a special form, try builtin procedures
-    let args = eval_arguments(rest_exprs, env)?;
-
-    // Handle builtin procedures through direct lookup
     if let Some(builtin) = builtins::Builtin::from_name(identifier.as_str()) {
-        builtin.call(&args)
-    } else {
-        // Not a builtin procedure, try to evaluate as normal procedure call
-        let error_msg = format!("Unknown procedure: '{}'", identifier.as_str());
-        let first_expr_owned = Expression::Atom(Value::Symbol(identifier));
-        let _procedure = eval(first_expr_owned, env)?;
-        Err(Error::runtime_error(&error_msg))
+        let args = eval_arguments(rest_exprs, env)?;
+        return builtin.call(&args);
+    }
+
+    // Not a builtin, try to look up identifier in environment
+    let procedure_value = env.lookup(&identifier)?;
+
+    // Check if the value is a procedure
+    match procedure_value {
+        Value::Procedure(procedure) => call_procedure(procedure, rest_exprs, env),
+        _ => {
+            let error_msg = format!(
+                "'{}' is not a procedure, got {}",
+                identifier.as_str(),
+                procedure_value.type_name()
+            );
+            Err(Error::runtime_error(&error_msg))
+        }
     }
 }
 
@@ -114,16 +122,17 @@ fn eval_complex_call(
     rest_exprs: Vec<Expression>,
     env: &mut Environment,
 ) -> Result<Value> {
-    // Evaluate the procedure expression and handle other types of procedures
-    let procedure = eval(first_expr, env)?;
+    // Evaluate the procedure expression
+    let procedure_value = eval(first_expr, env)?;
 
-    // Evaluate all arguments
-    let _args = eval_arguments(rest_exprs, env)?;
-
-    Err(Error::runtime_error(&format!(
-        "Procedure call expects symbol, got {}",
-        procedure.type_name()
-    )))
+    // Check if the value is a procedure
+    match procedure_value {
+        Value::Procedure(procedure) => call_procedure(procedure, rest_exprs, env),
+        _ => Err(Error::runtime_error(&format!(
+            "Application expects procedure, got {}",
+            procedure_value.type_name()
+        ))),
+    }
 }
 
 /// Evaluate a list of argument expressions into values
@@ -133,6 +142,48 @@ fn eval_arguments(exprs: Vec<Expression>, env: &mut Environment) -> Result<Vec<V
         args.push(eval(expr, env)?);
     }
     Ok(args)
+}
+
+/// Call a procedure with the given arguments
+///
+/// Handles both builtin and lambda procedures:
+/// - For builtin procedures, delegates to the builtin implementation
+/// - For lambda procedures, creates new environment, binds parameters, and evaluates body
+fn call_procedure(
+    procedure: crate::types::Procedure,
+    arg_exprs: Vec<Expression>,
+    env: &mut Environment,
+) -> Result<Value> {
+    match procedure {
+        crate::types::Procedure::Builtin(builtin) => {
+            // Evaluate arguments for builtin procedures
+            let args = eval_arguments(arg_exprs, env)?;
+            builtin.call(&args)
+        }
+        crate::types::Procedure::Lambda(lambda) => {
+            // Check arity
+            let expected_arity = lambda.arity();
+            let actual_arity = arg_exprs.len();
+
+            if expected_arity != actual_arity {
+                return Err(Error::arity_error("<lambda>", expected_arity, actual_arity));
+            }
+
+            // Evaluate arguments
+            let args = eval_arguments(arg_exprs, env)?;
+
+            // Create new environment extending the lambda's closure
+            let mut call_env = Environment::new_scope(lambda.env());
+
+            // Bind parameters to arguments
+            for (param, arg) in lambda.params().iter().zip(args.iter()) {
+                call_env.define(param.clone(), arg.clone());
+            }
+
+            // Evaluate the body in the new environment
+            eval(lambda.body().clone(), &mut call_env)
+        }
+    }
 }
 
 /// Evaluate a quoted expression
@@ -295,7 +346,7 @@ mod tests {
         let result = eval(non_symbol_proc, &mut env);
         assert!(result.is_err());
         if let Err(Error::RuntimeError(msg)) = result {
-            assert!(msg.contains("Procedure call expects symbol, got number"));
+            assert!(msg.contains("Application expects procedure, got number"));
         } else {
             panic!("Expected RuntimeError for non-symbol procedure");
         }

@@ -613,11 +613,26 @@ test_integration_lambda_complex_body ✅
 test_integration_lambda_with_special_form_names ✅
 ```
 
-#### T3.1.3: Implement function application
+#### T3.1.3: Implement function application ✅
 **Deliverables**:
-- Procedure call evaluation
-- Argument evaluation and binding
-- Arity checking for all procedure types
+- Procedure call evaluation ✅
+- Argument evaluation and binding ✅
+- Arity checking for all procedure types ✅
+**Acceptance**: 12+ tests covering lambda calling, parameter binding, arity checking, closures
+```
+test_integration_lambda_application_basic ✅
+test_integration_lambda_application_multiple_parameters ✅
+test_integration_lambda_application_no_parameters ✅
+test_integration_lambda_application_closure ✅
+test_integration_lambda_application_nested_calls ✅
+test_integration_lambda_application_with_lists ✅
+test_integration_lambda_application_complex_expression ✅
+test_integration_lambda_application_arity_errors ✅
+test_integration_lambda_application_error_cases ✅
+test_integration_lambda_application_parameter_shadowing ✅
+test_integration_lambda_application_recursive_pattern ✅
+test_integration_lambda_application_comprehensive ✅
+```
 
 #### T3.1.4: Implement tail call optimization
 **Deliverables**:
@@ -1105,13 +1120,13 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 3 (Advanced Language Features)
-**Overall Progress**: 36% (29/81 tasks completed)
+**Overall Progress**: 37% (30/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
-- **Phase 3**: ☐ 10% (2/20 tasks) - Advanced Features (Section 3.1 in progress)
+- **Phase 3**: ☐ 15% (3/20 tasks) - Advanced Features (Section 3.1 in progress)
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
@@ -1149,11 +1164,12 @@ cargo fmt --check            # Formatting verification
 - ✅ T2.4.3: Create identifier binding tests
 - ✅ T3.1.1: Implement `Procedure` enum
 - ✅ T3.1.2: Implement `lambda` special form
+- ✅ T3.1.3: Implement function application
 
 ### Immediate Next Steps
-1. **T3.1.3**: Implement function application (🔥 Priority - Continue Phase 3.1 Function System)
-2. **T3.1.4**: Implement tail call optimization
-3. **T3.1.5**: Create function system tests
+1. **T3.1.4**: Implement tail call optimization (🔥 Priority - Continue Phase 3.1 Function System)
+2. **T3.1.5**: Create function system tests
+3. **T3.2.1**: Implement type checking procedures
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

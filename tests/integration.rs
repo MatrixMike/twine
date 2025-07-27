@@ -5,9 +5,9 @@
 //! These tests exercise the interaction between lexer, parser, evaluator, and
 //! runtime environment components.
 
-use twine_scheme::Result;
 use twine_scheme::runtime::Environment;
 use twine_scheme::types::{Symbol, Value};
+use twine_scheme::{Error, Result};
 
 // Helper function for end-to-end evaluation testing
 fn eval_source(
@@ -1333,4 +1333,229 @@ fn test_integration_lambda_with_special_form_names() {
     assert_eq!(params[0], Symbol::new("if"));
     assert_eq!(params[1], Symbol::new("define"));
     assert_eq!(params[2], Symbol::new("lambda"));
+}
+
+// T3.1.3: Function Application Tests
+
+#[test]
+fn test_integration_lambda_application_basic() {
+    let mut env = Environment::new();
+
+    // Define a simple lambda and call it
+    let lambda_def = "(define add1 (lambda (x) (+ x 1)))";
+    eval_source(lambda_def, &mut env).unwrap();
+
+    // Call the lambda
+    let call_result = eval_source("(add1 5)", &mut env).unwrap();
+    assert_eq!(call_result, Value::number(6.0));
+
+    // Call with expression argument
+    let call_with_expr = eval_source("(add1 (* 2 3))", &mut env).unwrap();
+    assert_eq!(call_with_expr, Value::number(7.0));
+}
+
+#[test]
+fn test_integration_lambda_application_multiple_parameters() {
+    let mut env = Environment::new();
+
+    // Define lambda with multiple parameters
+    let lambda_def = "(define add3 (lambda (x y z) (+ x y z)))";
+    eval_source(lambda_def, &mut env).unwrap();
+
+    // Call with multiple arguments
+    let result = eval_source("(add3 1 2 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(6.0));
+
+    // Call with expression arguments
+    let result_expr = eval_source("(add3 (+ 1 1) (* 2 2) (- 5 2))", &mut env).unwrap();
+    assert_eq!(result_expr, Value::number(9.0)); // 2 + 4 + 3
+}
+
+#[test]
+fn test_integration_lambda_application_no_parameters() {
+    let mut env = Environment::new();
+
+    // Define lambda with no parameters
+    let lambda_def = "(define get42 (lambda () 42))";
+    eval_source(lambda_def, &mut env).unwrap();
+
+    // Call with no arguments
+    let result = eval_source("(get42)", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_lambda_application_closure() {
+    let mut env = Environment::new();
+
+    // Define outer variable
+    eval_source("(define x 10)", &mut env).unwrap();
+
+    // Define lambda that captures x
+    let lambda_def = "(define addx (lambda (y) (+ x y)))";
+    eval_source(lambda_def, &mut env).unwrap();
+
+    // Call lambda - should use captured x
+    let result = eval_source("(addx 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(15.0));
+
+    // Change x and call again - should still use captured x
+    eval_source("(define x 20)", &mut env).unwrap();
+    let result2 = eval_source("(addx 5)", &mut env).unwrap();
+    assert_eq!(result2, Value::number(15.0)); // Still uses original x=10
+}
+
+#[test]
+fn test_integration_lambda_application_nested_calls() {
+    let mut env = Environment::new();
+
+    // Define multiple lambdas
+    eval_source("(define double (lambda (x) (* x 2)))", &mut env).unwrap();
+    eval_source("(define add1 (lambda (x) (+ x 1)))", &mut env).unwrap();
+
+    // Nested function calls
+    let result = eval_source("(double (add1 3))", &mut env).unwrap();
+    assert_eq!(result, Value::number(8.0)); // double(add1(3)) = double(4) = 8
+
+    // More complex nesting
+    let complex_result = eval_source("(add1 (double (add1 2)))", &mut env).unwrap();
+    assert_eq!(complex_result, Value::number(7.0)); // add1(double(add1(2))) = add1(double(3)) = add1(6) = 7
+}
+
+#[test]
+fn test_integration_lambda_application_with_lists() {
+    let mut env = Environment::new();
+
+    // Define lambda that works with lists
+    let lambda_def = "(define first-plus-second (lambda (lst) (+ (car lst) (car (cdr lst)))))";
+    eval_source(lambda_def, &mut env).unwrap();
+
+    // Call with list argument
+    let result = eval_source("(first-plus-second (list 3 7 9))", &mut env).unwrap();
+    assert_eq!(result, Value::number(10.0));
+}
+
+#[test]
+fn test_integration_lambda_application_complex_expression() {
+    let mut env = Environment::new();
+
+    // Call lambda directly without defining it first
+    let direct_call = "((lambda (x y) (+ (* x x) (* y y))) 3 4)";
+    let result = eval_source(direct_call, &mut env).unwrap();
+    assert_eq!(result, Value::number(25.0)); // 3² + 4² = 9 + 16 = 25
+}
+
+#[test]
+fn test_integration_lambda_application_arity_errors() {
+    let mut env = Environment::new();
+
+    // Define lambda expecting 2 parameters
+    eval_source("(define add2 (lambda (x y) (+ x y)))", &mut env).unwrap();
+
+    // Test too few arguments
+    let result = eval_source("(add2 5)", &mut env);
+    assert!(result.is_err());
+    if let Err(Error::ArityError {
+        expected, actual, ..
+    }) = result
+    {
+        assert_eq!(expected, 2);
+        assert_eq!(actual, 1);
+    } else {
+        panic!("Expected ArityError for too few arguments");
+    }
+
+    // Test too many arguments
+    let result = eval_source("(add2 5 10 15)", &mut env);
+    assert!(result.is_err());
+    if let Err(Error::ArityError {
+        expected, actual, ..
+    }) = result
+    {
+        assert_eq!(expected, 2);
+        assert_eq!(actual, 3);
+    } else {
+        panic!("Expected ArityError for too many arguments");
+    }
+}
+
+#[test]
+fn test_integration_lambda_application_error_cases() {
+    let mut env = Environment::new();
+
+    // Test calling non-procedure
+    eval_source("(define x 42)", &mut env).unwrap();
+    let result = eval_source("(x 1 2 3)", &mut env);
+    assert!(result.is_err());
+    if let Err(Error::RuntimeError(msg)) = result {
+        assert!(msg.contains("'x' is not a procedure, got number"));
+    } else {
+        panic!("Expected RuntimeError for calling non-procedure");
+    }
+
+    // Test calling undefined identifier
+    let result = eval_source("(undefined-proc 1 2)", &mut env);
+    assert!(result.is_err());
+    if let Err(Error::EnvironmentError { .. }) = result {
+        // Expected
+    } else {
+        panic!("Expected UnboundIdentifier error");
+    }
+}
+
+#[test]
+fn test_integration_lambda_application_parameter_shadowing() {
+    let mut env = Environment::new();
+
+    // Define outer variable
+    eval_source("(define x 100)", &mut env).unwrap();
+
+    // Define lambda that shadows x
+    let lambda_def = "(define test-shadow (lambda (x) (+ x 1)))";
+    eval_source(lambda_def, &mut env).unwrap();
+
+    // Call lambda - parameter x should shadow outer x
+    let result = eval_source("(test-shadow 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(6.0)); // Uses parameter x=5, not outer x=100
+
+    // Outer x should be unchanged
+    let outer_x = eval_source("x", &mut env).unwrap();
+    assert_eq!(outer_x, Value::number(100.0));
+}
+
+#[test]
+fn test_integration_lambda_application_recursive_pattern() {
+    let mut env = Environment::new();
+
+    // Define a simple recursive-style pattern (actual recursion needs more setup)
+    eval_source("(define make-counter (lambda (n) (lambda () n)))", &mut env).unwrap();
+
+    // Create a counter
+    eval_source("(define counter5 (make-counter 5))", &mut env).unwrap();
+
+    // Call the counter
+    let result = eval_source("(counter5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(5.0));
+}
+
+#[test]
+fn test_integration_lambda_application_comprehensive() {
+    let mut env = Environment::new();
+
+    // Complex test combining multiple features
+    eval_source("(define x 10)", &mut env).unwrap();
+    eval_source(
+        "(define make-adder (lambda (n) (lambda (m) (+ n m x))))",
+        &mut env,
+    )
+    .unwrap();
+    eval_source("(define add5 (make-adder 5))", &mut env).unwrap();
+
+    // Test the created function
+    let result = eval_source("(add5 7)", &mut env).unwrap();
+    assert_eq!(result, Value::number(22.0)); // 5 + 7 + 10 = 22
+
+    // Test with expressions
+    let expr_result = eval_source("(add5 (* 2 3))", &mut env).unwrap();
+    assert_eq!(expr_result, Value::number(21.0)); // 5 + 6 + 10 = 21
 }
