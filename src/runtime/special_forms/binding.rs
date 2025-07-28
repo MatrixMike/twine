@@ -5,7 +5,7 @@
 use crate::error::Result;
 use crate::parser::Expression;
 use crate::runtime::special_forms::lambda::{
-    create_lambda_procedure, parse_parameter_list, validate_parameters,
+    create_lambda_procedure, parse_parameters, validate_parameters,
 };
 use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::Value;
@@ -83,8 +83,7 @@ fn eval_define_procedure(
     };
 
     // Extract and validate parameters
-    let param_expr = Expression::arc_list(elements[1..].iter().map(Arc::clone).collect());
-    let params = parse_parameter_list(param_expr)?;
+    let params = parse_parameters(&elements[1..])?;
     validate_parameters(&params)?;
 
     // Validate procedure body

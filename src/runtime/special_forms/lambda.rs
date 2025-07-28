@@ -39,7 +39,26 @@ pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value>
 
     // Extract and validate parameters
     let params_expr = Arc::clone(&args[0]);
-    let params = parse_parameter_list(params_expr)?;
+    let param_elements = match params_expr.as_ref() {
+        Expression::List(elements) => elements,
+        Expression::Atom(Value::Symbol(_)) => {
+            return Err(Error::parse_error(
+                "lambda: parameters must be enclosed in parentheses",
+            ));
+        }
+        Expression::Atom(other) => {
+            return Err(Error::parse_error(&format!(
+                "lambda: parameter list must be a list, got {}",
+                other.type_name()
+            )));
+        }
+        Expression::Quote(_) => {
+            return Err(Error::parse_error(
+                "lambda: parameter list must be a list, got quote",
+            ));
+        }
+    };
+    let params = parse_parameters(param_elements)?;
     validate_parameters(&params)?;
 
     let body_expr = Arc::clone(&args[1]);
@@ -69,64 +88,46 @@ pub fn create_lambda_procedure(
     Value::Procedure(lambda_proc)
 }
 
-/// Parse the parameter list from a lambda expression
+/// Parse parameters from a slice of expressions
 ///
-/// Parameter list can be:
-/// - Empty list: `()`
-/// - List of symbols: `(x y z)`
+/// Takes a slice of parameter expressions and extracts individual parameter symbols.
+/// Validates that all parameters are symbols and returns them as a vector.
 ///
 /// # Arguments
-/// * `params_expr` - Expression representing the parameter list
+/// * `param_elements` - Slice of expressions representing the parameters
 ///
 /// # Returns
-/// Vector of parameter symbols
+/// Vector of parameter symbols if valid, Error if malformed
 ///
 /// # Errors
-/// Returns error if parameter list is malformed or contains non-symbols
-pub fn parse_parameter_list(params_expr: Arc<Expression>) -> Result<Vec<Symbol>> {
-    match params_expr.as_ref() {
-        Expression::List(elements) => {
-            let mut params = Vec::with_capacity(elements.len());
+/// Returns error if any parameter is not a symbol
+pub fn parse_parameters(param_elements: &[Arc<Expression>]) -> Result<Vec<Symbol>> {
+    let mut params = Vec::with_capacity(param_elements.len());
 
-            for element in elements {
-                match element.as_ref() {
-                    Expression::Atom(Value::Symbol(symbol)) => {
-                        params.push(symbol.clone());
-                    }
-                    Expression::Atom(other) => {
-                        return Err(Error::parse_error(&format!(
-                            "lambda: parameter must be a symbol, got {}",
-                            other.type_name()
-                        )));
-                    }
-                    Expression::List(_) => {
-                        return Err(Error::parse_error(
-                            "lambda: parameter must be a symbol, not list",
-                        ));
-                    }
-                    Expression::Quote(_) => {
-                        return Err(Error::parse_error(
-                            "lambda: parameter must be a symbol, not quoted expression",
-                        ));
-                    }
-                }
+    for element in param_elements {
+        match element.as_ref() {
+            Expression::Atom(Value::Symbol(symbol)) => {
+                params.push(symbol.clone());
             }
-            Ok(params)
+            Expression::Atom(other) => {
+                return Err(Error::parse_error(&format!(
+                    "lambda: parameter must be a symbol, got {}",
+                    other.type_name()
+                )));
+            }
+            Expression::List(_) => {
+                return Err(Error::parse_error(
+                    "lambda: parameter must be a symbol, not list",
+                ));
+            }
+            Expression::Quote(_) => {
+                return Err(Error::parse_error(
+                    "lambda: parameter must be a symbol, not quoted expression",
+                ));
+            }
         }
-        Expression::Atom(Value::Symbol(_)) => {
-            // Single parameter (not in a list) - this is not standard Scheme
-            Err(Error::parse_error(
-                "lambda: parameters must be enclosed in parentheses",
-            ))
-        }
-        Expression::Atom(other) => Err(Error::parse_error(&format!(
-            "lambda: parameter list must be a list, got {}",
-            other.type_name()
-        ))),
-        Expression::Quote(_) => Err(Error::parse_error(
-            "lambda: parameter list must be a list, got quote",
-        )),
     }
+    Ok(params)
 }
 
 /// Validate that all parameters are unique identifiers
@@ -393,39 +394,39 @@ mod tests {
     }
 
     #[test]
-    fn test_lambda_parameter_list_parsing() {
-        // Test parse_parameter_list function directly
+    fn test_lambda_parameter_parsing() {
+        // Test parse_parameters function directly
 
         // Empty list
-        let params_expr = Expression::arc_list(vec![]);
-        let result = parse_parameter_list(params_expr).unwrap();
+        let params = vec![];
+        let result = parse_parameters(&params).unwrap();
         assert_eq!(result.len(), 0);
 
         // Single parameter
-        let params_expr = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
-        let result = parse_parameter_list(params_expr).unwrap();
+        let params = vec![Expression::arc_atom(Value::symbol("x"))];
+        let result = parse_parameters(&params).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], Symbol::new("x"));
 
         // Multiple parameters
-        let params_expr = Expression::arc_list(vec![
+        let params = vec![
             Expression::arc_atom(Value::symbol("x")),
             Expression::arc_atom(Value::symbol("y")),
-        ]);
-        let result = parse_parameter_list(params_expr).unwrap();
+        ];
+        let result = parse_parameters(&params).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], Symbol::new("x"));
         assert_eq!(result[1], Symbol::new("y"));
 
-        // Non-list parameter expression
-        let params_expr = Expression::arc_atom(Value::symbol("x"));
-        let result = parse_parameter_list(params_expr);
+        // Invalid parameter (number instead of symbol)
+        let params = vec![Expression::arc_atom(Value::number(42.0))];
+        let result = parse_parameters(&params);
         assert!(result.is_err());
         assert!(
             result
                 .unwrap_err()
                 .to_string()
-                .contains("parameters must be enclosed in parentheses")
+                .contains("parameter must be a symbol")
         );
     }
 
