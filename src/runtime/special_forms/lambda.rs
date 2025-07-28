@@ -50,7 +50,7 @@ pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value>
     // The environment is captured at lambda creation time (lexical scoping)
     // Flatten the environment to remove lifetime constraints
     //
-    // TODO: Remove `env.flatten()` and instead create a minimal ebv with
+    // TODO: Remove `env.flatten()` and instead create a minimal env with
     // only the bindings that are captured inside the lambda.
     let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
 
