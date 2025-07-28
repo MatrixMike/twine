@@ -8,7 +8,7 @@ use crate::runtime::special_forms::lambda::{
     create_lambda_procedure, parse_parameters, validate_parameters,
 };
 use crate::runtime::{environment::Environment, eval::eval};
-use crate::types::Value;
+use crate::types::{Symbol, Value};
 use std::sync::Arc;
 
 /// Evaluate a define special form
@@ -26,16 +26,18 @@ use std::sync::Arc;
 /// - Equivalent to: (define name (lambda (param1 param2) body1 body2...))
 pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
-        return Err(crate::Error::arity_error("define", 1, 0));
+        return Err(crate::Error::arity_error("define", 2, 0));
     }
 
     let first_arg = Arc::clone(&args[0]);
     match first_arg.as_ref() {
         // Binding definition: (define identifier expression)
-        Expression::Atom(Value::Symbol(identifier)) => eval_define_binding(identifier, args, env),
+        Expression::Atom(Value::Symbol(identifier)) => {
+            eval_define_binding(identifier, &args[1..], env)
+        }
 
         // Procedure definition: (define (name param...) body...)
-        Expression::List(elements) => eval_define_procedure(elements, args, env),
+        Expression::List(param_elements) => eval_define_procedure(param_elements, &args[1..], env),
 
         _ => Err(crate::Error::runtime_error(
             "define: first argument must be a symbol or parameter list",
@@ -45,16 +47,20 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
 
 /// Handle variable binding: (define identifier expression)
 fn eval_define_binding(
-    identifier: &crate::types::Symbol,
-    args: &[Arc<Expression>],
+    identifier: &Symbol,
+    value_exprs: &[Arc<Expression>],
     env: &mut Environment,
 ) -> Result<Value> {
-    if args.len() != 2 {
-        return Err(crate::Error::arity_error("define", 2, args.len()));
+    if value_exprs.len() != 1 {
+        return Err(crate::Error::arity_error(
+            "define",
+            2,
+            value_exprs.len() + 1,
+        ));
     }
 
     // Evaluate the expression and bind it to the identifier
-    let value_expr = Arc::clone(&args[1]);
+    let value_expr = Arc::clone(&value_exprs[0]);
     let value = eval(value_expr, env)?;
     env.define(identifier.clone(), value);
     Ok(Value::Nil)
@@ -62,18 +68,18 @@ fn eval_define_binding(
 
 /// Handle procedure definition: (define (name param...) body...)
 fn eval_define_procedure(
-    elements: &[Arc<Expression>],
+    param_elements: &[Arc<Expression>],
     args: &[Arc<Expression>],
     env: &mut Environment,
 ) -> Result<Value> {
-    if elements.is_empty() {
+    if param_elements.is_empty() {
         return Err(crate::Error::runtime_error(
             "define: procedure definition requires non-empty parameter list",
         ));
     }
 
     // Extract procedure name
-    let proc_name = match elements[0].as_ref() {
+    let identifier = match param_elements[0].as_ref() {
         Expression::Atom(Value::Symbol(name)) => name.clone(),
         _ => {
             return Err(crate::Error::runtime_error(
@@ -83,26 +89,26 @@ fn eval_define_procedure(
     };
 
     // Extract and validate parameters
-    let params = parse_parameters(&elements[1..])?;
+    let params = parse_parameters(&param_elements[1..])?;
     validate_parameters(&params)?;
 
     // Validate procedure body
-    if args.len() < 2 {
+    if args.is_empty() {
         return Err(crate::Error::runtime_error(
             "define: procedure definition requires at least one body expression",
         ));
     }
 
     // Create body expression - wrap multiple expressions in a list if needed
-    let body_expr = if args.len() == 2 {
-        Arc::clone(&args[1])
+    let body_expr = if args.len() == 1 {
+        Arc::clone(&args[0])
     } else {
-        Expression::arc_list(args[1..].iter().map(Arc::clone).collect())
+        Expression::arc_list(args.iter().map(Arc::clone).collect())
     };
 
-    // Create lambda procedure using shared logic
+    // Create lambda procedure and bind it to the identifier
     let lambda_proc = create_lambda_procedure(params, body_expr, env);
-    env.define(proc_name, lambda_proc);
+    env.define(identifier, lambda_proc);
     Ok(Value::Nil)
 }
 
@@ -340,7 +346,7 @@ mod tests {
             result
                 .unwrap_err()
                 .to_string()
-                .contains("define: expected 1 argument, got 0")
+                .contains("define: expected 2 arguments, got 0")
         );
 
         // Test binding definition with wrong arity
