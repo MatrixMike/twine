@@ -30,70 +30,79 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
     let first_arg = Arc::clone(&args[0]);
     match first_arg.as_ref() {
         // Binding definition: (define identifier expression)
-        Expression::Atom(Value::Symbol(identifier)) => {
-            if args.len() != 2 {
-                return Err(crate::Error::arity_error("define", 2, args.len()));
-            }
-
-            // Evaluate the expression and bind it to the identifier
-            let value_expr = Arc::clone(&args[1]);
-            let value = eval(value_expr, env)?;
-
-            env.define(identifier.clone(), value);
-            Ok(Value::Nil)
-        }
+        Expression::Atom(Value::Symbol(identifier)) => eval_define_binding(identifier, args, env),
 
         // Procedure definition: (define (name param...) body...)
-        Expression::List(elements) => {
-            if elements.is_empty() {
-                return Err(crate::Error::runtime_error(
-                    "define: procedure definition requires non-empty parameter list",
-                ));
-            }
-
-            // Extract procedure name and parameters
-            let proc_name = match elements[0].as_ref() {
-                Expression::Atom(Value::Symbol(name)) => name.clone(),
-                _ => {
-                    return Err(crate::Error::runtime_error(
-                        "define: procedure name must be a symbol",
-                    ));
-                }
-            };
-
-            // Extract and validate parameters
-            let param_expr = Expression::arc_list(elements[1..].iter().map(Arc::clone).collect());
-            let params = parse_parameter_list(param_expr)?;
-            validate_parameters(&params)?;
-
-            // Procedure body is everything remaining in args
-            if args.len() < 2 {
-                return Err(crate::Error::runtime_error(
-                    "define: procedure definition requires at least one body expression",
-                ));
-            }
-
-            // Create body expression - wrap multiple expressions in a list if needed
-            let body_expr = if args.len() == 2 {
-                Arc::clone(&args[1])
-            } else {
-                Expression::arc_list(args[1..].iter().map(Arc::clone).collect())
-            };
-
-            // Create lambda procedure directly
-            //
-            // TODO: Remove `env.flatten()` and instead create a minimal env with
-            // only the bindings that are captured inside the lambda.
-            let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
-
-            env.define(proc_name, Value::Procedure(lambda_proc));
-            Ok(Value::Nil)
-        }
+        Expression::List(elements) => eval_define_procedure(elements, args, env),
 
         _ => Err(crate::Error::runtime_error(
             "define: first argument must be a symbol or parameter list",
         )),
     }
+}
+
+/// Handle variable binding: (define identifier expression)
+fn eval_define_binding(
+    identifier: &crate::types::Symbol,
+    args: &[Arc<Expression>],
+    env: &mut Environment,
+) -> Result<Value> {
+    if args.len() != 2 {
+        return Err(crate::Error::arity_error("define", 2, args.len()));
+    }
+
+    // Evaluate the expression and bind it to the identifier
+    let value_expr = Arc::clone(&args[1]);
+    let value = eval(value_expr, env)?;
+    env.define(identifier.clone(), value);
+    Ok(Value::Nil)
+}
+
+/// Handle procedure definition: (define (name param...) body...)
+fn eval_define_procedure(
+    elements: &[Arc<Expression>],
+    args: &[Arc<Expression>],
+    env: &mut Environment,
+) -> Result<Value> {
+    if elements.is_empty() {
+        return Err(crate::Error::runtime_error(
+            "define: procedure definition requires non-empty parameter list",
+        ));
+    }
+
+    // Extract procedure name
+    let procedure_name = match elements[0].as_ref() {
+        Expression::Atom(Value::Symbol(name)) => name.clone(),
+        _ => {
+            return Err(crate::Error::runtime_error(
+                "define: procedure name must be a symbol",
+            ));
+        }
+    };
+
+    // Extract and validate parameters
+    let param_expr = Expression::arc_list(elements[1..].iter().map(Arc::clone).collect());
+    let parameters = parse_parameter_list(param_expr)?;
+    validate_parameters(&parameters)?;
+
+    // Validate procedure body
+    if args.len() < 2 {
+        return Err(crate::Error::runtime_error(
+            "define: procedure definition requires at least one body expression",
+        ));
+    }
+
+    // Create body expression - wrap multiple expressions in a list if needed
+    let body_expr = if args.len() == 2 {
+        Arc::clone(&args[1])
+    } else {
+        Expression::arc_list(args[1..].iter().map(Arc::clone).collect())
+    };
+
+    // Create lambda procedure directly
+    let lambda_procedure = Procedure::lambda(parameters, body_expr, env.flatten());
+    env.define(procedure_name, Value::Procedure(lambda_procedure));
+    Ok(Value::Nil)
 }
 
 /// Evaluate a let special form
