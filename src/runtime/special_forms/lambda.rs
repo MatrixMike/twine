@@ -48,6 +48,9 @@ pub fn eval_lambda(mut args: Vec<Expression>, env: &Environment) -> Result<Value
     // Create lambda procedure with captured environment (closure)
     // The environment is captured at lambda creation time (lexical scoping)
     // Flatten the environment to remove lifetime constraints
+    //
+    // TODO: Remove `env.flatten()` and instead create a minimal ebv with
+    // only the bindings that are captured inside the lambda.
     let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
 
     Ok(Value::Procedure(lambda_proc))
@@ -75,7 +78,7 @@ fn parse_parameter_list(params_expr: Expression) -> Result<Vec<Symbol>> {
             for element in elements {
                 match element {
                     Expression::Atom(Value::Symbol(symbol)) => {
-                        params.push(symbol.clone());
+                        params.push(symbol);
                     }
                     Expression::Atom(other) => {
                         return Err(Error::parse_error(&format!(

@@ -138,6 +138,8 @@ fn call_procedure(
             }
 
             // Evaluate the body in the new environment
+            //
+            // TODO: Remove lambda body clone from here.
             eval(lambda.body().clone(), &mut call_env)
         }
     }
