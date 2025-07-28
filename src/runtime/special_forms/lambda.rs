@@ -71,7 +71,7 @@ pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value>
 ///
 /// # Errors
 /// Returns error if parameter list is malformed or contains non-symbols
-fn parse_parameter_list(params_expr: Arc<Expression>) -> Result<Vec<Symbol>> {
+pub fn parse_parameter_list(params_expr: Arc<Expression>) -> Result<Vec<Symbol>> {
     match params_expr.as_ref() {
         Expression::List(elements) => {
             let mut params = Vec::with_capacity(elements.len());
@@ -127,7 +127,7 @@ fn parse_parameter_list(params_expr: Arc<Expression>) -> Result<Vec<Symbol>> {
 ///
 /// # Returns
 /// Ok(()) if all parameters are unique, Error if duplicates found
-fn validate_parameters(params: &[Symbol]) -> Result<()> {
+pub fn validate_parameters(params: &[Symbol]) -> Result<()> {
     use std::collections::HashSet;
 
     let mut seen = HashSet::new();

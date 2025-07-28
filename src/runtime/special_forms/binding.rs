@@ -4,8 +4,9 @@
 
 use crate::error::Result;
 use crate::parser::Expression;
+use crate::runtime::special_forms::lambda::{parse_parameter_list, validate_parameters};
 use crate::runtime::{environment::Environment, eval::eval};
-use crate::types::Value;
+use crate::types::{Procedure, Value};
 use std::sync::Arc;
 
 /// Evaluate a define special form
@@ -37,6 +38,7 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
             // Evaluate the expression and bind it to the identifier
             let value_expr = Arc::clone(&args[1]);
             let value = eval(value_expr, env)?;
+
             env.define(identifier.clone(), value);
             Ok(Value::Nil)
         }
@@ -50,7 +52,7 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
             }
 
             // Extract procedure name and parameters
-            let procedure_name = match elements[0].as_ref() {
+            let proc_name = match elements[0].as_ref() {
                 Expression::Atom(Value::Symbol(name)) => name.clone(),
                 _ => {
                     return Err(crate::Error::runtime_error(
@@ -59,20 +61,10 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
                 }
             };
 
-            // Extract parameters - all must be symbols
-            let mut parameters = Vec::with_capacity(elements[1..].len());
-            for param_expr in &elements[1..] {
-                match param_expr.as_ref() {
-                    Expression::Atom(Value::Symbol(param)) => {
-                        parameters.push(param.clone());
-                    }
-                    _ => {
-                        return Err(crate::Error::runtime_error(
-                            "define: procedure parameters must be symbols",
-                        ));
-                    }
-                }
-            }
+            // Extract and validate parameters
+            let param_expr = Expression::arc_list(elements[1..].iter().map(Arc::clone).collect());
+            let params = parse_parameter_list(param_expr)?;
+            validate_parameters(&params)?;
 
             // Procedure body is everything remaining in args
             if args.len() < 2 {
@@ -81,24 +73,20 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
                 ));
             }
 
-            let body_expressions: Vec<Arc<Expression>> = args[1..].iter().map(Arc::clone).collect();
+            // Create body expression - wrap multiple expressions in a list if needed
+            let body_expr = if args.len() == 2 {
+                Arc::clone(&args[1])
+            } else {
+                Expression::arc_list(args[1..].iter().map(Arc::clone).collect())
+            };
 
-            // Create a lambda expression: (lambda (param...) body...)
-            let mut lambda_args = vec![Expression::arc_list(
-                parameters
-                    .into_iter()
-                    .map(|p| Expression::arc_atom(Value::Symbol(p)))
-                    .collect(),
-            )];
-            lambda_args.extend(body_expressions);
+            // Create lambda procedure directly
+            //
+            // TODO: Remove `env.flatten()` and instead create a minimal env with
+            // only the bindings that are captured inside the lambda.
+            let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
 
-            // For now, we'll store a placeholder since lambda isn't implemented yet
-            // This will be updated when T3.1.2 implements lambda
-            // TODO: Replace with actual lambda creation when lambda is implemented
-            let placeholder_value =
-                Value::string(&format!("<procedure:{}>", procedure_name.as_str()));
-
-            env.define(procedure_name, placeholder_value);
+            env.define(proc_name, Value::Procedure(lambda_proc));
             Ok(Value::Nil)
         }
 
@@ -269,9 +257,12 @@ mod tests {
         let result = eval_define(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
-        // Verify the procedure binding was created (placeholder for now)
+        // Verify the procedure binding was created
         let binding = env.lookup(&Symbol::new("square")).unwrap();
-        assert!(binding.as_string().unwrap().contains("procedure:square"));
+        assert!(binding.is_procedure());
+        let procedure = binding.as_procedure().unwrap();
+        assert!(procedure.is_lambda());
+        assert_eq!(procedure.arity(), Some(1));
     }
 
     #[test]
@@ -298,7 +289,10 @@ mod tests {
 
         // Verify the procedure binding was created
         let binding = env.lookup(&Symbol::new("add")).unwrap();
-        assert!(binding.as_string().unwrap().contains("procedure:add"));
+        assert!(binding.is_procedure());
+        let procedure = binding.as_procedure().unwrap();
+        assert!(procedure.is_lambda());
+        assert_eq!(procedure.arity(), Some(2));
     }
 
     #[test]
@@ -319,7 +313,10 @@ mod tests {
 
         // Verify the procedure binding was created
         let binding = env.lookup(&Symbol::new("test-fn")).unwrap();
-        assert!(binding.as_string().unwrap().contains("procedure:test-fn"));
+        assert!(binding.is_procedure());
+        let procedure = binding.as_procedure().unwrap();
+        assert!(procedure.is_lambda());
+        assert_eq!(procedure.arity(), Some(0));
     }
 
     #[test]
@@ -373,7 +370,7 @@ mod tests {
             result
                 .unwrap_err()
                 .to_string()
-                .contains("procedure parameters must be symbols")
+                .contains("parameter must be a symbol")
         );
 
         // Test procedure definition with empty parameter list
