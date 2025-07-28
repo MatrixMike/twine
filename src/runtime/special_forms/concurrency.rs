@@ -79,7 +79,7 @@ mod tests {
         );
 
         // Test with single expression
-        let args = vec![Expression::atom(Value::number(42.0))];
+        let args = vec![Expression::arc_atom(Value::number(42.0))];
         let result = eval_async(args, &mut env);
         assert!(result.is_err());
         assert!(
@@ -91,8 +91,8 @@ mod tests {
 
         // Test with multiple expressions
         let args = vec![
-            Expression::atom(Value::string("hello")),
-            Expression::atom(Value::number(123.0)),
+            Expression::arc_atom(Value::string("hello")),
+            Expression::arc_atom(Value::number(123.0)),
         ];
         let result = eval_async(args, &mut env);
         assert!(result.is_err());
@@ -122,11 +122,11 @@ mod tests {
 
         // Many arguments should also be valid
         let args = vec![
-            Expression::atom(Value::number(1.0)),
-            Expression::atom(Value::number(2.0)),
-            Expression::atom(Value::number(3.0)),
-            Expression::atom(Value::number(4.0)),
-            Expression::atom(Value::number(5.0)),
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::number(2.0)),
+            Expression::arc_atom(Value::number(3.0)),
+            Expression::arc_atom(Value::number(4.0)),
+            Expression::arc_atom(Value::number(5.0)),
         ];
         let result = eval_async(args, &mut env);
         assert!(result.is_err());

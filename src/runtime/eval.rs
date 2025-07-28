@@ -83,7 +83,7 @@ fn eval_list(elements: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Va
             }
 
             // Not a special form, try to look up identifier in environment
-            env.lookup(&identifier)?
+            env.lookup(identifier)?
         }
         _ => eval(Arc::clone(&first_expr), env)?,
     };
@@ -195,22 +195,22 @@ mod tests {
         let mut env = Environment::new();
 
         // Test number evaluation
-        let number_expr = Arc::new(Expression::atom(Value::number(42.0)));
+        let number_expr = Expression::arc_atom(Value::number(42.0));
         let result = eval(number_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 42.0);
 
         // Test boolean evaluation
-        let bool_expr = Expression::atom(Value::boolean(true));
+        let bool_expr = Expression::arc_atom(Value::boolean(true));
         let result = eval(bool_expr, &mut env).unwrap();
         assert!(result.as_boolean().unwrap());
 
         // Test string evaluation
-        let string_expr = Expression::atom(Value::string("hello"));
+        let string_expr = Expression::arc_atom(Value::string("hello"));
         let result = eval(string_expr, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello");
 
         // Test nil evaluation
-        let nil_expr = Expression::atom(Value::Nil);
+        let nil_expr = Expression::arc_atom(Value::Nil);
         let result = eval(nil_expr, &mut env).unwrap();
         assert!(result.is_nil());
     }
@@ -218,16 +218,15 @@ mod tests {
     #[test]
     fn test_eval_symbol_lookup() {
         let mut env = Environment::new();
-        env.define(Symbol::new("x"), Value::number(10.0)).unwrap();
-        env.define(Symbol::new("greeting"), Value::string("hello world"))
-            .unwrap();
+        env.define(Symbol::new("x"), Value::number(10.0));
+        env.define(Symbol::new("greeting"), Value::string("hello world"));
 
         // Test successful symbol lookup
-        let symbol_expr = Arc::new(Expression::atom(Value::symbol("x")));
+        let symbol_expr = Expression::arc_atom(Value::symbol("x"));
         let result = eval(symbol_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 10.0);
 
-        let greeting_expr = Expression::atom(Value::symbol("greeting"));
+        let greeting_expr = Expression::arc_atom(Value::symbol("greeting"));
         let result = eval(greeting_expr, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello world");
     }
@@ -237,16 +236,14 @@ mod tests {
         let mut env = Environment::new();
 
         // Test unbound symbol error
-        let unbound_expr = Arc::new(Expression::atom(Value::symbol("undefined")));
+        let unbound_expr = Expression::arc_atom(Value::symbol("undefined"));
         let result = eval(unbound_expr, &mut env);
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Unbound identifier")
-        );
-        if let Err(Error::EnvironmentError { identifier, .. }) = result {
+
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("Unbound identifier"));
+
+        if let Error::EnvironmentError { identifier, .. } = error {
             assert_eq!(identifier, "undefined");
         } else {
             panic!("Expected EnvironmentError for unbound symbol");
@@ -258,7 +255,7 @@ mod tests {
         let mut env = Environment::new();
 
         // Empty list should evaluate to empty list
-        let empty_list = Expression::list(vec![]);
+        let empty_list = Expression::arc_list(vec![]);
         let result = eval(empty_list, &mut env).unwrap();
 
         assert!(result.is_list());
@@ -271,19 +268,19 @@ mod tests {
 
         // Test that arithmetic operations work at the eval level with Expression objects
         // (Comprehensive arithmetic testing is done in integration tests)
-        let add_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("+")),
-            Expression::atom(Value::number(1.0)),
-            Expression::atom(Value::number(2.0)),
+        let add_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::number(2.0)),
         ]);
         let result = eval(add_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 3.0);
 
         // Test that comparison operations return proper boolean values
-        let eq_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("=")),
-            Expression::atom(Value::number(5.0)),
-            Expression::atom(Value::number(5.0)),
+        let eq_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("=")),
+            Expression::arc_atom(Value::number(5.0)),
+            Expression::arc_atom(Value::number(5.0)),
         ]);
         let result = eval(eq_expr, &mut env).unwrap();
         assert!(result.as_boolean().unwrap());
@@ -294,9 +291,9 @@ mod tests {
         let mut env = Environment::new();
 
         // Test unknown procedure
-        let unknown_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("unknown")),
-            Expression::atom(Value::number(1.0)),
+        let unknown_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("unknown")),
+            Expression::arc_atom(Value::number(1.0)),
         ]);
         let result = eval(unknown_expr, &mut env);
         assert!(result.is_err());
@@ -312,9 +309,9 @@ mod tests {
         let mut env = Environment::new();
 
         // Test non-symbol as procedure
-        let non_symbol_proc = Expression::list(vec![
-            Expression::atom(Value::number(42.0)),
-            Expression::atom(Value::number(1.0)),
+        let non_symbol_proc = Expression::arc_list(vec![
+            Expression::arc_atom(Value::number(42.0)),
+            Expression::arc_atom(Value::number(1.0)),
         ]);
         let result = eval(non_symbol_proc, &mut env);
         assert!(result.is_err());
@@ -332,14 +329,15 @@ mod tests {
         env.define_str("y", Value::number(5.0));
 
         // Test that eval properly handles nested Expression structures
-        let nested = Expression::list(vec![
-            Expression::atom(Value::symbol("*")),
-            Expression::list(vec![
-                Expression::atom(Value::symbol("+")),
-                Expression::atom(Value::symbol("x")),
-                Expression::atom(Value::symbol("y")),
+        // Test nested arithmetic: (+ 10 (* 2 10))
+        let nested = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::number(10.0)),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("*")),
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(2.0)),
             ]),
-            Expression::atom(Value::number(2.0)),
         ]);
         let result = eval(nested, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 30.0);
@@ -353,7 +351,7 @@ mod tests {
         let mut env = Environment::new();
 
         // Quoted atom should return the atom value without evaluation
-        let quoted_symbol = Expression::quote(Expression::atom(Value::symbol("undefined")));
+        let quoted_symbol = Expression::arc_quote(Expression::arc_atom(Value::symbol("undefined")));
         let result = eval(quoted_symbol, &mut env).unwrap();
 
         assert!(result.is_symbol());
@@ -368,10 +366,10 @@ mod tests {
         let mut env = Environment::new();
 
         // Quoted list should return the list structure without evaluation
-        let quoted_list = Expression::quote(Expression::list(vec![
-            Expression::atom(Value::symbol("+")),
-            Expression::atom(Value::number(1.0)),
-            Expression::atom(Value::number(2.0)),
+        let quoted_list = Expression::arc_quote(Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::number(2.0)),
         ]));
 
         let result = eval(quoted_list, &mut env).unwrap();
@@ -390,17 +388,17 @@ mod tests {
     #[test]
     fn test_expression_to_value_conversion() {
         // Test atom conversion
-        let number_expr = Expression::atom(Value::number(42.0));
-        let result = expression_to_value(number_expr).unwrap();
+        let number_expr = Expression::arc_atom(Value::number(42.0));
+        let result = expression_to_value(&number_expr).unwrap();
         assert_eq!(result.as_number().unwrap(), 42.0);
 
         // Test list conversion
-        let list_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("test")),
-            Expression::atom(Value::boolean(true)),
+        let list_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("test")),
+            Expression::arc_atom(Value::boolean(true)),
         ]);
 
-        let result = expression_to_value(list_expr).unwrap();
+        let result = expression_to_value(&list_expr).unwrap();
         assert!(result.is_list());
 
         let list = result.as_list().unwrap();
@@ -418,12 +416,12 @@ mod tests {
         local.define_str("local_var", Value::string("local"));
 
         // Test lookup from local environment
-        let local_expr = Expression::atom(Value::symbol("local_var"));
+        let local_expr = Expression::arc_atom(Value::symbol("local_var"));
         let result = eval(local_expr, &mut local).unwrap();
         assert_eq!(result.as_string().unwrap(), "local");
 
         // Test lookup from parent environment
-        let global_expr = Expression::atom(Value::symbol("global_var"));
+        let global_expr = Expression::arc_atom(Value::symbol("global_var"));
         let result = eval(global_expr, &mut local).unwrap();
         assert_eq!(result.as_number().unwrap(), 100.0);
     }
@@ -439,7 +437,7 @@ mod tests {
             Value::number(3.0),
         ]));
 
-        let expr = Expression::atom(list_value.clone());
+        let expr = Expression::arc_atom(list_value.clone());
         let result = eval(expr, &mut env).unwrap();
 
         assert!(result.is_list());
@@ -458,11 +456,11 @@ mod tests {
         // Test eval function with self-evaluating atoms
         let mut env = Environment::new();
 
-        let number_expr = Expression::atom(Value::number(42.0));
+        let number_expr = Expression::arc_atom(Value::number(42.0));
         let result = eval(number_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 42.0);
 
-        let string_expr = Expression::atom(Value::string("hello"));
+        let string_expr = Expression::arc_atom(Value::string("hello"));
         let result = eval(string_expr, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "hello");
 
@@ -470,18 +468,18 @@ mod tests {
         let mut env_with_binding = Environment::new();
         env_with_binding.define_str("x", Value::number(10.0));
 
-        let symbol_expr = Expression::atom(Value::symbol("x"));
+        let symbol_expr = Expression::arc_atom(Value::symbol("x"));
         let result = eval(symbol_expr, &mut env_with_binding).unwrap();
         assert_eq!(result.as_number().unwrap(), 10.0);
 
         // Test eval function with quoted expressions
-        let quoted_expr = Expression::quote(Expression::atom(Value::symbol("unbound")));
+        let quoted_expr = Expression::arc_quote(Expression::arc_atom(Value::symbol("unbound")));
         let result = eval(quoted_expr, &mut env).unwrap();
         assert!(result.is_symbol());
         assert_eq!(result.as_symbol().unwrap(), "unbound");
 
         // Test eval function with empty lists
-        let empty_list = Expression::list(vec![]);
+        let empty_list = Expression::arc_list(vec![]);
         let result = eval(empty_list, &mut env).unwrap();
         assert!(result.is_list());
         assert!(result.as_list().unwrap().is_empty());
@@ -492,11 +490,11 @@ mod tests {
         let mut env = Environment::new();
 
         // Test (if #t "yes" "no") -> "yes"
-        let if_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::atom(Value::boolean(true)),
-            Expression::atom(Value::string("yes")),
-            Expression::atom(Value::string("no")),
+        let if_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_atom(Value::string("yes")),
+            Expression::arc_atom(Value::string("no")),
         ]);
 
         let result = eval(if_expr, &mut env).unwrap();
@@ -509,11 +507,11 @@ mod tests {
         let mut env = Environment::new();
 
         // Test (if #f "yes" "no") -> "no"
-        let if_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::atom(Value::boolean(false)),
-            Expression::atom(Value::string("yes")),
-            Expression::atom(Value::string("no")),
+        let if_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::string("yes")),
+            Expression::arc_atom(Value::string("no")),
         ]);
 
         let result = eval(if_expr, &mut env).unwrap();
@@ -536,11 +534,11 @@ mod tests {
         ];
 
         for (condition, expected) in test_cases {
-            let if_expr = Expression::list(vec![
-                Expression::atom(Value::symbol("if")),
-                Expression::atom(condition),
-                Expression::atom(Value::string(expected)),
-                Expression::atom(Value::string("false")),
+            let if_expr = Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("if")),
+                Expression::arc_atom(condition),
+                Expression::arc_atom(Value::string(expected)),
+                Expression::arc_atom(Value::string("false")),
             ]);
 
             let result = eval(if_expr, &mut env).unwrap();
@@ -555,18 +553,18 @@ mod tests {
         env.define_str("x", Value::number(5.0));
 
         // Test (if (> x 0) "positive" "non-positive") -> "positive"
-        let if_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::list(vec![
-                Expression::atom(Value::symbol(">")),
-                Expression::atom(Value::symbol("x")),
-                Expression::atom(Value::number(0.0)),
+        let if_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol(">")),
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(0.0)),
             ]),
-            Expression::atom(Value::string("positive")),
-            Expression::atom(Value::string("non-positive")),
+            Expression::arc_atom(Value::string("positive")),
+            Expression::arc_atom(Value::string("non-positive")),
         ]);
 
-        let result = eval(if_expr.clone(), &mut env).unwrap();
+        let result = eval(Arc::clone(&if_expr), &mut env).unwrap();
         assert!(result.is_string());
         assert_eq!(result.as_string().unwrap(), "positive");
 
@@ -583,16 +581,16 @@ mod tests {
         let mut env = Environment::new();
 
         // Test nested if: (if #t (if #f "inner-no" "inner-yes") "outer-no")
-        let nested_if = Expression::list(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::atom(Value::boolean(true)),
-            Expression::list(vec![
-                Expression::atom(Value::symbol("if")),
-                Expression::atom(Value::boolean(false)),
-                Expression::atom(Value::string("inner-no")),
-                Expression::atom(Value::string("inner-yes")),
+        let nested_if = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("if")),
+                Expression::arc_atom(Value::boolean(false)),
+                Expression::arc_atom(Value::string("inner-no")),
+                Expression::arc_atom(Value::string("inner-yes")),
             ]),
-            Expression::atom(Value::string("outer-no")),
+            Expression::arc_atom(Value::string("outer-no")),
         ]);
 
         let result = eval(nested_if, &mut env).unwrap();
@@ -605,21 +603,21 @@ mod tests {
         let mut env = Environment::new();
 
         // Test if with too few arguments
-        let if_too_few = Expression::list(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::atom(Value::boolean(true)),
+        let if_too_few = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_atom(Value::boolean(true)),
         ]);
 
         let result = eval(if_too_few, &mut env);
         assert!(result.is_err());
 
         // Test if with too many arguments
-        let if_too_many = Expression::list(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::atom(Value::boolean(true)),
-            Expression::atom(Value::string("then")),
-            Expression::atom(Value::string("else")),
-            Expression::atom(Value::string("extra")),
+        let if_too_many = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_atom(Value::string("then")),
+            Expression::arc_atom(Value::string("else")),
+            Expression::arc_atom(Value::string("extra")),
         ]);
 
         let result = eval(if_too_many, &mut env);
@@ -633,15 +631,15 @@ mod tests {
 
         // This would test that only the condition and the chosen branch are evaluated
         // For now, we'll test a simpler case since we don't have side effects yet
-        let if_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::list(vec![
-                Expression::atom(Value::symbol("=")),
-                Expression::atom(Value::number(1.0)),
-                Expression::atom(Value::number(1.0)),
+        let if_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("=")),
+                Expression::arc_atom(Value::number(1.0)),
+                Expression::arc_atom(Value::number(1.0)),
             ]),
-            Expression::atom(Value::string("equal")),
-            Expression::atom(Value::string("not-equal")),
+            Expression::arc_atom(Value::string("equal")),
+            Expression::arc_atom(Value::string("not-equal")),
         ]);
 
         let result = eval(if_expr, &mut env).unwrap();
@@ -656,11 +654,11 @@ mod tests {
         let mut env = Environment::new();
 
         // Test that list operations work at the eval level with Expression objects
-        let car_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("car")),
-            Expression::quote(Expression::list(vec![
-                Expression::atom(Value::symbol("test")),
-                Expression::atom(Value::number(42.0)),
+        let car_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("car")),
+            Expression::arc_quote(Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("test")),
+                Expression::arc_atom(Value::number(42.0)),
             ])),
         ]);
         let result = eval(car_expr, &mut env).unwrap();
@@ -668,9 +666,9 @@ mod tests {
         assert_eq!(result.as_symbol().unwrap(), "test");
 
         // Test error propagation in eval for list operations
-        let car_empty_expr = Expression::list(vec![
-            Expression::atom(Value::symbol("car")),
-            Expression::quote(Expression::list(vec![])),
+        let car_empty_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("car")),
+            Expression::arc_quote(Expression::arc_list(vec![])),
         ]);
         let result = eval(car_empty_expr, &mut env);
         assert!(result.is_err());

@@ -58,24 +58,24 @@ mod tests {
 
         // Test true condition
         let args_true = vec![
-            Expression::atom(Value::boolean(true)),
-            Expression::atom(Value::string("consequent")),
-            Expression::atom(Value::string("alternative")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_atom(Value::string("consequent")),
+            Expression::arc_atom(Value::string("alternative")),
         ];
         let result = eval_if(args_true, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "consequent");
 
         // Test false condition
         let args_false = vec![
-            Expression::atom(Value::boolean(false)),
-            Expression::atom(Value::string("consequent")),
-            Expression::atom(Value::string("alternative")),
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::string("consequent")),
+            Expression::arc_atom(Value::string("alternative")),
         ];
         let result = eval_if(args_false, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "alternative");
 
         // Test arity error
-        let args_wrong = vec![Expression::atom(Value::boolean(true))];
+        let args_wrong = vec![Expression::arc_atom(Value::boolean(true))];
         let result = eval_if(args_wrong, &mut env);
         assert!(result.is_err());
         assert!(
@@ -103,9 +103,9 @@ mod tests {
 
         for truthy in truthy_values {
             let args = vec![
-                Expression::atom(truthy),
-                Expression::atom(Value::string("true-branch")),
-                Expression::atom(Value::string("false-branch")),
+                Expression::arc_atom(truthy),
+                Expression::arc_atom(Value::string("true-branch")),
+                Expression::arc_atom(Value::string("false-branch")),
             ];
             let result = eval_if(args, &mut env).unwrap();
             assert_eq!(result.as_string().unwrap(), "true-branch");
@@ -113,9 +113,9 @@ mod tests {
 
         // Test false value
         let args_false = vec![
-            Expression::atom(Value::boolean(false)),
-            Expression::atom(Value::string("true-branch")),
-            Expression::atom(Value::string("false-branch")),
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::string("true-branch")),
+            Expression::arc_atom(Value::string("false-branch")),
         ];
         let result = eval_if(args_false, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "false-branch");

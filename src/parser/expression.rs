@@ -47,16 +47,31 @@ impl Expression {
         Expression::Atom(value)
     }
 
+    /// Create an atomic expression from a Value wrapped in Arc.
+    pub fn arc_atom(value: Value) -> Arc<Self> {
+        Arc::new(Expression::Atom(value))
+    }
+
     /// Create a list expression from a vector of expressions.
     pub fn list(exprs: Vec<Arc<Expression>>) -> Self {
         Expression::List(exprs)
     }
 
+    /// Create a list expression from a vector of expressions wrapped in Arc.
+    pub fn arc_list(exprs: Vec<Arc<Expression>>) -> Arc<Self> {
+        Arc::new(Expression::List(exprs))
+    }
+
     /// Create a quoted expression.
     ///
-    /// Handles the Box allocation required for the recursive structure.
+    /// Handles the Arc allocation required for the recursive structure.
     pub fn quote(expr: Arc<Expression>) -> Self {
         Expression::Quote(expr)
+    }
+
+    /// Create a quoted expression wrapped in Arc.
+    pub fn arc_quote(expr: Arc<Expression>) -> Arc<Self> {
+        Arc::new(Expression::Quote(expr))
     }
 
     /// Check if this expression is an atom.

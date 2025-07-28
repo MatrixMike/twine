@@ -83,18 +83,18 @@ fn parse_parameter_list(params_expr: Arc<Expression>) -> Result<Vec<Symbol>> {
                     }
                     Expression::Atom(other) => {
                         return Err(Error::parse_error(&format!(
-                            "lambda: parameter must be symbol, got {}",
+                            "lambda: parameter must be a symbol, got {}",
                             other.type_name()
                         )));
                     }
                     Expression::List(_) => {
                         return Err(Error::parse_error(
-                            "lambda: parameter must be symbol, not list",
+                            "lambda: parameter must be a symbol, not list",
                         ));
                     }
                     Expression::Quote(_) => {
                         return Err(Error::parse_error(
-                            "lambda: parameter must be symbol, not quoted expression",
+                            "lambda: parameter must be a symbol, not quoted expression",
                         ));
                     }
                 }
@@ -153,9 +153,9 @@ mod tests {
         let env = Environment::new();
 
         // (lambda () 42)
-        let params = Expression::List(vec![]);
-        let body = Expression::atom(Value::number(42.0));
-        let args = vec![params, body.clone()];
+        let params = Expression::arc_list(vec![]);
+        let body = Expression::arc_atom(Value::number(42.0));
+        let args = vec![params, Arc::clone(&body)];
 
         let result = eval_lambda(args, &env).unwrap();
 
@@ -174,9 +174,9 @@ mod tests {
         let env = Environment::new();
 
         // (lambda (x) x)
-        let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
-        let body = Expression::atom(Value::symbol("x"));
-        let args = vec![params, body.clone()];
+        let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
+        let body = Expression::arc_atom(Value::symbol("x"));
+        let args = vec![params, Arc::clone(&body)];
 
         let result = eval_lambda(args, &env).unwrap();
 
@@ -197,18 +197,18 @@ mod tests {
         let env = Environment::new();
 
         // (lambda (x y z) (+ x y z))
-        let params = Arc::new(Expression::List(vec![
-            Arc::new(Expression::atom(Value::symbol("x"))),
-            Arc::new(Expression::atom(Value::symbol("y"))),
-            Arc::new(Expression::atom(Value::symbol("z"))),
-        ]));
-        let body = Arc::new(Expression::List(vec![
-            Arc::new(Expression::atom(Value::symbol("+"))),
-            Arc::new(Expression::atom(Value::symbol("x"))),
-            Arc::new(Expression::atom(Value::symbol("y"))),
-            Arc::new(Expression::atom(Value::symbol("z"))),
-        ]));
-        let args = vec![params, body];
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
+            Expression::arc_atom(Value::symbol("z")),
+        ]);
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
+            Expression::arc_atom(Value::symbol("z")),
+        ]);
+        let args = vec![params, Arc::clone(&body)];
 
         let result = eval_lambda(args, &env).unwrap();
 
@@ -229,19 +229,15 @@ mod tests {
     #[test]
     fn test_lambda_environment_capture() {
         let mut env = Environment::new();
-        env.define(Symbol::new("outer"), Value::number(100.0))
-            .unwrap();
+        env.define(Symbol::new("outer"), Value::number(100.0));
 
         // (lambda (x) (+ x outer))
-        let params = Arc::new(Expression::List(vec![Arc::new(Expression::atom(
-            Value::symbol("x"),
-        ))]));
-        let body = Arc::new(Expression::List(vec![
-            Arc::new(Expression::atom(Value::symbol("+"))),
-            Arc::new(Expression::atom(Value::symbol("x"))),
-            Arc::new(Expression::atom(Value::symbol("outer"))),
-        ]));
-        let args = vec![params, body];
+        let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("outer")),
+        ]);
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env).unwrap();
@@ -264,7 +260,7 @@ mod tests {
         let env = Environment::new();
 
         // Test too few arguments
-        let args = vec![Arc::new(Expression::atom(Value::symbol("x")))];
+        let args = vec![Expression::arc_atom(Value::symbol("x"))];
         let result = eval_lambda(args, &env);
         assert!(result.is_err());
         assert!(
@@ -276,9 +272,9 @@ mod tests {
 
         // Test too many arguments
         let args = vec![
-            Arc::new(Expression::List(vec![])),
-            Arc::new(Expression::atom(Value::number(42.0))),
-            Arc::new(Expression::atom(Value::number(43.0))),
+            Expression::arc_list(vec![]),
+            Expression::arc_atom(Value::number(42.0)),
+            Expression::arc_atom(Value::number(43.0)),
         ];
         let result = eval_lambda(args, &env);
         assert!(result.is_err());
@@ -295,8 +291,8 @@ mod tests {
         let env = Environment::new();
 
         // Parameter list is not a list
-        let params = Arc::new(Expression::atom(Value::symbol("x")));
-        let body = Arc::new(Expression::atom(Value::number(42.0)));
+        let params = Expression::arc_atom(Value::symbol("x"));
+        let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env);
@@ -309,11 +305,11 @@ mod tests {
         );
 
         // Parameter list contains non-symbol
-        let params = Arc::new(Expression::List(vec![
-            Arc::new(Expression::atom(Value::symbol("x"))),
-            Arc::new(Expression::atom(Value::number(42.0))), // Not a symbol
-        ]));
-        let body = Arc::new(Expression::atom(Value::number(42.0)));
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)), // Not a symbol
+        ]);
+        let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env);
@@ -326,11 +322,11 @@ mod tests {
         );
 
         // Parameter list contains list
-        let params = Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::List(vec![]), // Invalid parameter
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_list(vec![]), // Invalid parameter
         ]);
-        let body = Expression::atom(Value::number(42.0));
+        let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env);
@@ -349,11 +345,11 @@ mod tests {
 
         // (lambda (x x) 42) - duplicate parameter
         // Duplicate parameters
-        let params = Arc::new(Expression::List(vec![
-            Arc::new(Expression::atom(Value::symbol("x"))),
-            Arc::new(Expression::atom(Value::symbol("x"))), // Duplicate
-        ]));
-        let body = Arc::new(Expression::atom(Value::number(42.0)));
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("x")), // Duplicate
+        ]);
+        let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env);
@@ -366,12 +362,12 @@ mod tests {
         );
 
         // (lambda (a b a) 42) - duplicate parameter
-        let params = Expression::List(vec![
-            Expression::atom(Value::symbol("a")),
-            Expression::atom(Value::symbol("b")),
-            Expression::atom(Value::symbol("a")), // Duplicate
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("a")),
+            Expression::arc_atom(Value::symbol("b")),
+            Expression::arc_atom(Value::symbol("a")), // Duplicate
         ]);
-        let body = Expression::atom(Value::number(42.0));
+        let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env);
@@ -389,20 +385,20 @@ mod tests {
         // Test parse_parameter_list function directly
 
         // Empty list
-        let params_expr = Expression::List(vec![]);
+        let params_expr = Expression::arc_list(vec![]);
         let result = parse_parameter_list(params_expr).unwrap();
         assert_eq!(result.len(), 0);
 
         // Single parameter
-        let params_expr = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
+        let params_expr = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
         let result = parse_parameter_list(params_expr).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], Symbol::new("x"));
 
         // Multiple parameters
-        let params_expr = Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::symbol("y")),
+        let params_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
         ]);
         let result = parse_parameter_list(params_expr).unwrap();
         assert_eq!(result.len(), 2);
@@ -410,7 +406,7 @@ mod tests {
         assert_eq!(result[1], Symbol::new("y"));
 
         // Non-list parameter expression
-        let params_expr = Expression::atom(Value::symbol("x"));
+        let params_expr = Expression::arc_atom(Value::symbol("x"));
         let result = parse_parameter_list(params_expr);
         assert!(result.is_err());
         assert!(
@@ -452,18 +448,18 @@ mod tests {
         let env = Environment::new();
 
         // Lambda with complex body expression
-        let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
-        let body = Expression::List(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::List(vec![
-                Expression::atom(Value::symbol(">")),
-                Expression::atom(Value::symbol("x")),
-                Expression::atom(Value::number(0.0)),
+        let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol(">")),
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(0.0)),
             ]),
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(0.0)),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(0.0)),
         ]);
-        let args = vec![params, body.clone()];
+        let args = vec![params, Arc::clone(&body)];
 
         let result = eval_lambda(args, &env).unwrap();
 
@@ -480,11 +476,11 @@ mod tests {
         let env = Environment::new();
 
         // (lambda (x y) body)
-        let params = Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::symbol("y")),
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
         ]);
-        let body = Expression::atom(Value::number(42.0));
+        let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env).unwrap();
@@ -499,12 +495,12 @@ mod tests {
 
         // Lambda parameters can use any valid symbol names, including those
         // that might look like keywords but are just symbols
-        let params = Expression::List(vec![
-            Expression::atom(Value::symbol("if")),
-            Expression::atom(Value::symbol("define")),
-            Expression::atom(Value::symbol("lambda")),
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_atom(Value::symbol("define")),
+            Expression::arc_atom(Value::symbol("lambda")),
         ]);
-        let body = Expression::atom(Value::number(42.0));
+        let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
         let result = eval_lambda(args, &env).unwrap();

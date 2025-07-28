@@ -217,8 +217,8 @@ mod tests {
 
         // Test simple binding definition
         let args = vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(42.0)),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
         ];
 
         let result = eval_define(args, &mut env).unwrap();
@@ -237,8 +237,8 @@ mod tests {
 
         // Test defining with an expression that references another identifier
         let args = vec![
-            Expression::atom(Value::symbol("z")),
-            Expression::atom(Value::symbol("y")), // Should evaluate to 10.0
+            Expression::arc_atom(Value::symbol("z")),
+            Expression::arc_atom(Value::symbol("y")), // Should evaluate to 10.0
         ];
 
         let result = eval_define(args, &mut env).unwrap();
@@ -253,15 +253,15 @@ mod tests {
         let mut env = Environment::new();
 
         // Test procedure definition syntax: (define (square x) (* x x))
-        let procedure_def = Expression::List(vec![
-            Expression::atom(Value::symbol("square")),
-            Expression::atom(Value::symbol("x")),
+        let procedure_def = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("square")),
+            Expression::arc_atom(Value::symbol("x")),
         ]);
 
-        let body = Expression::List(vec![
-            Expression::atom(Value::symbol("*")),
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::symbol("x")),
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("*")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("x")),
         ]);
 
         let args = vec![procedure_def, body];
@@ -279,16 +279,16 @@ mod tests {
         let mut env = Environment::new();
 
         // Test procedure with multiple parameters: (define (add x y) (+ x y))
-        let procedure_def = Expression::List(vec![
-            Expression::atom(Value::symbol("add")),
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::symbol("y")),
+        let procedure_def = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("add")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
         ]);
 
-        let body = Expression::List(vec![
-            Expression::atom(Value::symbol("+")),
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::symbol("y")),
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
         ]);
 
         let args = vec![procedure_def, body];
@@ -306,10 +306,11 @@ mod tests {
         let mut env = Environment::new();
 
         // Test procedure with multiple body expressions
-        let procedure_def = Expression::List(vec![Expression::atom(Value::symbol("test-fn"))]);
+        let procedure_def =
+            Expression::arc_list(vec![Expression::arc_atom(Value::symbol("test-fn"))]);
 
-        let body1 = Expression::atom(Value::number(1.0));
-        let body2 = Expression::atom(Value::number(2.0));
+        let body1 = Expression::arc_atom(Value::number(1.0));
+        let body2 = Expression::arc_atom(Value::number(2.0));
 
         let args = vec![procedure_def, body1, body2];
 
@@ -336,7 +337,7 @@ mod tests {
         );
 
         // Test binding definition with wrong arity
-        let args = vec![Expression::atom(Value::symbol("x"))];
+        let args = vec![Expression::arc_atom(Value::symbol("x"))];
         let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
@@ -347,8 +348,8 @@ mod tests {
         );
 
         // Test procedure definition with non-symbol name
-        let procedure_def = Expression::List(vec![
-            Expression::atom(Value::number(42.0)), // Not a symbol
+        let procedure_def = Expression::arc_list(vec![
+            Expression::arc_atom(Value::number(42.0)), // Not a symbol
         ]);
         let args = vec![procedure_def];
         let result = eval_define(args, &mut env);
@@ -361,9 +362,9 @@ mod tests {
         );
 
         // Test procedure definition with non-symbol parameter
-        let procedure_def = Expression::List(vec![
-            Expression::atom(Value::symbol("fn")),
-            Expression::atom(Value::number(42.0)), // Parameter must be symbol
+        let procedure_def = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("fn")),
+            Expression::arc_atom(Value::number(42.0)), // Parameter must be symbol
         ]);
         let args = vec![procedure_def];
         let result = eval_define(args, &mut env);
@@ -376,7 +377,7 @@ mod tests {
         );
 
         // Test procedure definition with empty parameter list
-        let procedure_def = Expression::List(vec![]);
+        let procedure_def = Expression::arc_list(vec![]);
         let args = vec![procedure_def];
         let result = eval_define(args, &mut env);
         assert!(result.is_err());
@@ -388,7 +389,7 @@ mod tests {
         );
 
         // Test procedure definition without body
-        let procedure_def = Expression::List(vec![Expression::atom(Value::symbol("fn"))]);
+        let procedure_def = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("fn"))]);
         let args = vec![procedure_def];
         let result = eval_define(args, &mut env);
         assert!(result.is_err());
@@ -400,7 +401,7 @@ mod tests {
         );
 
         // Test invalid first argument
-        let args = vec![Expression::atom(Value::number(42.0))];
+        let args = vec![Expression::arc_atom(Value::number(42.0))];
         let result = eval_define(args, &mut env);
         assert!(result.is_err());
         assert!(
@@ -417,16 +418,16 @@ mod tests {
 
         // Define an identifier
         let args1 = vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(42.0)),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
         ];
         eval_define(args1, &mut env).unwrap();
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(42.0));
 
         // Redefine the same identifier (should shadow)
         let args2 = vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::string("hello")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::string("hello")),
         ];
         eval_define(args2, &mut env).unwrap();
         assert_eq!(
@@ -440,11 +441,11 @@ mod tests {
         let mut env = Environment::new();
 
         // Test basic let: (let ((x 42)) x)
-        let bindings = Expression::List(vec![Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(42.0)),
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
         ])]);
-        let body = Expression::atom(Value::symbol("x"));
+        let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env).unwrap();
@@ -459,19 +460,19 @@ mod tests {
         let mut env = Environment::new();
 
         // Test multiple bindings: (let ((x 10) (y 20)) (+ x y))
-        let bindings = Expression::List(vec![
-            Expression::List(vec![
-                Expression::atom(Value::symbol("x")),
-                Expression::atom(Value::number(10.0)),
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(10.0)),
             ]),
-            Expression::List(vec![
-                Expression::atom(Value::symbol("y")),
-                Expression::atom(Value::number(20.0)),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_atom(Value::number(20.0)),
             ]),
         ]);
 
         // Body: (+ x y) - but since + isn't implemented yet, just return y
-        let body = Expression::atom(Value::symbol("y"));
+        let body = Expression::arc_atom(Value::symbol("y"));
 
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env).unwrap();
@@ -483,14 +484,14 @@ mod tests {
         let mut env = Environment::new();
 
         // Test multiple body expressions: (let ((x 5)) 1 2 x)
-        let bindings = Expression::List(vec![Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(5.0)),
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(5.0)),
         ])]);
 
-        let body1 = Expression::atom(Value::number(1.0));
-        let body2 = Expression::atom(Value::number(2.0));
-        let body3 = Expression::atom(Value::symbol("x"));
+        let body1 = Expression::arc_atom(Value::number(1.0));
+        let body2 = Expression::arc_atom(Value::number(2.0));
+        let body3 = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body1, body2, body3];
         let result = eval_let(args, &mut env).unwrap();
@@ -506,11 +507,11 @@ mod tests {
 
         // Test lexical scoping: (let ((x 42)) x)
         // Inner x should shadow outer x
-        let bindings = Expression::List(vec![Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(42.0)),
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
         ])]);
-        let body = Expression::atom(Value::symbol("x"));
+        let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env).unwrap();
@@ -529,17 +530,17 @@ mod tests {
 
         // Test simultaneous binding: (let ((x 42) (y x)) y)
         // y should bind to the outer x (10), not the inner x (42)
-        let bindings = Expression::List(vec![
-            Expression::List(vec![
-                Expression::atom(Value::symbol("x")),
-                Expression::atom(Value::number(42.0)),
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(42.0)),
             ]),
-            Expression::List(vec![
-                Expression::atom(Value::symbol("y")),
-                Expression::atom(Value::symbol("x")), // This should reference outer x
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_atom(Value::symbol("x")), // This should reference outer x
             ]),
         ]);
-        let body = Expression::atom(Value::symbol("y"));
+        let body = Expression::arc_atom(Value::symbol("y"));
 
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env).unwrap();
@@ -551,8 +552,8 @@ mod tests {
         let mut env = Environment::new();
 
         // Test empty bindings: (let () 42)
-        let bindings = Expression::List(vec![]);
-        let body = Expression::atom(Value::number(42.0));
+        let bindings = Expression::arc_list(vec![]);
+        let body = Expression::arc_atom(Value::number(42.0));
 
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env).unwrap();
@@ -567,17 +568,17 @@ mod tests {
         env.define(Symbol::new("a"), Value::number(5.0));
 
         // Test: (let ((x a) (y 10)) y)
-        let bindings = Expression::List(vec![
-            Expression::List(vec![
-                Expression::atom(Value::symbol("x")),
-                Expression::atom(Value::symbol("a")), // Should evaluate to 5
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::symbol("a")), // Should evaluate to 5
             ]),
-            Expression::List(vec![
-                Expression::atom(Value::symbol("y")),
-                Expression::atom(Value::number(10.0)),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_atom(Value::number(10.0)),
             ]),
         ]);
-        let body = Expression::atom(Value::symbol("x"));
+        let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env).unwrap();
@@ -599,7 +600,7 @@ mod tests {
         );
 
         // Test no body expressions
-        let bindings = Expression::List(vec![]);
+        let bindings = Expression::arc_list(vec![]);
         let args = vec![bindings];
         let result = eval_let(args, &mut env);
         assert!(result.is_err());
@@ -611,8 +612,8 @@ mod tests {
         );
 
         // Test non-list bindings
-        let bindings = Expression::atom(Value::number(42.0));
-        let body = Expression::atom(Value::number(1.0));
+        let bindings = Expression::arc_atom(Value::number(42.0));
+        let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env);
         assert!(result.is_err());
@@ -624,8 +625,8 @@ mod tests {
         );
 
         // Test invalid binding format (not a list)
-        let bindings = Expression::List(vec![Expression::atom(Value::number(42.0))]);
-        let body = Expression::atom(Value::number(1.0));
+        let bindings = Expression::arc_list(vec![Expression::arc_atom(Value::number(42.0))]);
+        let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env);
         assert!(result.is_err());
@@ -637,10 +638,11 @@ mod tests {
         );
 
         // Test binding with wrong arity
-        let bindings = Expression::List(vec![Expression::List(vec![Expression::atom(
-            Value::symbol("x"),
-        )])]);
-        let body = Expression::atom(Value::number(1.0));
+        let bindings =
+            Expression::arc_list(vec![Expression::arc_list(vec![Expression::arc_atom(
+                Value::symbol("x"),
+            )])]);
+        let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env);
         assert!(result.is_err());
@@ -652,11 +654,11 @@ mod tests {
         );
 
         // Test binding with non-symbol identifier
-        let bindings = Expression::List(vec![Expression::List(vec![
-            Expression::atom(Value::number(42.0)), // Not a symbol
-            Expression::atom(Value::number(1.0)),
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::number(42.0)), // Not a symbol
+            Expression::arc_atom(Value::number(1.0)),
         ])]);
-        let body = Expression::atom(Value::number(1.0));
+        let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env);
         assert!(result.is_err());
@@ -673,11 +675,11 @@ mod tests {
         let mut env = Environment::new();
 
         // Test evaluation error in binding expression
-        let bindings = Expression::List(vec![Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::symbol("undefined")), // Unbound identifier
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("undefined")), // Unbound identifier
         ])]);
-        let body = Expression::atom(Value::symbol("x"));
+        let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
         let result = eval_let(args, &mut env);

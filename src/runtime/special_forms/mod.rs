@@ -85,9 +85,9 @@ mod tests {
 
         // Test if special form direct access
         let args = vec![
-            Expression::atom(Value::boolean(true)),
-            Expression::atom(Value::string("yes")),
-            Expression::atom(Value::string("no")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_atom(Value::string("yes")),
+            Expression::arc_atom(Value::string("no")),
         ];
 
         let special_form = SpecialForm::from_name("if").unwrap();
@@ -101,8 +101,8 @@ mod tests {
 
         // Test define special form direct access
         let args = vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(42.0)),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
         ];
 
         let special_form = SpecialForm::from_name("define").unwrap();
@@ -118,7 +118,7 @@ mod tests {
         let mut env = Environment::new();
 
         // Test async special form direct access - currently returns not implemented error
-        let args = vec![Expression::atom(Value::number(42.0))];
+        let args = vec![Expression::arc_atom(Value::number(42.0))];
 
         let special_form = SpecialForm::from_name("async").unwrap();
         let result = special_form.call(args, &mut env);
@@ -147,11 +147,11 @@ mod tests {
         let mut env = Environment::new();
 
         // Test let special form direct access: (let ((x 42)) x)
-        let bindings = Expression::List(vec![Expression::List(vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(42.0)),
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
         ])]);
-        let body = Expression::atom(Value::symbol("x"));
+        let body = Expression::arc_atom(Value::symbol("x"));
         let args = vec![bindings, body];
 
         let special_form = SpecialForm::from_name("let").unwrap();
@@ -164,8 +164,8 @@ mod tests {
         let mut env = Environment::new();
 
         // Test lambda special form direct access: (lambda (x) x)
-        let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
-        let body = Expression::atom(Value::symbol("x"));
+        let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
+        let body = Expression::arc_atom(Value::symbol("x"));
         let args = vec![params, body];
 
         let special_form = SpecialForm::from_name("lambda").unwrap();
@@ -185,7 +185,7 @@ mod tests {
 
         // Test that errors from special forms are properly propagated
         // if with wrong arity should error
-        let args = vec![Expression::atom(Value::boolean(true))]; // Missing consequent and alternative
+        let args = vec![Expression::arc_atom(Value::boolean(true))]; // Missing consequent and alternative
 
         let special_form = SpecialForm::from_name("if").unwrap();
         let result = special_form.call(args, &mut env);
@@ -227,35 +227,35 @@ mod tests {
 
         // Test if special form
         let args = vec![
-            Expression::atom(Value::boolean(true)),
-            Expression::atom(Value::string("yes")),
-            Expression::atom(Value::string("no")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_atom(Value::string("yes")),
+            Expression::arc_atom(Value::string("no")),
         ];
         let result = SpecialForm::If.call(args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
 
         // Test define special form
         let args = vec![
-            Expression::atom(Value::symbol("x")),
-            Expression::atom(Value::number(42.0)),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
         ];
         let result = SpecialForm::Define.call(args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(42.0));
 
         // Test let special form
-        let bindings = Expression::List(vec![Expression::List(vec![
-            Expression::atom(Value::symbol("y")),
-            Expression::atom(Value::number(100.0)),
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("y")),
+            Expression::arc_atom(Value::number(100.0)),
         ])]);
-        let body = Expression::atom(Value::symbol("y"));
+        let body = Expression::arc_atom(Value::symbol("y"));
         let args = vec![bindings, body];
         let result = SpecialForm::Let.call(args, &mut env).unwrap();
         assert_eq!(result, Value::number(100.0));
 
         // Test lambda special form
-        let params = Expression::List(vec![Expression::atom(Value::symbol("x"))]);
-        let body = Expression::atom(Value::symbol("x"));
+        let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
+        let body = Expression::arc_atom(Value::symbol("x"));
         let args = vec![params, body];
         let result = SpecialForm::Lambda.call(args, &mut env).unwrap();
         if let Value::Procedure(proc) = result {
@@ -271,12 +271,12 @@ mod tests {
         let mut env = Environment::new();
 
         // Test error propagation for invalid arguments
-        let args = vec![Expression::atom(Value::boolean(true))]; // Missing consequent and alternative
+        let args = vec![Expression::arc_atom(Value::boolean(true))]; // Missing consequent and alternative
         let result = SpecialForm::If.call(args, &mut env);
         assert!(result.is_err());
 
         // Test async not implemented error
-        let args = vec![Expression::atom(Value::number(42.0))];
+        let args = vec![Expression::arc_atom(Value::number(42.0))];
         let result = SpecialForm::Async.call(args, &mut env);
         assert!(result.is_err());
         assert!(
@@ -334,9 +334,9 @@ mod tests {
 
         // Test that SpecialForm enum works correctly
         let args = vec![
-            Expression::atom(Value::boolean(true)),
-            Expression::atom(Value::string("yes")),
-            Expression::atom(Value::string("no")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_atom(Value::string("yes")),
+            Expression::arc_atom(Value::string("no")),
         ];
         let special_form = SpecialForm::from_name("if").unwrap();
         let result = special_form.call(args, &mut env).unwrap();
