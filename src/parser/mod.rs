@@ -26,7 +26,6 @@
 //! ```
 
 use crate::lexer::Lexer;
-use std::sync::Arc;
 
 pub use expression::{Expression, PositionedExpression};
 
@@ -114,7 +113,7 @@ impl Parser {
                 self.advance(); // consume quote
                 let quoted_expr = self.parse_expression()?;
                 Ok(PositionedExpression::new(
-                    Arc::new(Expression::quote(quoted_expr.expr)),
+                    Expression::arc_quote(quoted_expr.expr),
                     position,
                 ))
             }
@@ -138,7 +137,7 @@ impl Parser {
 
                 self.advance(); // consume right paren
                 Ok(PositionedExpression::new(
-                    Arc::new(Expression::list(expressions)),
+                    Expression::arc_list(expressions),
                     position,
                 ))
             }
@@ -151,7 +150,7 @@ impl Parser {
                 let value = *n;
                 self.advance();
                 Ok(PositionedExpression::new(
-                    Arc::new(Expression::atom(crate::types::Value::number(value))),
+                    Expression::arc_atom(crate::types::Value::number(value)),
                     position,
                 ))
             }
@@ -159,7 +158,7 @@ impl Parser {
                 let value = s.clone();
                 self.advance();
                 Ok(PositionedExpression::new(
-                    Arc::new(Expression::atom(crate::types::Value::string(&value))),
+                    Expression::arc_atom(crate::types::Value::string(&value)),
                     position,
                 ))
             }
@@ -167,7 +166,7 @@ impl Parser {
                 let value = s.clone();
                 self.advance();
                 Ok(PositionedExpression::new(
-                    Arc::new(Expression::atom(crate::types::Value::symbol(&value))),
+                    Expression::arc_atom(crate::types::Value::symbol(&value)),
                     position,
                 ))
             }
@@ -175,7 +174,7 @@ impl Parser {
                 let value = *b;
                 self.advance();
                 Ok(PositionedExpression::new(
-                    Arc::new(Expression::atom(crate::types::Value::boolean(value))),
+                    Expression::arc_atom(crate::types::Value::boolean(value)),
                     position,
                 ))
             }
@@ -228,6 +227,8 @@ mod tests {
     use super::*;
     use crate::lexer::Position;
     use crate::types::Value;
+
+    use std::sync::Arc;
 
     #[test]
     fn test_expr_creation() {
@@ -342,7 +343,7 @@ mod tests {
 
     #[test]
     fn test_positioned_expr() {
-        let expr = Arc::new(Expression::atom(Value::number(42.0)));
+        let expr = Expression::arc_atom(Value::number(42.0));
         let position = Position::new(1, 5);
         let positioned = PositionedExpression::new(Arc::clone(&expr), position.clone());
 

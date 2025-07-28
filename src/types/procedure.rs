@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn test_lambda_struct_creation() {
         let params = vec![Symbol::new("x"), Symbol::new("y")];
-        let body = Arc::new(Expression::atom(Value::symbol("x")));
+        let body = Expression::arc_atom(Value::symbol("x"));
         let env = Environment::new();
 
         let lambda = Lambda::new(params.clone(), Arc::clone(&body), env);
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn test_lambda_struct_equality() {
         let params = vec![Symbol::new("x")];
-        let body = Arc::new(Expression::atom(Value::symbol("x")));
+        let body = Expression::arc_atom(Value::symbol("x"));
         let env1 = Environment::new();
         let env2 = Environment::new();
 
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn test_lambda_display() {
         let params = vec![Symbol::new("x"), Symbol::new("y")];
-        let body = Arc::new(Expression::atom(Value::symbol("x")));
+        let body = Expression::arc_atom(Value::symbol("x"));
         let env = Environment::new();
         let lambda = Lambda::new(params, body, env);
 
@@ -266,7 +266,7 @@ mod tests {
 
         // Test lambda with no parameters
         let no_params = vec![];
-        let body = Arc::new(Expression::atom(Value::number(42.0)));
+        let body = Expression::arc_atom(Value::number(42.0));
         let env = Environment::new();
         let lambda_no_params = Lambda::new(no_params, body, env);
         assert_eq!(format!("{lambda_no_params}"), "#<lambda:>");

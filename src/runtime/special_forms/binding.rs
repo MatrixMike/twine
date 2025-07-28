@@ -84,12 +84,12 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
             let body_expressions: Vec<Arc<Expression>> = args[1..].iter().map(Arc::clone).collect();
 
             // Create a lambda expression: (lambda (param...) body...)
-            let mut lambda_args = vec![Arc::new(Expression::List(
+            let mut lambda_args = vec![Expression::arc_list(
                 parameters
                     .into_iter()
-                    .map(|p| Arc::new(Expression::atom(Value::Symbol(p))))
+                    .map(|p| Expression::arc_atom(Value::Symbol(p)))
                     .collect(),
-            ))];
+            )];
             lambda_args.extend(body_expressions);
 
             // For now, we'll store a placeholder since lambda isn't implemented yet
