@@ -31,14 +31,14 @@ use std::sync::Arc;
 /// // (lambda (x y) (+ x y))
 /// // (lambda () 42)
 /// ```
-pub fn eval_lambda(mut args: Vec<Arc<Expression>>, env: &Environment) -> Result<Value> {
+pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value> {
     // Lambda requires exactly 2 arguments: parameter list and body
     if args.len() != 2 {
         return Err(Error::arity_error("lambda", 2, args.len()));
     }
 
-    let body_expr = args.pop().unwrap();
-    let params_expr = args.pop().unwrap();
+    let params_expr = Arc::clone(&args[0]);
+    let body_expr = Arc::clone(&args[1]);
 
     // Parse parameter list - must be a list of symbols
     let params = parse_parameter_list(params_expr)?;
@@ -157,7 +157,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, Arc::clone(&body)];
 
-        let result = eval_lambda(args, &env).unwrap();
+        let result = eval_lambda(&args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -178,7 +178,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("x"));
         let args = vec![params, Arc::clone(&body)];
 
-        let result = eval_lambda(args, &env).unwrap();
+        let result = eval_lambda(&args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -210,7 +210,7 @@ mod tests {
         ]);
         let args = vec![params, Arc::clone(&body)];
 
-        let result = eval_lambda(args, &env).unwrap();
+        let result = eval_lambda(&args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -240,7 +240,7 @@ mod tests {
         ]);
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env).unwrap();
+        let result = eval_lambda(&args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             let captured_env = proc.env().unwrap();
@@ -261,7 +261,7 @@ mod tests {
 
         // Test too few arguments
         let args = vec![Expression::arc_atom(Value::symbol("x"))];
-        let result = eval_lambda(args, &env);
+        let result = eval_lambda(&args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -276,7 +276,7 @@ mod tests {
             Expression::arc_atom(Value::number(42.0)),
             Expression::arc_atom(Value::number(43.0)),
         ];
-        let result = eval_lambda(args, &env);
+        let result = eval_lambda(&args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -295,7 +295,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env);
+        let result = eval_lambda(&args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -312,7 +312,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env);
+        let result = eval_lambda(&args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -329,7 +329,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env);
+        let result = eval_lambda(&args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -352,7 +352,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env);
+        let result = eval_lambda(&args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -370,7 +370,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env);
+        let result = eval_lambda(&args, &env);
         assert!(result.is_err());
         assert!(
             result
@@ -461,7 +461,7 @@ mod tests {
         ]);
         let args = vec![params, Arc::clone(&body)];
 
-        let result = eval_lambda(args, &env).unwrap();
+        let result = eval_lambda(&args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
@@ -483,7 +483,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env).unwrap();
+        let result = eval_lambda(&args, &env).unwrap();
 
         // Test that the procedure displays correctly
         assert_eq!(format!("{result}"), "#<lambda:x y>");
@@ -503,7 +503,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
         let args = vec![params, body];
 
-        let result = eval_lambda(args, &env).unwrap();
+        let result = eval_lambda(&args, &env).unwrap();
 
         if let Value::Procedure(proc) = result {
             let param_list = proc.params().unwrap();

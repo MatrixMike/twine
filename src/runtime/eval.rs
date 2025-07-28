@@ -30,7 +30,7 @@ pub fn eval(expr: Arc<Expression>, env: &mut Environment) -> Result<Value> {
         Expression::Atom(value) => eval_atom(value.clone(), env),
 
         // Lists represent procedure calls or special forms
-        Expression::List(elements) => eval_list(elements.clone(), env),
+        Expression::List(elements) => eval_list(elements, env),
 
         // Quoted expressions prevent evaluation
         Expression::Quote(quoted_expr) => eval_quote(Arc::clone(quoted_expr)),
@@ -64,16 +64,15 @@ fn eval_atom(value: Value, env: &Environment) -> Result<Value> {
 /// Lists represent compound expressions in Scheme:
 /// - Empty lists evaluate to themselves
 /// - Non-empty lists represent special forms or procedure calls: (form/procedure arg1 arg2 ...)
-fn eval_list(elements: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
+fn eval_list(elements: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
     // Empty list evaluates to empty list
     if elements.is_empty() {
         return Ok(Value::List(List::new()));
     }
 
     // Non-empty lists can be special forms or procedure calls
-    let mut elements_iter = elements.into_iter();
-    let first_expr = elements_iter.next().unwrap();
-    let rest_exprs: Vec<Arc<Expression>> = elements_iter.collect();
+    let first_expr = Arc::clone(&elements[0]);
+    let rest_exprs = &elements[1..];
 
     let procedure_value = match first_expr.as_ref() {
         Expression::Atom(Value::Symbol(identifier)) => {
@@ -109,7 +108,7 @@ fn eval_list(elements: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Va
 /// - For lambda procedures, creates new environment, binds parameters, and evaluates body
 fn call_procedure(
     procedure: crate::types::Procedure,
-    arg_exprs: Vec<Arc<Expression>>,
+    arg_exprs: &[Arc<Expression>],
     env: &mut Environment,
 ) -> Result<Value> {
     match procedure {
@@ -145,10 +144,10 @@ fn call_procedure(
 }
 
 /// Evaluate a list of argument expressions into values
-fn eval_arguments(exprs: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Vec<Value>> {
+fn eval_arguments(exprs: &[Arc<Expression>], env: &mut Environment) -> Result<Vec<Value>> {
     let mut args = Vec::with_capacity(exprs.len());
     for expr in exprs {
-        args.push(eval(expr, env)?);
+        args.push(eval(Arc::clone(expr), env)?);
     }
     Ok(args)
 }
@@ -672,5 +671,29 @@ mod tests {
         ]);
         let result = eval(car_empty_expr, &mut env);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_eval_list_no_clone_required() {
+        let mut env = Environment::new();
+
+        // Create a list expression: (+ 1 2)
+        let elements = vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::number(2.0)),
+        ];
+
+        // Test that we can call eval_list with a slice reference
+        // This verifies we don't need to clone the Vec
+        let result = eval_list(&elements, &mut env).unwrap();
+        assert_eq!(result, Value::number(3.0));
+
+        // Test that the original elements Vec is still usable
+        assert_eq!(elements.len(), 3);
+        assert!(matches!(
+            elements[0].as_ref(),
+            Expression::Atom(Value::Symbol(_))
+        ));
     }
 }

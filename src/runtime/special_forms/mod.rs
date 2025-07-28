@@ -44,7 +44,7 @@ impl SpecialForm {
     }
 
     /// Execute this special form with the given arguments
-    pub fn call(self, args: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
+    pub fn call(self, args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
         match self {
             SpecialForm::If => control_flow::eval_if(args, env),
             SpecialForm::Define => binding::eval_define(args, env),
@@ -91,7 +91,7 @@ mod tests {
         ];
 
         let special_form = SpecialForm::from_name("if").unwrap();
-        let result = special_form.call(args, &mut env).unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
     }
 
@@ -106,7 +106,7 @@ mod tests {
         ];
 
         let special_form = SpecialForm::from_name("define").unwrap();
-        let result = special_form.call(args, &mut env).unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created
@@ -121,7 +121,7 @@ mod tests {
         let args = vec![Expression::arc_atom(Value::number(42.0))];
 
         let special_form = SpecialForm::from_name("async").unwrap();
-        let result = special_form.call(args, &mut env);
+        let result = special_form.call(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -155,7 +155,7 @@ mod tests {
         let args = vec![bindings, body];
 
         let special_form = SpecialForm::from_name("let").unwrap();
-        let result = special_form.call(args, &mut env).unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
     }
 
@@ -169,7 +169,7 @@ mod tests {
         let args = vec![params, body];
 
         let special_form = SpecialForm::from_name("lambda").unwrap();
-        let result = special_form.call(args, &mut env).unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
             assert_eq!(proc.arity(), Some(1));
@@ -188,7 +188,7 @@ mod tests {
         let args = vec![Expression::arc_atom(Value::boolean(true))]; // Missing consequent and alternative
 
         let special_form = SpecialForm::from_name("if").unwrap();
-        let result = special_form.call(args, &mut env);
+        let result = special_form.call(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -231,7 +231,7 @@ mod tests {
             Expression::arc_atom(Value::string("yes")),
             Expression::arc_atom(Value::string("no")),
         ];
-        let result = SpecialForm::If.call(args, &mut env).unwrap();
+        let result = SpecialForm::If.call(&args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
 
         // Test define special form
@@ -239,7 +239,7 @@ mod tests {
             Expression::arc_atom(Value::symbol("x")),
             Expression::arc_atom(Value::number(42.0)),
         ];
-        let result = SpecialForm::Define.call(args, &mut env).unwrap();
+        let result = SpecialForm::Define.call(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(42.0));
 
@@ -250,14 +250,14 @@ mod tests {
         ])]);
         let body = Expression::arc_atom(Value::symbol("y"));
         let args = vec![bindings, body];
-        let result = SpecialForm::Let.call(args, &mut env).unwrap();
+        let result = SpecialForm::Let.call(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(100.0));
 
         // Test lambda special form
         let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
         let body = Expression::arc_atom(Value::symbol("x"));
         let args = vec![params, body];
-        let result = SpecialForm::Lambda.call(args, &mut env).unwrap();
+        let result = SpecialForm::Lambda.call(&args, &mut env).unwrap();
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
             assert_eq!(proc.arity(), Some(1));
@@ -272,12 +272,12 @@ mod tests {
 
         // Test error propagation for invalid arguments
         let args = vec![Expression::arc_atom(Value::boolean(true))]; // Missing consequent and alternative
-        let result = SpecialForm::If.call(args, &mut env);
+        let result = SpecialForm::If.call(&args, &mut env);
         assert!(result.is_err());
 
         // Test async not implemented error
         let args = vec![Expression::arc_atom(Value::number(42.0))];
-        let result = SpecialForm::Async.call(args, &mut env);
+        let result = SpecialForm::Async.call(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -339,7 +339,7 @@ mod tests {
             Expression::arc_atom(Value::string("no")),
         ];
         let special_form = SpecialForm::from_name("if").unwrap();
-        let result = special_form.call(args, &mut env).unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
 
         // Test that unknown special forms return None

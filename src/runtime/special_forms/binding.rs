@@ -21,21 +21,21 @@ use std::sync::Arc;
 /// For procedure definition (syntactic sugar):
 /// - (define (name param1 param2) body1 body2...)
 /// - Equivalent to: (define name (lambda (param1 param2) body1 body2...))
-pub fn eval_define(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
+pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
         return Err(crate::Error::arity_error("define", 1, 0));
     }
 
-    let first_arg = args.remove(0);
+    let first_arg = Arc::clone(&args[0]);
     match first_arg.as_ref() {
         // Binding definition: (define identifier expression)
         Expression::Atom(Value::Symbol(identifier)) => {
-            if args.len() != 1 {
-                return Err(crate::Error::arity_error("define", 2, args.len() + 1));
+            if args.len() != 2 {
+                return Err(crate::Error::arity_error("define", 2, args.len()));
             }
 
             // Evaluate the expression and bind it to the identifier
-            let value_expr = args.into_iter().next().unwrap();
+            let value_expr = Arc::clone(&args[1]);
             let value = eval(value_expr, env)?;
             env.define(identifier.clone(), value);
             Ok(Value::Nil)
@@ -75,13 +75,13 @@ pub fn eval_define(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Res
             }
 
             // Procedure body is everything remaining in args
-            if args.is_empty() {
+            if args.len() < 2 {
                 return Err(crate::Error::runtime_error(
                     "define: procedure definition requires at least one body expression",
                 ));
             }
 
-            let body_expressions = args;
+            let body_expressions: Vec<Arc<Expression>> = args[1..].iter().map(Arc::clone).collect();
 
             // Create a lambda expression: (lambda (param...) body...)
             let mut lambda_args = vec![Arc::new(Expression::List(
@@ -118,14 +118,14 @@ pub fn eval_define(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Res
 /// 3. Bind identifiers (id1, id2, ...) to their evaluated values simultaneously
 /// 4. Evaluate body expressions sequentially in the new environment
 /// 5. Return the value of the last body expression
-pub fn eval_let(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
+pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
         return Err(crate::Error::arity_error("let", 1, 0));
     }
 
     // First argument must be the binding list
-    let bindings_expr = args.remove(0);
-    let body_exprs = args;
+    let bindings_expr = Arc::clone(&args[0]);
+    let body_exprs = &args[1..];
 
     if body_exprs.is_empty() {
         return Err(crate::Error::runtime_error(
@@ -198,7 +198,7 @@ pub fn eval_let(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Result
     // Evaluate body expressions sequentially in new environment
     let mut result = Value::Nil;
     for body_expr in body_exprs {
-        result = eval(body_expr, &mut let_env)?;
+        result = eval(Arc::clone(body_expr), &mut let_env)?;
     }
 
     Ok(result)
@@ -221,7 +221,7 @@ mod tests {
             Expression::arc_atom(Value::number(42.0)),
         ];
 
-        let result = eval_define(args, &mut env).unwrap();
+        let result = eval_define(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created
@@ -241,7 +241,7 @@ mod tests {
             Expression::arc_atom(Value::symbol("y")), // Should evaluate to 10.0
         ];
 
-        let result = eval_define(args, &mut env).unwrap();
+        let result = eval_define(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the binding was created with the evaluated value
@@ -266,7 +266,7 @@ mod tests {
 
         let args = vec![procedure_def, body];
 
-        let result = eval_define(args, &mut env).unwrap();
+        let result = eval_define(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the procedure binding was created (placeholder for now)
@@ -293,7 +293,7 @@ mod tests {
 
         let args = vec![procedure_def, body];
 
-        let result = eval_define(args, &mut env).unwrap();
+        let result = eval_define(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the procedure binding was created
@@ -314,7 +314,7 @@ mod tests {
 
         let args = vec![procedure_def, body1, body2];
 
-        let result = eval_define(args, &mut env).unwrap();
+        let result = eval_define(&args, &mut env).unwrap();
         assert_eq!(result, Value::Nil);
 
         // Verify the procedure binding was created
@@ -327,7 +327,7 @@ mod tests {
         let mut env = Environment::new();
 
         // Test no arguments
-        let result = eval_define(vec![], &mut env);
+        let result = eval_define(&[], &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -338,13 +338,13 @@ mod tests {
 
         // Test binding definition with wrong arity
         let args = vec![Expression::arc_atom(Value::symbol("x"))];
-        let result = eval_define(args, &mut env);
+        let result = eval_define(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
                 .unwrap_err()
                 .to_string()
-                .contains("define: expected 2 arguments")
+                .contains("define: expected 2 arguments, got 1")
         );
 
         // Test procedure definition with non-symbol name
@@ -352,7 +352,7 @@ mod tests {
             Expression::arc_atom(Value::number(42.0)), // Not a symbol
         ]);
         let args = vec![procedure_def];
-        let result = eval_define(args, &mut env);
+        let result = eval_define(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -367,7 +367,7 @@ mod tests {
             Expression::arc_atom(Value::number(42.0)), // Parameter must be symbol
         ]);
         let args = vec![procedure_def];
-        let result = eval_define(args, &mut env);
+        let result = eval_define(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -379,7 +379,7 @@ mod tests {
         // Test procedure definition with empty parameter list
         let procedure_def = Expression::arc_list(vec![]);
         let args = vec![procedure_def];
-        let result = eval_define(args, &mut env);
+        let result = eval_define(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -391,7 +391,7 @@ mod tests {
         // Test procedure definition without body
         let procedure_def = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("fn"))]);
         let args = vec![procedure_def];
-        let result = eval_define(args, &mut env);
+        let result = eval_define(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -402,7 +402,7 @@ mod tests {
 
         // Test invalid first argument
         let args = vec![Expression::arc_atom(Value::number(42.0))];
-        let result = eval_define(args, &mut env);
+        let result = eval_define(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -421,7 +421,7 @@ mod tests {
             Expression::arc_atom(Value::symbol("x")),
             Expression::arc_atom(Value::number(42.0)),
         ];
-        eval_define(args1, &mut env).unwrap();
+        eval_define(&args1, &mut env).unwrap();
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(42.0));
 
         // Redefine the same identifier (should shadow)
@@ -429,7 +429,7 @@ mod tests {
             Expression::arc_atom(Value::symbol("x")),
             Expression::arc_atom(Value::string("hello")),
         ];
-        eval_define(args2, &mut env).unwrap();
+        eval_define(&args2, &mut env).unwrap();
         assert_eq!(
             env.lookup(&Symbol::new("x")).unwrap(),
             Value::string("hello")
@@ -448,7 +448,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env).unwrap();
+        let result = eval_let(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
 
         // Verify the original environment is unchanged
@@ -475,7 +475,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("y"));
 
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env).unwrap();
+        let result = eval_let(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(20.0));
     }
 
@@ -494,7 +494,7 @@ mod tests {
         let body3 = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body1, body2, body3];
-        let result = eval_let(args, &mut env).unwrap();
+        let result = eval_let(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(5.0)); // Should return last expression
     }
 
@@ -514,7 +514,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env).unwrap();
+        let result = eval_let(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
 
         // Verify outer environment is unchanged
@@ -543,7 +543,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("y"));
 
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env).unwrap();
+        let result = eval_let(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(10.0)); // y should be 10 (outer x), not 42
     }
 
@@ -556,7 +556,7 @@ mod tests {
         let body = Expression::arc_atom(Value::number(42.0));
 
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env).unwrap();
+        let result = eval_let(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(42.0));
     }
 
@@ -581,7 +581,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env).unwrap();
+        let result = eval_let(&args, &mut env).unwrap();
         assert_eq!(result, Value::number(5.0));
     }
 
@@ -590,7 +590,7 @@ mod tests {
         let mut env = Environment::new();
 
         // Test no arguments
-        let result = eval_let(vec![], &mut env);
+        let result = eval_let(&[], &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -602,7 +602,7 @@ mod tests {
         // Test no body expressions
         let bindings = Expression::arc_list(vec![]);
         let args = vec![bindings];
-        let result = eval_let(args, &mut env);
+        let result = eval_let(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -615,7 +615,7 @@ mod tests {
         let bindings = Expression::arc_atom(Value::number(42.0));
         let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env);
+        let result = eval_let(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -628,7 +628,7 @@ mod tests {
         let bindings = Expression::arc_list(vec![Expression::arc_atom(Value::number(42.0))]);
         let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env);
+        let result = eval_let(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -644,7 +644,7 @@ mod tests {
             )])]);
         let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env);
+        let result = eval_let(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -660,7 +660,7 @@ mod tests {
         ])]);
         let body = Expression::arc_atom(Value::number(1.0));
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env);
+        let result = eval_let(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
@@ -682,7 +682,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("x"));
 
         let args = vec![bindings, body];
-        let result = eval_let(args, &mut env);
+        let result = eval_let(&args, &mut env);
         assert!(result.is_err());
         assert!(
             result
