@@ -37,24 +37,36 @@ pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value>
         return Err(Error::arity_error("lambda", 2, args.len()));
     }
 
+    // Extract and validate parameters
     let params_expr = Arc::clone(&args[0]);
-    let body_expr = Arc::clone(&args[1]);
-
-    // Parse parameter list - must be a list of symbols
     let params = parse_parameter_list(params_expr)?;
-
-    // Validate that all parameters are unique identifiers
     validate_parameters(&params)?;
 
-    // Create lambda procedure with captured environment (closure)
-    // The environment is captured at lambda creation time (lexical scoping)
-    // Flatten the environment to remove lifetime constraints
-    //
-    // TODO: Remove `env.flatten()` and instead create a minimal env with
-    // only the bindings that are captured inside the lambda.
-    let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
+    let body_expr = Arc::clone(&args[1]);
 
-    Ok(Value::Procedure(lambda_proc))
+    // Create lambda procedure using shared logic
+    Ok(create_lambda_procedure(params, body_expr, env))
+}
+
+/// Create a lambda procedure from validated parameters and body
+///
+/// This shared function handles the common logic of creating lambda procedures
+/// used by both `eval_lambda` and procedure definitions in `define`.
+///
+/// # Arguments
+/// * `params` - Already validated parameter symbols
+/// * `body_expr` - The body expression for the lambda
+/// * `env` - Environment to capture for closure
+///
+/// # Returns
+/// A new lambda procedure value
+pub fn create_lambda_procedure(
+    params: Vec<Symbol>,
+    body_expr: Arc<Expression>,
+    env: &Environment,
+) -> Value {
+    let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
+    Value::Procedure(lambda_proc)
 }
 
 /// Parse the parameter list from a lambda expression

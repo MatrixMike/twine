@@ -4,9 +4,11 @@
 
 use crate::error::Result;
 use crate::parser::Expression;
-use crate::runtime::special_forms::lambda::{parse_parameter_list, validate_parameters};
+use crate::runtime::special_forms::lambda::{
+    create_lambda_procedure, parse_parameter_list, validate_parameters,
+};
 use crate::runtime::{environment::Environment, eval::eval};
-use crate::types::{Procedure, Value};
+use crate::types::Value;
 use std::sync::Arc;
 
 /// Evaluate a define special form
@@ -71,7 +73,7 @@ fn eval_define_procedure(
     }
 
     // Extract procedure name
-    let procedure_name = match elements[0].as_ref() {
+    let proc_name = match elements[0].as_ref() {
         Expression::Atom(Value::Symbol(name)) => name.clone(),
         _ => {
             return Err(crate::Error::runtime_error(
@@ -82,8 +84,8 @@ fn eval_define_procedure(
 
     // Extract and validate parameters
     let param_expr = Expression::arc_list(elements[1..].iter().map(Arc::clone).collect());
-    let parameters = parse_parameter_list(param_expr)?;
-    validate_parameters(&parameters)?;
+    let params = parse_parameter_list(param_expr)?;
+    validate_parameters(&params)?;
 
     // Validate procedure body
     if args.len() < 2 {
@@ -99,9 +101,9 @@ fn eval_define_procedure(
         Expression::arc_list(args[1..].iter().map(Arc::clone).collect())
     };
 
-    // Create lambda procedure directly
-    let lambda_procedure = Procedure::lambda(parameters, body_expr, env.flatten());
-    env.define(procedure_name, Value::Procedure(lambda_procedure));
+    // Create lambda procedure using shared logic
+    let lambda_proc = create_lambda_procedure(params, body_expr, env);
+    env.define(proc_name, lambda_proc);
     Ok(Value::Nil)
 }
 
