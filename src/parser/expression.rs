@@ -24,7 +24,7 @@ use std::sync::Arc;
 /// | `(+ 1 2)` | `Expression::List([Atom(+), Atom(1), Atom(2)])` |
 /// | `'x` | `Expression::Quote(Box::new(Atom(Symbol("x"))))` |
 /// | `'(a b)` | `Expression::Quote(Box::new(List([Atom(a), Atom(b)])))` |
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     /// Atomic expressions (primitive values)
     Atom(Value),

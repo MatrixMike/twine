@@ -14,7 +14,7 @@ use std::collections::HashMap;
 ///
 /// Supports lexical scoping through an optional parent environment reference.
 /// Uses lifetimes to ensure parent environments outlive their children.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Environment<'a> {
     /// Identifier bindings in this environment scope
     bindings: HashMap<Symbol, Value>,

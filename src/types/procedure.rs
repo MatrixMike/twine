@@ -13,7 +13,7 @@ use std::sync::Arc;
 /// Lambda procedures are created by the `lambda` special form and
 /// capture their defining environment as a closure. This struct
 /// enables efficient sharing via Arc.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Lambda {
     /// Parameter identifiers for the procedure
     params: Vec<Symbol>,
@@ -328,7 +328,7 @@ mod tests {
         let body = Expression::arc_atom(Value::symbol("x"));
         let env = Environment::new();
 
-        let proc1 = Procedure::lambda(params.clone(), Arc::clone(&body), env.clone());
+        let proc1 = Procedure::lambda(params.clone(), Arc::clone(&body), env.flatten());
         let proc2 = proc1.clone();
 
         // Verify they share the same Arc
