@@ -1670,3 +1670,416 @@ fn test_integration_builtin_in_nested_environments() {
     let result = eval_source("(let ((a 2) (b 3)) (* (+ a b) (- 10 4)))", &mut env).unwrap();
     assert_eq!(result, Value::number(30.0)); // (2 + 3) * (10 - 4) = 5 * 6 = 30
 }
+
+#[test]
+fn test_integration_define_procedure_basic() {
+    let mut env = Environment::new();
+
+    // Define a simple procedure: (define (square x) (* x x))
+    let define_result = eval_source("(define (square x) (* x x))", &mut env).unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Verify the procedure was created correctly
+    let square_proc = env.lookup(&Symbol::new("square")).unwrap();
+    assert!(square_proc.is_procedure());
+    let proc = square_proc.as_procedure().unwrap();
+    assert!(proc.is_lambda());
+    assert_eq!(proc.arity(), Some(1));
+
+    // Test procedure application
+    let result = eval_source("(square 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(25.0));
+
+    // Test with expression argument
+    let result = eval_source("(square (+ 2 3))", &mut env).unwrap();
+    assert_eq!(result, Value::number(25.0));
+}
+
+#[test]
+fn test_integration_define_procedure_multiple_parameters() {
+    let mut env = Environment::new();
+
+    // Define procedure with multiple parameters: (define (add-three x y z) (+ x y z))
+    let define_result = eval_source("(define (add-three x y z) (+ x y z))", &mut env).unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Verify procedure properties
+    let proc_value = env.lookup(&Symbol::new("add-three")).unwrap();
+    let proc = proc_value.as_procedure().unwrap();
+    assert_eq!(proc.arity(), Some(3));
+
+    // Test application with correct arity
+    let result = eval_source("(add-three 1 2 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(6.0));
+
+    // Test with expressions as arguments
+    let result = eval_source("(add-three (* 2 2) (+ 1 1) (- 5 2))", &mut env).unwrap();
+    assert_eq!(result, Value::number(9.0)); // 4 + 2 + 3 = 9
+}
+
+#[test]
+fn test_integration_define_procedure_no_parameters() {
+    let mut env = Environment::new();
+
+    // Define procedure with no parameters: (define (get-answer) 42)
+    let define_result = eval_source("(define (get-answer) 42)", &mut env).unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Verify procedure properties
+    let proc_value = env.lookup(&Symbol::new("get-answer")).unwrap();
+    let proc = proc_value.as_procedure().unwrap();
+    assert_eq!(proc.arity(), Some(0));
+
+    // Test application
+    let result = eval_source("(get-answer)", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_define_procedure_complex_body() {
+    let mut env = Environment::new();
+
+    // Define procedure with conditional body
+    let define_result = eval_source("(define (abs x) (if (< x 0) (- x) x))", &mut env).unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Test with positive number
+    let result = eval_source("(abs 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(5.0));
+
+    // Test with negative number
+    let result = eval_source("(abs -3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(3.0));
+
+    // Test with zero
+    let result = eval_source("(abs 0)", &mut env).unwrap();
+    assert_eq!(result, Value::number(0.0));
+}
+
+#[test]
+fn test_integration_define_procedure_closure() {
+    let mut env = Environment::new();
+
+    // Define outer variable
+    eval_source("(define base 100)", &mut env).unwrap();
+
+    // Define procedure that captures outer variable
+    let define_result = eval_source("(define (add-to-base x) (+ x base))", &mut env).unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Test closure behavior - should use captured base
+    let result = eval_source("(add-to-base 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(105.0));
+
+    // Change base and call again - should still use original captured base
+    eval_source("(define base 200)", &mut env).unwrap();
+    let result = eval_source("(add-to-base 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(105.0)); // Still uses original base=100
+}
+
+#[test]
+fn test_integration_define_procedure_parameter_shadowing() {
+    let mut env = Environment::new();
+
+    // Define outer variable
+    eval_source("(define x 999)", &mut env).unwrap();
+
+    // Define procedure where parameter shadows outer variable
+    let define_result = eval_source("(define (test-shadow x) (+ x 1))", &mut env).unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Parameter x should shadow outer x
+    let result = eval_source("(test-shadow 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(6.0)); // Uses parameter x=5, not outer x=999
+
+    // Outer x should remain unchanged
+    let outer_x = eval_source("x", &mut env).unwrap();
+    assert_eq!(outer_x, Value::number(999.0));
+}
+
+#[test]
+fn test_integration_define_procedure_nested_calls() {
+    let mut env = Environment::new();
+
+    // Define multiple procedures
+    eval_source("(define (double x) (* x 2))", &mut env).unwrap();
+    eval_source("(define (add-one x) (+ x 1))", &mut env).unwrap();
+    eval_source("(define (compose-ops x) (double (add-one x)))", &mut env).unwrap();
+
+    // Test nested calls
+    let result = eval_source("(compose-ops 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(8.0)); // double(add-one(3)) = double(4) = 8
+
+    // Test deeper nesting
+    let result = eval_source("(add-one (double (add-one 2)))", &mut env).unwrap();
+    assert_eq!(result, Value::number(7.0)); // add-one(double(add-one(2))) = add-one(double(3)) = add-one(6) = 7
+}
+
+#[test]
+fn test_integration_define_procedure_with_lists() {
+    let mut env = Environment::new();
+
+    // Define procedure that works with lists
+    let define_result = eval_source(
+        "(define (sum-first-two lst) (+ (car lst) (car (cdr lst))))",
+        &mut env,
+    )
+    .unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Test with list argument
+    let result = eval_source("(sum-first-two (list 10 20 30))", &mut env).unwrap();
+    assert_eq!(result, Value::number(30.0));
+
+    // Define procedure that creates lists
+    eval_source("(define (make-pair x y) (list x y))", &mut env).unwrap();
+    let result = eval_source("(make-pair 1 2)", &mut env).unwrap();
+    if let Value::List(list) = result {
+        let elements: Vec<_> = list.iter().collect();
+        assert_eq!(elements.len(), 2);
+        assert_eq!(elements[0], &Value::number(1.0));
+        assert_eq!(elements[1], &Value::number(2.0));
+    } else {
+        panic!("Expected list result");
+    }
+}
+
+#[test]
+fn test_integration_define_procedure_with_let() {
+    let mut env = Environment::new();
+
+    // Define procedure that uses let
+    let define_result = eval_source(
+        "(define (compute x) (let ((temp (* x 2))) (+ temp 1)))",
+        &mut env,
+    )
+    .unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Test procedure application
+    let result = eval_source("(compute 5)", &mut env).unwrap();
+    assert_eq!(result, Value::number(11.0)); // let temp = 5*2=10, then temp+1=11
+
+    // Test that let bindings don't leak
+    let temp_lookup = env.lookup(&Symbol::new("temp"));
+    assert!(temp_lookup.is_err()); // temp should not be in outer environment
+}
+
+#[test]
+fn test_integration_define_procedure_shadowing_builtins() {
+    let mut env = Environment::new();
+
+    // Test that builtins work initially
+    let result = eval_source("(+ 2 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(5.0));
+
+    // Shadow the builtin with user-defined procedure
+    let define_result = eval_source("(define (+ x y) (* x y))", &mut env).unwrap();
+    assert_eq!(define_result, Value::Nil);
+
+    // Now + should refer to the user-defined procedure (multiplication)
+    let result = eval_source("(+ 2 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(6.0)); // 2 * 3 = 6, not 2 + 3 = 5
+}
+
+#[test]
+fn test_integration_define_procedure_arity_errors() {
+    let mut env = Environment::new();
+
+    // Define procedure expecting 2 parameters
+    eval_source("(define (add-two x y) (+ x y))", &mut env).unwrap();
+
+    // Test too few arguments
+    let result = eval_source("(add-two 5)", &mut env);
+    assert!(result.is_err());
+    if let Err(Error::ArityError {
+        expected, actual, ..
+    }) = result
+    {
+        assert_eq!(expected, 2);
+        assert_eq!(actual, 1);
+    } else {
+        panic!("Expected ArityError for too few arguments");
+    }
+
+    // Test too many arguments
+    let result = eval_source("(add-two 5 10 15)", &mut env);
+    assert!(result.is_err());
+    if let Err(Error::ArityError {
+        expected, actual, ..
+    }) = result
+    {
+        assert_eq!(expected, 2);
+        assert_eq!(actual, 3);
+    } else {
+        panic!("Expected ArityError for too many arguments");
+    }
+}
+
+#[test]
+fn test_integration_define_procedure_syntax_errors() {
+    let mut env = Environment::new();
+
+    // Test empty parameter list (no procedure name)
+    let result = eval_source("(define () 42)", &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("requires non-empty parameter list")
+    );
+
+    // Test non-symbol procedure name
+    let result = eval_source("(define (42 x) x)", &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("procedure name must be a symbol")
+    );
+
+    // Test non-symbol parameter
+    let result = eval_source("(define (func 42) x)", &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("parameter must be a symbol")
+    );
+
+    // Test missing body
+    let result = eval_source("(define (func x))", &mut env);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("requires at least one body expression")
+    );
+}
+
+#[test]
+fn test_integration_define_procedure_recursive_pattern() {
+    let mut env = Environment::new();
+
+    // Define a procedure that could be used recursively (simple counter factory)
+    eval_source(
+        "(define (make-incrementer start) (lambda (x) (+ start x)))",
+        &mut env,
+    )
+    .unwrap();
+
+    // Create an incrementer
+    eval_source("(define inc5 (make-incrementer 5))", &mut env).unwrap();
+
+    // Test the created procedure
+    let result = eval_source("(inc5 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(8.0)); // 5 + 3 = 8
+
+    // Create another incrementer with different start value
+    eval_source("(define inc10 (make-incrementer 10))", &mut env).unwrap();
+    let result = eval_source("(inc10 3)", &mut env).unwrap();
+    assert_eq!(result, Value::number(13.0)); // 10 + 3 = 13
+}
+
+#[test]
+fn test_integration_define_procedure_lambda_interaction() {
+    let mut env = Environment::new();
+
+    // Define procedure using define syntax
+    eval_source("(define (square x) (* x x))", &mut env).unwrap();
+
+    // Define procedure using lambda syntax
+    eval_source("(define cube (lambda (x) (* x x x)))", &mut env).unwrap();
+
+    // Both should work the same way
+    let square_result = eval_source("(square 4)", &mut env).unwrap();
+    assert_eq!(square_result, Value::number(16.0));
+
+    let cube_result = eval_source("(cube 3)", &mut env).unwrap();
+    assert_eq!(cube_result, Value::number(27.0));
+
+    // Both should be lambda procedures internally
+    let square_value = env.lookup(&Symbol::new("square")).unwrap();
+    let square_proc = square_value.as_procedure().unwrap();
+    let cube_value = env.lookup(&Symbol::new("cube")).unwrap();
+    let cube_proc = cube_value.as_procedure().unwrap();
+
+    assert!(square_proc.is_lambda());
+    assert!(cube_proc.is_lambda());
+    assert_eq!(square_proc.arity(), Some(1));
+    assert_eq!(cube_proc.arity(), Some(1));
+
+    // Test that they can call each other
+    eval_source("(define (fourth-power x) (square (square x)))", &mut env).unwrap();
+    let result = eval_source("(fourth-power 2)", &mut env).unwrap();
+    assert_eq!(result, Value::number(16.0)); // 2^4 = 16
+}
+
+#[test]
+fn test_integration_define_procedure_complex_evaluation() {
+    let mut env = Environment::new();
+
+    // Define helper procedures
+    eval_source("(define (positive? x) (> x 0))", &mut env).unwrap();
+    eval_source("(define (negative? x) (< x 0))", &mut env).unwrap();
+
+    // Define complex procedure with nested conditionals and calls
+    eval_source(
+        r#"(define (classify x)
+             (if (positive? x)
+               (if (> x 10) 'big-positive 'small-positive)
+               (if (negative? x)
+                 (if (< x -10) 'big-negative 'small-negative)
+                 'zero)))"#,
+        &mut env,
+    )
+    .unwrap();
+
+    // Test various cases
+    let result = eval_source("(classify 15)", &mut env).unwrap();
+    assert_eq!(result, Value::symbol("big-positive"));
+
+    let result = eval_source("(classify 5)", &mut env).unwrap();
+    assert_eq!(result, Value::symbol("small-positive"));
+
+    let result = eval_source("(classify -15)", &mut env).unwrap();
+    assert_eq!(result, Value::symbol("big-negative"));
+
+    let result = eval_source("(classify -5)", &mut env).unwrap();
+    assert_eq!(result, Value::symbol("small-negative"));
+
+    let result = eval_source("(classify 0)", &mut env).unwrap();
+    assert_eq!(result, Value::symbol("zero"));
+}
+
+#[test]
+fn test_integration_define_procedure_comprehensive_integration() {
+    let mut env = Environment::new();
+
+    // Define procedure that combines multiple features
+    eval_source(
+        r#"(define (process-list lst)
+             (let ((first (car lst))
+                   (rest (cdr lst)))
+               (if (null? rest)
+                 first
+                 (+ first (car rest)))))"#,
+        &mut env,
+    )
+    .unwrap();
+
+    // Test the procedure
+    let result = eval_source("(process-list (list 10 20 30))", &mut env).unwrap();
+    assert_eq!(result, Value::number(30.0)); // 10 + 20 = 30
+
+    let result = eval_source("(process-list (list 42))", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0)); // Only one element, return it
+
+    // Test error handling when procedure is called with wrong type
+    let result = eval_source("(process-list 42)", &mut env);
+    assert!(result.is_err()); // Should error when trying to call car on number
+}
