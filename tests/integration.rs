@@ -1253,7 +1253,7 @@ fn test_integration_lambda_error_cases() {
         result
             .unwrap_err()
             .to_string()
-            .contains("parameter must be a symbol")
+            .contains("parameter must be symbol")
     );
 }
 

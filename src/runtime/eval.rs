@@ -7,6 +7,7 @@
 use crate::error::{Error, Result};
 use crate::parser::Expression;
 use crate::types::{List, Value};
+use std::sync::Arc;
 
 use super::{Environment, special_forms};
 
@@ -23,16 +24,16 @@ use super::{Environment, special_forms};
 ///
 /// # Returns
 /// * `Result<Value>` - The evaluated value or an error
-pub fn eval(expr: Expression, env: &mut Environment) -> Result<Value> {
-    match expr {
+pub fn eval(expr: Arc<Expression>, env: &mut Environment) -> Result<Value> {
+    match expr.as_ref() {
         // Atoms are handled based on their value type
-        Expression::Atom(value) => eval_atom(value, env),
+        Expression::Atom(value) => eval_atom(value.clone(), env),
 
         // Lists represent procedure calls or special forms
-        Expression::List(elements) => eval_list(elements, env),
+        Expression::List(elements) => eval_list(elements.clone(), env),
 
         // Quoted expressions prevent evaluation
-        Expression::Quote(boxed_expr) => eval_quote(*boxed_expr),
+        Expression::Quote(quoted_expr) => eval_quote(Arc::clone(quoted_expr)),
     }
 }
 
@@ -63,7 +64,7 @@ fn eval_atom(value: Value, env: &Environment) -> Result<Value> {
 /// Lists represent compound expressions in Scheme:
 /// - Empty lists evaluate to themselves
 /// - Non-empty lists represent special forms or procedure calls: (form/procedure arg1 arg2 ...)
-fn eval_list(elements: Vec<Expression>, env: &mut Environment) -> Result<Value> {
+fn eval_list(elements: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
     // Empty list evaluates to empty list
     if elements.is_empty() {
         return Ok(Value::List(List::new()));
@@ -72,9 +73,9 @@ fn eval_list(elements: Vec<Expression>, env: &mut Environment) -> Result<Value> 
     // Non-empty lists can be special forms or procedure calls
     let mut elements_iter = elements.into_iter();
     let first_expr = elements_iter.next().unwrap();
-    let rest_exprs: Vec<Expression> = elements_iter.collect();
+    let rest_exprs: Vec<Arc<Expression>> = elements_iter.collect();
 
-    let procedure_value = match first_expr {
+    let procedure_value = match first_expr.as_ref() {
         Expression::Atom(Value::Symbol(identifier)) => {
             // Handle special forms first (these have special evaluation rules)
             if let Some(special_form) = special_forms::SpecialForm::from_name(identifier.as_str()) {
@@ -84,7 +85,7 @@ fn eval_list(elements: Vec<Expression>, env: &mut Environment) -> Result<Value> 
             // Not a special form, try to look up identifier in environment
             env.lookup(&identifier)?
         }
-        first_expr => eval(first_expr, env)?,
+        _ => eval(Arc::clone(&first_expr), env)?,
     };
 
     // Check if the value is a procedure and call it
@@ -108,7 +109,7 @@ fn eval_list(elements: Vec<Expression>, env: &mut Environment) -> Result<Value> 
 /// - For lambda procedures, creates new environment, binds parameters, and evaluates body
 fn call_procedure(
     procedure: crate::types::Procedure,
-    arg_exprs: Vec<Expression>,
+    arg_exprs: Vec<Arc<Expression>>,
     env: &mut Environment,
 ) -> Result<Value> {
     match procedure {
@@ -138,15 +139,13 @@ fn call_procedure(
             }
 
             // Evaluate the body in the new environment
-            //
-            // TODO: Remove lambda body clone from here.
-            eval(lambda.body().clone(), &mut call_env)
+            eval(Arc::clone(lambda.body()), &mut call_env)
         }
     }
 }
 
 /// Evaluate a list of argument expressions into values
-fn eval_arguments(exprs: Vec<Expression>, env: &mut Environment) -> Result<Vec<Value>> {
+fn eval_arguments(exprs: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Vec<Value>> {
     let mut args = Vec::with_capacity(exprs.len());
     for expr in exprs {
         args.push(eval(expr, env)?);
@@ -158,30 +157,30 @@ fn eval_arguments(exprs: Vec<Expression>, env: &mut Environment) -> Result<Vec<V
 ///
 /// Quoted expressions prevent evaluation and return the quoted expression
 /// as a value without evaluating it.
-fn eval_quote(expr: Expression) -> Result<Value> {
+fn eval_quote(expr: Arc<Expression>) -> Result<Value> {
     // Convert the quoted expression back to a Value
-    expression_to_value(expr)
+    expression_to_value(expr.as_ref())
 }
 
 /// Convert an Expression back to a Value
 ///
 /// This is used for quote evaluation where we need to return
 /// the quoted expression as a value without evaluating it.
-fn expression_to_value(expr: Expression) -> Result<Value> {
+fn expression_to_value(expr: &Expression) -> Result<Value> {
     match expr {
-        Expression::Atom(value) => Ok(value),
+        Expression::Atom(value) => Ok(value.clone()),
 
         Expression::List(elements) => {
             let mut values = Vec::with_capacity(elements.len());
             for element in elements {
-                values.push(expression_to_value(element)?);
+                values.push(expression_to_value(element.as_ref())?);
             }
             Ok(Value::List(List::from(values)))
         }
 
-        Expression::Quote(boxed_expr) => {
+        Expression::Quote(quoted_expr) => {
             // Nested quotes - convert the inner expression
-            expression_to_value(*boxed_expr)
+            expression_to_value(quoted_expr.as_ref())
         }
     }
 }
@@ -189,14 +188,14 @@ fn expression_to_value(expr: Expression) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Value;
+    use crate::types::{Symbol, Value};
 
     #[test]
     fn test_eval_self_evaluating_atoms() {
         let mut env = Environment::new();
 
         // Test number evaluation
-        let number_expr = Expression::atom(Value::number(42.0));
+        let number_expr = Arc::new(Expression::atom(Value::number(42.0)));
         let result = eval(number_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 42.0);
 
@@ -219,11 +218,12 @@ mod tests {
     #[test]
     fn test_eval_symbol_lookup() {
         let mut env = Environment::new();
-        env.define_str("x", Value::number(10.0));
-        env.define_str("greeting", Value::string("hello world"));
+        env.define(Symbol::new("x"), Value::number(10.0)).unwrap();
+        env.define(Symbol::new("greeting"), Value::string("hello world"))
+            .unwrap();
 
         // Test successful symbol lookup
-        let symbol_expr = Expression::atom(Value::symbol("x"));
+        let symbol_expr = Arc::new(Expression::atom(Value::symbol("x")));
         let result = eval(symbol_expr, &mut env).unwrap();
         assert_eq!(result.as_number().unwrap(), 10.0);
 
@@ -237,10 +237,15 @@ mod tests {
         let mut env = Environment::new();
 
         // Test unbound symbol error
-        let symbol_expr = Expression::atom(Value::symbol("undefined"));
-        let result = eval(symbol_expr, &mut env);
-
+        let unbound_expr = Arc::new(Expression::atom(Value::symbol("undefined")));
+        let result = eval(unbound_expr, &mut env);
         assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Unbound identifier")
+        );
         if let Err(Error::EnvironmentError { identifier, .. }) = result {
             assert_eq!(identifier, "undefined");
         } else {

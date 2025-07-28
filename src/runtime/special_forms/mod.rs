@@ -8,6 +8,7 @@ use crate::error::Result;
 use crate::parser::Expression;
 use crate::runtime::environment::Environment;
 use crate::types::Value;
+use std::sync::Arc;
 
 /// Enumeration of all special forms
 ///
@@ -43,12 +44,12 @@ impl SpecialForm {
     }
 
     /// Execute this special form with the given arguments
-    pub fn call(self, args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
+    pub fn call(self, args: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
         match self {
             SpecialForm::If => control_flow::eval_if(args, env),
             SpecialForm::Define => binding::eval_define(args, env),
-            SpecialForm::Let => binding::eval_let(args, env),
             SpecialForm::Lambda => lambda::eval_lambda(args, env),
+            SpecialForm::Let => binding::eval_let(args, env),
             SpecialForm::Async => concurrency::eval_async(args, env),
         }
     }

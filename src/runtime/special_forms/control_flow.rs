@@ -16,6 +16,7 @@ use crate::error::Result;
 use crate::parser::Expression;
 use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::Value;
+use std::sync::Arc;
 
 /// Evaluate an if special form
 ///
@@ -23,7 +24,7 @@ use crate::types::Value;
 /// - Evaluates <test>
 /// - If the result is truthy (anything except #f), evaluates and returns <consequent>
 /// - If the result is falsy (#f), evaluates and returns <alternative>
-pub fn eval_if(mut args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
+pub fn eval_if(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
     // if requires exactly 3 arguments: test, consequent, alternative
     if args.len() != 3 {
         return Err(crate::Error::arity_error("if", 3, args.len()));
@@ -34,10 +35,10 @@ pub fn eval_if(mut args: Vec<Expression>, env: &mut Environment) -> Result<Value
     let test_expr = args.pop().unwrap();
 
     // Evaluate the test expression
-    let test_value = eval(test_expr, env)?;
+    let test_result = eval(test_expr, env)?;
 
     // In Scheme, only #f is false, everything else is true
-    if test_value.is_truthy() {
+    if test_result.is_truthy() {
         eval(consequent_expr, env)
     } else {
         eval(alternative_expr, env)

@@ -6,6 +6,7 @@ use crate::error::Result;
 use crate::parser::Expression;
 use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::Value;
+use std::sync::Arc;
 
 /// Evaluate a define special form
 ///
@@ -20,13 +21,13 @@ use crate::types::Value;
 /// For procedure definition (syntactic sugar):
 /// - (define (name param1 param2) body1 body2...)
 /// - Equivalent to: (define name (lambda (param1 param2) body1 body2...))
-pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
+pub fn eval_define(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
         return Err(crate::Error::arity_error("define", 1, 0));
     }
 
     let first_arg = args.remove(0);
-    match first_arg {
+    match first_arg.as_ref() {
         // Binding definition: (define identifier expression)
         Expression::Atom(Value::Symbol(identifier)) => {
             if args.len() != 1 {
@@ -36,7 +37,7 @@ pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<V
             // Evaluate the expression and bind it to the identifier
             let value_expr = args.into_iter().next().unwrap();
             let value = eval(value_expr, env)?;
-            env.define(identifier, value);
+            env.define(identifier.clone(), value);
             Ok(Value::Nil)
         }
 
@@ -49,7 +50,7 @@ pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<V
             }
 
             // Extract procedure name and parameters
-            let procedure_name = match &elements[0] {
+            let procedure_name = match elements[0].as_ref() {
                 Expression::Atom(Value::Symbol(name)) => name.clone(),
                 _ => {
                     return Err(crate::Error::runtime_error(
@@ -61,7 +62,7 @@ pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<V
             // Extract parameters - all must be symbols
             let mut parameters = Vec::with_capacity(elements[1..].len());
             for param_expr in &elements[1..] {
-                match param_expr {
+                match param_expr.as_ref() {
                     Expression::Atom(Value::Symbol(param)) => {
                         parameters.push(param.clone());
                     }
@@ -83,12 +84,12 @@ pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<V
             let body_expressions = args;
 
             // Create a lambda expression: (lambda (param...) body...)
-            let mut lambda_args = vec![Expression::List(
+            let mut lambda_args = vec![Arc::new(Expression::List(
                 parameters
                     .into_iter()
-                    .map(|p| Expression::atom(Value::Symbol(p)))
+                    .map(|p| Arc::new(Expression::atom(Value::Symbol(p))))
                     .collect(),
-            )];
+            ))];
             lambda_args.extend(body_expressions);
 
             // For now, we'll store a placeholder since lambda isn't implemented yet
@@ -117,7 +118,7 @@ pub fn eval_define(mut args: Vec<Expression>, env: &mut Environment) -> Result<V
 /// 3. Bind identifiers (id1, id2, ...) to their evaluated values simultaneously
 /// 4. Evaluate body expressions sequentially in the new environment
 /// 5. Return the value of the last body expression
-pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Value> {
+pub fn eval_let(mut args: Vec<Arc<Expression>>, env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
         return Err(crate::Error::arity_error("let", 1, 0));
     }
@@ -133,7 +134,7 @@ pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Valu
     }
 
     // Parse binding list: ((var1 expr1) (var2 expr2) ...)
-    let binding_pairs = match bindings_expr {
+    let binding_pairs = match bindings_expr.as_ref() {
         Expression::List(pairs) => pairs,
         _ => {
             return Err(crate::Error::runtime_error(
@@ -147,8 +148,8 @@ pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Valu
     let mut expressions = Vec::with_capacity(binding_pairs.len());
 
     for pair in binding_pairs {
-        match pair {
-            Expression::List(mut elements) => {
+        match pair.as_ref() {
+            Expression::List(elements) => {
                 if elements.len() != 2 {
                     return Err(crate::Error::runtime_error(
                         "let: each binding must be a list of exactly 2 elements (identifier expression)",
@@ -156,8 +157,8 @@ pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Valu
                 }
 
                 // First element must be a symbol (identifier name)
-                let identifier = match elements.remove(0) {
-                    Expression::Atom(Value::Symbol(sym)) => sym,
+                let identifier = match elements[0].as_ref() {
+                    Expression::Atom(Value::Symbol(sym)) => sym.clone(),
                     _ => {
                         return Err(crate::Error::runtime_error(
                             "let: binding identifier must be a symbol",
@@ -166,7 +167,7 @@ pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Valu
                 };
 
                 // Second element is the expression to evaluate
-                let expression = elements.remove(0);
+                let expression = Arc::clone(&elements[1]);
 
                 identifiers.push(identifier);
                 expressions.push(expression);
@@ -194,8 +195,7 @@ pub fn eval_let(mut args: Vec<Expression>, env: &mut Environment) -> Result<Valu
         let_env.define(identifier, value);
     }
 
-    // Evaluate body expressions sequentially in the new environment
-    // Evaluate the body expressions in sequence
+    // Evaluate body expressions sequentially in new environment
     let mut result = Value::Nil;
     for body_expr in body_exprs {
         result = eval(body_expr, &mut let_env)?;

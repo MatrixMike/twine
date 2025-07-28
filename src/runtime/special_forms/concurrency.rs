@@ -7,6 +7,7 @@ use crate::error::{Error, Result};
 use crate::parser::Expression;
 use crate::runtime::environment::Environment;
 use crate::types::Value;
+use std::sync::Arc;
 
 /// Evaluate the `async` special form
 ///
@@ -36,7 +37,7 @@ use crate::types::Value;
 /// will be evaluated sequentially in the spawned fiber. If multiple
 /// expressions are provided, they behave like `begin` - evaluated in order
 /// with the last expression's value returned.
-pub fn eval_async(_args: Vec<Expression>, _env: &mut Environment) -> Result<Value> {
+pub fn eval_async(_args: Vec<Arc<Expression>>, _env: &mut Environment) -> Result<Value> {
     // TODO: Implementation will be completed in Phase 4 when fiber scheduler is available
     // For now, return a placeholder error indicating the feature is not yet implemented
 
