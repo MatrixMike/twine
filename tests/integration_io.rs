@@ -106,7 +106,7 @@ fn test_integration_io_return_values() {
 
     // Test I/O in expressions where return value matters
     let result = eval_source("(if (display \"side effect\") 42 99)", &mut env).unwrap();
-    assert_eq!(result, Value::number(99.0)); // display returns nil, which is falsy
+    assert_eq!(result, Value::number(42.0)); // display returns nil, which is truthy in Scheme
 
     // Test using I/O in arithmetic context should fail
     let result = eval_source("(+ 1 (display \"test\"))", &mut env);

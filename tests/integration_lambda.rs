@@ -91,7 +91,7 @@ fn test_integration_lambda_error_cases() {
         result
             .unwrap_err()
             .to_string()
-            .contains("requires parameter list and body")
+            .contains("expected 2 arguments, got 0")
     );
 
     // Test lambda with no body
@@ -102,7 +102,7 @@ fn test_integration_lambda_error_cases() {
         result
             .unwrap_err()
             .to_string()
-            .contains("requires parameter list and body")
+            .contains("expected 2 arguments, got 1")
     );
 
     // Test lambda with invalid parameter list
@@ -113,7 +113,7 @@ fn test_integration_lambda_error_cases() {
         result
             .unwrap_err()
             .to_string()
-            .contains("parameter list must be a list")
+            .contains("parameters must be enclosed in parentheses")
     );
 
     // Test lambda with non-symbol parameter

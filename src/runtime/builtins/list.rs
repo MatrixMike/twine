@@ -81,8 +81,8 @@ pub fn cdr(args: &[Value]) -> Result<Value> {
 
 /// Construct a new list by prepending an element (cons)
 ///
-/// In Scheme, `cons` creates a new list with the first argument as the head
-/// and the second argument as the tail. The second argument should be a list.
+/// In Scheme, `cons` creates a new list with the first argument as the head.
+/// If the second argument is a list, it becomes the tail. If not, a two-element list is created.
 ///
 /// # Arguments
 /// * `args` - Should contain exactly two arguments: element and list
@@ -95,6 +95,7 @@ pub fn cdr(args: &[Value]) -> Result<Value> {
 /// ```scheme
 /// (cons 1 '(2 3))    ; => (1 2 3)
 /// (cons 'a '())      ; => (a)
+/// (cons 'a 'b)       ; => (a b)
 /// ```
 pub fn cons(args: &[Value]) -> Result<Value> {
     if args.len() != 2 {
@@ -102,16 +103,20 @@ pub fn cons(args: &[Value]) -> Result<Value> {
     }
 
     let element = &args[0];
-    let tail = args[1]
-        .as_list()
-        .ok_or_else(|| Error::type_error("cons", "list", args[1].type_name(), Some(2)))?;
+    let second = &args[1];
 
-    // Create a new list with the element prepended
-    let mut new_values = Vec::with_capacity(tail.len() + 1);
-    new_values.push(element.clone());
-    new_values.extend(tail.iter().cloned());
-
-    Ok(Value::list(new_values))
+    // If second argument is a list, prepend element to it
+    // If second argument is not a list, create a two-element list
+    if let Some(tail) = second.as_list() {
+        // Create a new list with the element prepended to the existing list
+        let mut new_values = Vec::with_capacity(tail.len() + 1);
+        new_values.push(element.clone());
+        new_values.extend(tail.iter().cloned());
+        Ok(Value::list(new_values))
+    } else {
+        // Create a two-element list with both arguments
+        Ok(Value::list(vec![element.clone(), second.clone()]))
+    }
 }
 
 /// Create a new list from multiple arguments (list)
@@ -328,6 +333,16 @@ mod tests {
             Value::number(42.0),
         ]);
         assert_eq!(result, expected);
+
+        // Test cons with non-list second argument (creates two-element list)
+        let result = cons(&[Value::symbol("a"), Value::symbol("b")]).unwrap();
+        let expected = Value::list(vec![Value::symbol("a"), Value::symbol("b")]);
+        assert_eq!(result, expected);
+
+        // Test cons with different types
+        let result = cons(&[Value::string("hello"), Value::number(42.0)]).unwrap();
+        let expected = Value::list(vec![Value::string("hello"), Value::number(42.0)]);
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -337,13 +352,6 @@ mod tests {
         assert!(result.is_err());
 
         let result = cons(&[Value::number(1.0), Value::number(2.0), Value::number(3.0)]);
-        assert!(result.is_err());
-
-        // Test non-list second argument
-        let result = cons(&[Value::number(1.0), Value::number(2.0)]);
-        assert!(result.is_err());
-
-        let result = cons(&[Value::string("a"), Value::string("b")]);
         assert!(result.is_err());
     }
 
@@ -518,8 +526,11 @@ mod tests {
         let cdr_err = cdr(&[not_list.clone()]).unwrap_err();
         assert!(cdr_err.to_string().contains("expected list"));
 
-        let cons_err = cons(&[Value::number(1.0), not_list.clone()]).unwrap_err();
-        assert!(cons_err.to_string().contains("expected list"));
+        // cons should now accept any second argument, so this should succeed
+        let cons_result = cons(&[Value::number(1.0), not_list.clone()]).unwrap();
+        assert!(cons_result.is_list());
+        let cons_list = cons_result.as_list().unwrap();
+        assert_eq!(cons_list.len(), 2);
 
         let length_err = length(&[not_list]).unwrap_err();
         assert!(length_err.to_string().contains("expected list"));

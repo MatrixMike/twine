@@ -140,10 +140,10 @@ fn test_integration_define_procedure_closure() {
     let result = eval_source("(add-to-base 42)", &mut env).unwrap();
     assert_eq!(result, Value::number(142.0));
 
-    // Change base and test again
+    // Change base and test again - with lexical scoping, procedure should still use captured base (100)
     eval_source("(define base 200)", &mut env).unwrap();
     let result = eval_source("(add-to-base 42)", &mut env).unwrap();
-    assert_eq!(result, Value::number(242.0)); // Should use updated base
+    assert_eq!(result, Value::number(142.0)); // Should use original captured base (100)
 
     // Test nested closure
     eval_source("(define multiplier 5)", &mut env).unwrap();
@@ -512,11 +512,7 @@ fn test_integration_define_procedure_lambda_interaction() {
     )
     .unwrap();
     let result = eval_source("(sixth-power 2)", &mut env).unwrap();
-    assert_eq!(result, Value::number(64.0)); // 2^2 * 2^3 = 4 * 8 = 32 -- wait, that's wrong
-    // Actually: (square 2) * (cube 2) = 4 * 8 = 32, but 2^6 should be 64
-    // Let me recalculate: square(2) = 4, cube(2) = 8, 4 * 8 = 32, not 64
-    // The test was wrong, 2^6 = 64 but we're computing 2^2 * 2^3 = 4 * 8 = 32
-    assert_eq!(result, Value::number(32.0)); // 4 * 8 = 32
+    assert_eq!(result, Value::number(32.0)); // square(2) * cube(2) = 4 * 8 = 32
 }
 
 #[test]

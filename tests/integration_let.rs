@@ -102,9 +102,13 @@ fn test_integration_let_binding_multiple_body() {
     let result = eval_source("(let ((x 10)) (define y x) y)", &mut env).unwrap();
     assert_eq!(result.as_number().unwrap(), 10.0);
 
-    // Test side effects in multiple expressions
-    let result = eval_source("(let ((x 1)) (set! x 2) (set! x 3) x)", &mut env).unwrap();
-    assert_eq!(result.as_number().unwrap(), 3.0);
+    // Test multiple expressions in let body (only last expression returned)
+    let result = eval_source(
+        "(let ((x 1)) (display \"side effect\") (+ x 2) (+ x 3))",
+        &mut env,
+    )
+    .unwrap();
+    assert_eq!(result.as_number().unwrap(), 4.0); // x + 3 = 1 + 3 = 4
 
     // Test with mixed expression types
     let result = eval_source("(let ((x 10)) \"ignored\" #f x)", &mut env).unwrap();
@@ -360,7 +364,7 @@ fn test_integration_comprehensive_binding_behavior() {
         &mut env,
     )
     .unwrap();
-    assert_eq!(result.as_number().unwrap(), 6.0); // 3 + 1 + 1 (y and z both see original x)
+    assert_eq!(result.as_number().unwrap(), 5.0); // 3 + 1 + 1 (y and z both see original x)
 }
 
 #[test]

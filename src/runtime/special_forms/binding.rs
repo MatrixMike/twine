@@ -103,6 +103,8 @@ fn eval_define_procedure(
     let body_exprs = args.iter().map(Arc::clone).collect();
 
     // Create lambda procedure and bind it to the identifier
+    // For recursive procedures, we use the current environment directly
+    // instead of flattening it, so self-references can be resolved
     let lambda_proc = create_lambda_procedure(params, body_exprs, env);
     env.define(identifier, lambda_proc);
     Ok(Value::Nil)
