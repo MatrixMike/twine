@@ -162,65 +162,76 @@ fn call_lambda(lambda: Arc<Lambda>, args: Vec<Value>) -> Result<Value> {
             eval(Arc::clone(expr), &mut call_env)?; // Result is discarded
         }
 
-        // Check if the last expression is a tail call
+        // Evaluate the last expression and check for tail call optimization
         let last_expr = &body_exprs[body_exprs.len() - 1];
-        if let Some((next_procedure, next_args)) =
-            eval_lambda_last_expression_returning_tail_call(last_expr, &mut call_env)?
-        {
-            match next_procedure {
-                Procedure::Lambda(next_lambda) => {
-                    // Tail call to another lambda - optimize by continuing loop
-                    current_lambda = next_lambda;
-                    current_args = next_args;
-                    continue;
-                }
-                Procedure::Builtin(builtin) => {
-                    // Tail call to builtin - just call it directly
-                    return builtin.call(&next_args);
+        match eval_last_expression_with_tail_call_check(last_expr, &mut call_env)? {
+            TailCallResult::TailCall { procedure, args } => {
+                match procedure {
+                    Procedure::Lambda(next_lambda) => {
+                        // Tail call to another lambda - optimize by continuing loop
+                        current_lambda = next_lambda;
+                        current_args = args;
+                        continue;
+                    }
+                    Procedure::Builtin(builtin) => {
+                        // Tail call to builtin - just call it directly
+                        return builtin.call(&args);
+                    }
                 }
             }
+            TailCallResult::Value(value) => {
+                // Not a tail call - return the evaluated value
+                return Ok(value);
+            }
         }
-
-        // Not a tail call - evaluate the last expression normally and return
-        return eval(Arc::clone(last_expr), &mut call_env);
     }
 }
 
-/// Evaluate the last expression of a lambda returning a procedure for a tail call
+/// Result of evaluating the last expression with tail call optimization check
+enum TailCallResult {
+    TailCall {
+        procedure: Procedure,
+        args: Vec<Value>,
+    },
+    Value(Value),
+}
+
+/// Evaluate the last expression of a lambda, checking for tail call optimization
 ///
 /// A tail call occurs when a procedure call is in tail position - meaning it's
 /// the last operation performed before returning from the current procedure.
-/// This function analyzes the expression to determine if it's a direct procedure call.
-fn eval_lambda_last_expression_returning_tail_call(
+/// This function evaluates the expression once and determines if it's a tail call.
+fn eval_last_expression_with_tail_call_check(
     expr: &Arc<Expression>,
     env: &mut Environment,
-) -> Result<Option<(Procedure, Vec<Value>)>> {
+) -> Result<TailCallResult> {
     match expr.as_ref() {
         // Direct procedure call: (procedure arg1 arg2 ...)
         Expression::List(elements) if !elements.is_empty() => {
             let first_expr = &elements[0];
             let rest_exprs = &elements[1..];
 
-            // Try to evaluate the first expression to see if it's a procedure
+            // Check if the first expression is a symbol that could be a procedure
             match first_expr.as_ref() {
                 Expression::Atom(Value::Symbol(identifier)) => {
                     // Handle special forms - they're not tail calls since they have special evaluation
                     if special_forms::SpecialForm::from_name(identifier.as_str()).is_some() {
-                        return Ok(None);
+                        let value = eval(Arc::clone(expr), env)?;
+                        return Ok(TailCallResult::Value(value));
                     }
 
                     // Try to look up the identifier as a procedure
                     if let Ok(Value::Procedure(procedure)) = env.lookup(identifier) {
                         // Evaluate the arguments
                         let args = eval_arguments(rest_exprs, env)?;
-                        return Ok(Some((procedure, args)));
+                        return Ok(TailCallResult::TailCall { procedure, args });
                     }
                 }
                 _ => {
-                    // Try to evaluate the first expression
+                    // For non-symbol first expressions, evaluate to check if it's a procedure
                     if let Ok(Value::Procedure(procedure)) = eval(Arc::clone(first_expr), env) {
                         let args = eval_arguments(rest_exprs, env)?;
-                        return Ok(Some((procedure, args)));
+                        return Ok(TailCallResult::TailCall { procedure, args });
                     }
                 }
             }
@@ -230,7 +241,9 @@ fn eval_lambda_last_expression_returning_tail_call(
         }
     }
 
-    Ok(None)
+    // Not a tail call - evaluate normally
+    let value = eval(Arc::clone(expr), env)?;
+    Ok(TailCallResult::Value(value))
 }
 
 /// Evaluate a list of argument expressions into values
@@ -921,6 +934,41 @@ mod tests {
 
         let result = eval(add_double_call, &mut env).unwrap();
         assert_eq!(result, Value::number(12.0)); // (5 + 1) * 2 = 12
+    }
+
+    #[test]
+    fn test_no_double_evaluation_in_lambda_call() {
+        use crate::parser::Parser;
+
+        let mut env = Environment::default();
+
+        // Create a lambda that returns a simple value (not a procedure)
+        // This tests the case where the last expression is NOT a tail call
+        let lambda_source = "(lambda () 42)";
+        let mut parser = Parser::new(lambda_source.to_string()).unwrap();
+        let lambda_expr = parser.parse_expression().unwrap().expr;
+        let lambda_value = eval(lambda_expr, &mut env).unwrap();
+
+        // Call the lambda - before the fix, this would evaluate 42 twice
+        if let Value::Procedure(Procedure::Lambda(lambda)) = lambda_value {
+            let result = call_lambda(lambda, vec![]).unwrap();
+            assert_eq!(result, Value::number(42.0));
+        } else {
+            panic!("Expected lambda procedure");
+        }
+
+        // Test with a more complex non-tail-call expression
+        let lambda_source = "(lambda () (+ 1 2))";
+        let mut parser = Parser::new(lambda_source.to_string()).unwrap();
+        let lambda_expr = parser.parse_expression().unwrap().expr;
+        let lambda_value = eval(lambda_expr, &mut env).unwrap();
+
+        if let Value::Procedure(Procedure::Lambda(lambda)) = lambda_value {
+            let result = call_lambda(lambda, vec![]).unwrap();
+            assert_eq!(result, Value::number(3.0));
+        } else {
+            panic!("Expected lambda procedure");
+        }
     }
 
     #[test]
