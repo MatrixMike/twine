@@ -21,6 +21,10 @@ pub enum SpecialForm {
     If,
     Begin,
 
+    // Logical operators
+    And,
+    Or,
+
     // Binding and definition forms
     Define,
     Let,
@@ -38,6 +42,8 @@ impl SpecialForm {
         match self {
             SpecialForm::If => "if",
             SpecialForm::Begin => "begin",
+            SpecialForm::And => "and",
+            SpecialForm::Or => "or",
             SpecialForm::Define => "define",
             SpecialForm::Let => "let",
             SpecialForm::Lambda => "lambda",
@@ -50,6 +56,8 @@ impl SpecialForm {
         match self {
             SpecialForm::If => control_flow::eval_if(args, env),
             SpecialForm::Begin => control_flow::eval_begin(args, env),
+            SpecialForm::And => control_flow::eval_and(args, env),
+            SpecialForm::Or => control_flow::eval_or(args, env),
             SpecialForm::Define => binding::eval_define(args, env),
             SpecialForm::Lambda => lambda::eval_lambda(args, env),
             SpecialForm::Let => binding::eval_let(args, env),
@@ -62,6 +70,8 @@ impl SpecialForm {
         match name {
             "if" => Some(SpecialForm::If),
             "begin" => Some(SpecialForm::Begin),
+            "and" => Some(SpecialForm::And),
+            "or" => Some(SpecialForm::Or),
             "define" => Some(SpecialForm::Define),
             "let" => Some(SpecialForm::Let),
             "lambda" => Some(SpecialForm::Lambda),
@@ -227,6 +237,8 @@ mod tests {
     fn test_special_form_name() {
         assert_eq!(SpecialForm::If.name(), "if");
         assert_eq!(SpecialForm::Begin.name(), "begin");
+        assert_eq!(SpecialForm::And.name(), "and");
+        assert_eq!(SpecialForm::Or.name(), "or");
         assert_eq!(SpecialForm::Define.name(), "define");
         assert_eq!(SpecialForm::Let.name(), "let");
         assert_eq!(SpecialForm::Lambda.name(), "lambda");
@@ -237,6 +249,8 @@ mod tests {
     fn test_special_form_from_name() {
         assert_eq!(SpecialForm::from_name("if"), Some(SpecialForm::If));
         assert_eq!(SpecialForm::from_name("begin"), Some(SpecialForm::Begin));
+        assert_eq!(SpecialForm::from_name("and"), Some(SpecialForm::And));
+        assert_eq!(SpecialForm::from_name("or"), Some(SpecialForm::Or));
         assert_eq!(SpecialForm::from_name("define"), Some(SpecialForm::Define));
         assert_eq!(SpecialForm::from_name("let"), Some(SpecialForm::Let));
         assert_eq!(SpecialForm::from_name("lambda"), Some(SpecialForm::Lambda));
@@ -367,6 +381,63 @@ mod tests {
         assert_eq!(original, copied);
         assert_eq!(original, cloned);
         assert_eq!(copied, cloned);
+    }
+
+    #[test]
+    fn test_and_special_form_direct() {
+        let mut env = Environment::new();
+
+        // Test and special form with all truthy values
+        let args = vec![
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::string("hello")),
+            Expression::arc_atom(Value::number(42.0)),
+        ];
+        let special_form = SpecialForm::from_name("and").unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+
+        // Test and with false value (short-circuit)
+        let args = vec![
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::string("not-evaluated")),
+        ];
+        let result = special_form.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+
+        // Test empty and
+        let args: Vec<Arc<Expression>> = vec![];
+        let result = special_form.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(true));
+    }
+
+    #[test]
+    fn test_or_special_form_direct() {
+        let mut env = Environment::new();
+
+        // Test or special form with truthy value (short-circuit)
+        let args = vec![
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::number(42.0)),
+            Expression::arc_atom(Value::string("not-evaluated")),
+        ];
+        let special_form = SpecialForm::from_name("or").unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+
+        // Test or with all false values
+        let args = vec![
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::boolean(false)),
+        ];
+        let result = special_form.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+
+        // Test empty or
+        let args: Vec<Arc<Expression>> = vec![];
+        let result = special_form.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
     }
 
     #[test]

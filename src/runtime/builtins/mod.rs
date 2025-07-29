@@ -34,6 +34,15 @@ pub enum Builtin {
     NullP,
     Length,
 
+    // Type predicates
+    NumberP,
+    StringP,
+    BooleanP,
+    SymbolP,
+    ListP,
+    ProcedureP,
+    EqP,
+
     // I/O operations
     Display,
     Newline,
@@ -58,6 +67,13 @@ impl Builtin {
             Builtin::List => "list",
             Builtin::NullP => "null?",
             Builtin::Length => "length",
+            Builtin::NumberP => "number?",
+            Builtin::StringP => "string?",
+            Builtin::BooleanP => "boolean?",
+            Builtin::SymbolP => "symbol?",
+            Builtin::ListP => "list?",
+            Builtin::ProcedureP => "procedure?",
+            Builtin::EqP => "eq?",
             Builtin::Display => "display",
             Builtin::Newline => "newline",
         }
@@ -81,12 +97,19 @@ impl Builtin {
             Builtin::List => list(args),
             Builtin::NullP => null_p(args),
             Builtin::Length => length(args),
+            Builtin::NumberP => predicates::number_p(args),
+            Builtin::StringP => predicates::string_p(args),
+            Builtin::BooleanP => predicates::boolean_p(args),
+            Builtin::SymbolP => predicates::symbol_p(args),
+            Builtin::ListP => predicates::list_p(args),
+            Builtin::ProcedureP => predicates::procedure_p(args),
+            Builtin::EqP => predicates::eq_p(args),
             Builtin::Display => display(args),
             Builtin::Newline => newline(args),
         }
     }
 
-    /// Parse a builtin procedure name into its corresponding Builtin
+    /// Parse a builtin name into its corresponding Builtin
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "+" => Some(Builtin::Add),
@@ -104,6 +127,13 @@ impl Builtin {
             "list" => Some(Builtin::List),
             "null?" => Some(Builtin::NullP),
             "length" => Some(Builtin::Length),
+            "number?" => Some(Builtin::NumberP),
+            "string?" => Some(Builtin::StringP),
+            "boolean?" => Some(Builtin::BooleanP),
+            "symbol?" => Some(Builtin::SymbolP),
+            "list?" => Some(Builtin::ListP),
+            "procedure?" => Some(Builtin::ProcedureP),
+            "eq?" => Some(Builtin::EqP),
             "display" => Some(Builtin::Display),
             "newline" => Some(Builtin::Newline),
             _ => None,
@@ -115,6 +145,7 @@ pub mod arithmetic;
 pub mod comparison;
 pub mod io;
 pub mod list;
+pub mod predicates;
 
 // Re-export arithmetic functions for convenience
 pub use arithmetic::{add, divide, multiply, subtract};
@@ -124,6 +155,9 @@ pub use comparison::{equal, greater_than, greater_than_or_equal, less_than, less
 
 // Re-export list functions for convenience
 pub use list::{car, cdr, cons, length, list, null_p};
+
+// Re-export predicate functions for convenience
+pub use predicates::{boolean_p, eq_p, list_p, number_p, procedure_p, string_p, symbol_p};
 
 // Re-export I/O functions for convenience
 pub use io::{display, newline};

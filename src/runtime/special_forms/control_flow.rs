@@ -6,6 +6,8 @@
 //! ## Current Special Forms
 //! - `if`: Conditional expressions
 //! - `begin`: Expression sequencing
+//! - `and`: Logical AND with short-circuit evaluation
+//! - `or`: Logical OR with short-circuit evaluation
 //!
 //! ## Future Special Forms (planned)
 //! - `cond`: Multi-way conditionals
@@ -64,6 +66,56 @@ pub fn eval_begin(args: &[Arc<Expression>], env: &mut Environment) -> Result<Val
     }
 
     Ok(result)
+}
+
+/// Evaluate an and special form
+///
+/// Syntax: (and <expr1> <expr2> ... <exprN>)
+/// - Evaluates expressions left to right
+/// - If any expression evaluates to #f, returns #f immediately (short-circuit)
+/// - If all expressions are truthy, returns the value of the last expression
+/// - If no expressions are provided, returns #t
+pub fn eval_and(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
+    if args.is_empty() {
+        return Ok(Value::boolean(true));
+    }
+
+    let mut result = Value::boolean(true);
+
+    // Evaluate expressions left to right, short-circuiting on #f
+    for expr in args {
+        result = eval(Arc::clone(expr), env)?;
+        if !result.is_truthy() {
+            return Ok(Value::boolean(false));
+        }
+    }
+
+    // Return the last result if all were truthy
+    Ok(result)
+}
+
+/// Evaluate an or special form
+///
+/// Syntax: (or <expr1> <expr2> ... <exprN>)
+/// - Evaluates expressions left to right
+/// - If any expression evaluates to a truthy value, returns that value immediately (short-circuit)
+/// - If all expressions are falsy (#f), returns #f
+/// - If no expressions are provided, returns #f
+pub fn eval_or(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
+    if args.is_empty() {
+        return Ok(Value::boolean(false));
+    }
+
+    // Evaluate expressions left to right, short-circuiting on truthy values
+    for expr in args {
+        let result = eval(Arc::clone(expr), env)?;
+        if result.is_truthy() {
+            return Ok(result);
+        }
+    }
+
+    // All expressions were falsy
+    Ok(Value::boolean(false))
 }
 
 #[cfg(test)]
@@ -205,4 +257,250 @@ mod tests {
         assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(10.0));
         assert_eq!(env.lookup(&Symbol::new("y")).unwrap(), Value::number(20.0));
     }
-}
+
+    #[test]
+    fn test_eval_and_empty() {
+        let mut env = Environment::new();
+
+        // Empty and should return #t
+        let args: Vec<Arc<Expression>> = vec![];
+        let result = eval_and(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(true));
+    }
+
+    #[test]
+    fn test_eval_and_all_truthy() {
+        let mut env = Environment::new();
+
+        // All truthy values should return the last value
+        let args = vec![
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::string("hello")),
+            Expression::arc_atom(Value::number(42.0)),
+        ];
+        let result = eval_and(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_and_with_false() {
+        let mut env = Environment::new();
+
+        // Should short-circuit on first #f
+        let args = vec![
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::string("should-not-evaluate")),
+        ];
+        let result = eval_and(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+    }
+
+    #[test]
+    fn test_eval_and_single_false() {
+        let mut env = Environment::new();
+
+        // Single false value
+        let args = vec![Expression::arc_atom(Value::boolean(false))];
+        let result = eval_and(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+    }
+
+    #[test]
+    fn test_eval_or_empty() {
+        let mut env = Environment::new();
+
+        // Empty or should return #f
+        let args: Vec<Arc<Expression>> = vec![];
+        let result = eval_or(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+    }
+
+    #[test]
+    fn test_eval_or_with_truthy() {
+        let mut env = Environment::new();
+
+        // Should short-circuit on first truthy value
+        let args = vec![
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::number(42.0)),
+            Expression::arc_atom(Value::string("should-not-evaluate")),
+        ];
+        let result = eval_or(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_or_all_false() {
+        let mut env = Environment::new();
+
+        // All false values should return #f
+        let args = vec![
+            Expression::arc_atom(Value::boolean(false)),
+            Expression::arc_atom(Value::boolean(false)),
+        ];
+        let result = eval_or(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+    }
+
+    #[test]
+    fn test_eval_or_single_truthy() {
+        let mut env = Environment::new();
+
+        // Single truthy value
+        let args = vec![Expression::arc_atom(Value::string("hello"))];
+        let result = eval_or(&args, &mut env).unwrap();
+        assert_eq!(result, Value::string("hello"));
+    }
+
+    #[test]
+    fn test_eval_and_short_circuit_with_display() {
+        let mut env = Environment::new();
+
+        // Test that 'and' short-circuits on #f and doesn't evaluate subsequent expressions
+        let args = vec![
+            // First expression: (display "first")
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("first")),
+            ]),
+            // Second expression: #f (should cause short-circuit)
+            Expression::arc_atom(Value::boolean(false)),
+            // Third expression: (display "should-not-print") - should NOT be evaluated
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("should-not-print")),
+            ]),
+        ];
+
+        let result = eval_and(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+        // If working correctly, only "first" should be printed, not "should-not-print"
+    }
+
+    #[test]
+    fn test_eval_and_all_branches_with_display() {
+        let mut env = Environment::new();
+
+        // Test that 'and' evaluates all branches when all are truthy
+        let args = vec![
+            // First expression: (display "first")
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("first")),
+            ]),
+            // Second expression: (display "second")
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("second")),
+            ]),
+            // Third expression: (display "third")
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("third")),
+            ]),
+        ];
+
+        let result = eval_and(&args, &mut env).unwrap();
+        assert_eq!(result, Value::Nil); // Last display returns Nil
+        // If working correctly, should print "first", "second", "third"
+    }
+
+    #[test]
+    fn test_eval_or_short_circuit_with_display() {
+        let mut env = Environment::new();
+
+        // Test that 'or' short-circuits on truthy value and doesn't evaluate subsequent expressions
+        let args = vec![
+            // First expression: (display "first")
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("first")),
+            ]),
+            // Second expression: 42 (truthy, should cause short-circuit)
+            Expression::arc_atom(Value::number(42.0)),
+            // Third expression: (display "should-not-print") - should NOT be evaluated
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("should-not-print")),
+            ]),
+        ];
+
+        let result = eval_or(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+        // If working correctly, only "first" should be printed, not "should-not-print"
+    }
+
+    #[test]
+    fn test_eval_or_all_false_with_display() {
+        let mut env = Environment::new();
+
+        // Test that 'or' evaluates all branches when all are falsy
+        let args = vec![
+            // First expression: #f
+            Expression::arc_atom(Value::boolean(false)),
+            // Second expression: (display "checking-second") followed by #f
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("begin")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("display")),
+                    Expression::arc_atom(Value::string("checking-second")),
+                ]),
+                Expression::arc_atom(Value::boolean(false)),
+            ]),
+            // Third expression: (display "checking-third") followed by #f
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("begin")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("display")),
+                    Expression::arc_atom(Value::string("checking-third")),
+                ]),
+                Expression::arc_atom(Value::boolean(false)),
+            ]),
+        ];
+
+        let result = eval_or(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(false));
+        // If working correctly, should print "checking-second" and "checking-third"
+    }
+
+    #[test]
+    fn test_eval_if_branch_selection_with_display() {
+        let mut env = Environment::new();
+
+        // Test true condition - should only execute consequent
+        let args_true = vec![
+            Expression::arc_atom(Value::boolean(true)),
+            // Consequent: (display "true-branch")
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("true-branch")),
+            ]),
+            // Alternative: (display "false-branch") - should NOT be evaluated
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("false-branch")),
+            ]),
+        ];
+
+        let result = eval_if(&args_true, &mut env).unwrap();
+        assert_eq!(result, Value::Nil);
+        // Should only print "true-branch"
+
+        // Test false condition - should only execute alternative
+        let args_false = vec![
+            Expression::arc_atom(Value::boolean(false)),
+            // Consequent: (display "true-branch") - should NOT be evaluated
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("true-branch-2")),
+            ]),
+            // Alternative: (display "false-branch")
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("display")),
+                Expression::arc_atom(Value::string("false-branch")),
+            ]),
+        ];
+
+        let result = eval_if(&args_false, &mut env).unwrap();
+        assert_eq!(
