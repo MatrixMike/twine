@@ -1626,97 +1626,158 @@ fn test_integration_builtin_procedure_lookup() {
 
 #[test]
 fn test_integration_display_builtin() {
-    let mut env = Environment::new();
+    use std::process::Command;
 
-    // Note: These integration tests verify that display/newline work through
-    // the full evaluation pipeline and return correct values. The actual
-    // stdout output is verified in the unit tests with captured writers.
-
-    // Test display with string
-    let result = eval_source("(display \"Hello, World!\")", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    // Test display with string - capture actual stdout
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display \"Hello, World!\")"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "Hello, World!");
 
     // Test display with number
-    let result = eval_source("(display 42)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display 42)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "42");
 
     // Test display with boolean
-    let result = eval_source("(display #t)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display #t)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "#t");
 
     // Test display with symbol
-    let result = eval_source("(display 'hello)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display 'hello)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "hello");
 
     // Test display with list
-    let result = eval_source("(display '(1 2 3))", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display '(1 2 3))"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "(1 2 3)");
 
-    // Test display arity error
-    let result = eval_source("(display)", &mut env);
-    assert!(result.is_err());
+    // Test display arity error - should fail with non-zero exit code
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(!output.status.success());
 
-    let result = eval_source("(display \"hello\" \"world\")", &mut env);
-    assert!(result.is_err());
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display \"hello\" \"world\")"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(!output.status.success());
 }
 
 #[test]
 fn test_integration_newline_builtin() {
-    let mut env = Environment::new();
+    use std::process::Command;
 
-    // Test newline
-    let result = eval_source("(newline)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    // Test newline - capture actual stdout
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(newline)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "\n");
 
-    // Test newline arity error
-    let result = eval_source("(newline \"extra\")", &mut env);
-    assert!(result.is_err());
+    // Test newline arity error - should fail with non-zero exit code
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(newline \"extra\")"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(!output.status.success());
 }
 
 #[test]
 fn test_integration_display_and_newline_combination() {
-    let mut env = Environment::new();
+    use std::process::Command;
 
-    // Test display followed by newline - verify return values
-    let result = eval_source("(display \"Hello\")", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    // Test display followed by newline - capture combined output
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display \"Hello\") (newline)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "Hello\n");
 
-    let result = eval_source("(newline)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    // Test multiple displays in sequence
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(display \"A\") (display \"B\") (display \"C\") (newline)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "ABC\n");
 
-    let result = eval_source("(display \"World\")", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
-
-    let result = eval_source("(newline)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
-
-    // Test multiple displays on same line
-    eval_source("(display \"A\")", &mut env).unwrap();
-    eval_source("(display \"B\")", &mut env).unwrap();
-    eval_source("(display \"C\")", &mut env).unwrap();
-    eval_source("(newline)", &mut env).unwrap();
+    // Test word separation with spaces
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(display \"Hello\") (display \" \") (display \"World\") (newline)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "Hello World\n");
 }
 
 #[test]
 fn test_integration_io_in_expressions() {
-    let mut env = Environment::new();
+    use std::process::Command;
 
-    // Test I/O in lambda
-    eval_source(
-        "(define print-hello (lambda () (display \"Hello\") (newline)))",
-        &mut env,
-    )
-    .unwrap();
-    let result = eval_source("(print-hello)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    // Test I/O in lambda - capture actual output
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(define print-hello (lambda () (display \"Hello\") (newline))) (print-hello)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "Hello\n");
 
     // Test I/O in conditional
-    let result = eval_source("(if #t (display \"true\") (display \"false\"))", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(if #t (display \"true\") (display \"false\"))",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "true");
 
     // Test I/O with arithmetic
-    let result = eval_source("(display (+ 2 3))", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display (+ 2 3))"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "5");
 }
 
 /// Documentation: Alternative approaches for stdout capture in integration tests
@@ -1748,106 +1809,160 @@ fn test_integration_io_in_expressions() {
 ///
 /// This provides comprehensive testing without external dependencies or subprocess overhead.
 #[test]
-fn test_integration_io_stdout_capture_documentation() {
-    // This test documents the testing approaches rather than actually capturing stdout
-    let mut env = Environment::new();
+fn test_integration_io_subprocess_capture() {
+    use std::process::Command;
 
-    // Verify that I/O procedures work through the full evaluation pipeline
-    // The exact output content is verified in unit tests with captured writers
+    // This test demonstrates subprocess-based stdout capture for integration testing
+    // It verifies that I/O procedures produce the exact expected output
 
-    let result = eval_source("(display \"Integration test works!\")", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(display \"Integration test works!\") (newline)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "Integration test works!\n"
+    );
 
-    let result = eval_source("(newline)", &mut env).unwrap();
-    assert_eq!(result, Value::Nil);
+    // Test complex expression with multiple value types
+    let output = Command::new("cargo")
+        .args(&[
+            "run", "--bin", "test_io",
+            "(display \"Number: \") (display 42.5) (display \", Boolean: \") (display #t) (newline)"
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "Number: 42.5, Boolean: #t\n"
+    );
 }
 
-/// Example of how to use the `gag` crate for stdout capture (requires adding gag as dev dependency)
-///
-/// This approach would allow capturing stdout without subprocess testing:
-///
-/// ```toml
-/// [dev-dependencies]
-/// gag = "1.0"
-/// ```
-///
-/// ```rust
-/// #[test]
-/// fn test_integration_io_with_gag_crate() {
-///     use gag::BufferRedirect;
-///     use std::io::Read;
-///
-///     let mut env = Environment::new();
-///     let mut buf = Vec::new();
-///
-///     {
-///         let mut gag = BufferRedirect::stdout().unwrap();
-///
-///         // This would capture actual stdout from display/newline
-///         eval_source("(display \"Hello from gag!\")", &mut env).unwrap();
-///         eval_source("(newline)", &mut env).unwrap();
-///
-///         gag.read_to_end(&mut buf).unwrap();
-///     }
-///
-///     assert_eq!(String::from_utf8(buf).unwrap(), "Hello from gag!\n");
-/// }
-/// ```
-///
-/// Note: The current approach using subprocess testing achieves the same goal
-/// without adding external dependencies, which aligns with the project's
-/// minimal dependency philosophy.
+/// Additional integration test for error handling with subprocess capture
+#[test]
+fn test_integration_io_error_handling() {
+    use std::process::Command;
+
+    // Test that I/O errors are properly propagated through subprocess
+    // When the test binary encounters an error, it should exit with non-zero status
+
+    // Test display with invalid arity
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(!output.status.success());
+    assert!(String::from_utf8(output.stderr).unwrap().contains("Error:"));
+
+    // Test newline with invalid arity
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(newline \"extra\" \"args\")"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(!output.status.success());
+    assert!(String::from_utf8(output.stderr).unwrap().contains("Error:"));
+
+    // Test syntax error
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display \"unclosed string"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(!output.status.success());
+    assert!(String::from_utf8(output.stderr).unwrap().contains("Error:"));
+}
 
 #[test]
 fn test_integration_io_comprehensive_output() {
-    // This test demonstrates the I/O functionality by actually producing output
-    // The unit tests verify the exact output content with captured writers
-    let mut env = Environment::new();
+    use std::process::Command;
 
-    println!("\n=== Testing I/O Output (visible in test output) ===");
+    // Test comprehensive I/O functionality with subprocess stdout capture
+    // This verifies exact output for all supported value types
 
     // Test string display
-    print!("String display: ");
-    eval_source("(display \"Hello, Integration Test!\")", &mut env).unwrap();
-    eval_source("(newline)", &mut env).unwrap();
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(display \"Hello, Integration Test!\") (newline)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "Hello, Integration Test!\n"
+    );
 
-    // Test number display
-    print!("Number display: ");
-    eval_source("(display 42.75)", &mut env).unwrap();
-    eval_source("(newline)", &mut env).unwrap();
+    // Test number display with decimal
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display 42.75) (newline)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "42.75\n");
 
     // Test boolean display
-    print!("Boolean display: ");
-    eval_source("(display #t)", &mut env).unwrap();
-    print!(" and ");
-    eval_source("(display #f)", &mut env).unwrap();
-    eval_source("(newline)", &mut env).unwrap();
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(display #t) (display \" and \") (display #f) (newline)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "#t and #f\n");
 
     // Test symbol display
-    print!("Symbol display: ");
-    eval_source("(display 'my-symbol)", &mut env).unwrap();
-    eval_source("(newline)", &mut env).unwrap();
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display 'my-symbol) (newline)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "my-symbol\n");
 
     // Test list display
-    print!("List display: ");
-    eval_source("(display '(1 2 3))", &mut env).unwrap();
-    eval_source("(newline)", &mut env).unwrap();
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", "(display '(1 2 3)) (newline)"])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "(1 2 3)\n");
 
     // Test arithmetic with display
-    print!("Arithmetic result: ");
-    eval_source("(display (+ (* 3 4) 2))", &mut env).unwrap();
-    eval_source("(newline)", &mut env).unwrap();
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(display (+ (* 3 4) 2)) (newline)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "14\n");
 
     // Test conditional with display
-    print!("Conditional result: ");
-    eval_source(
-        "(if (> 5 3) (display \"5 is greater\") (display \"5 is not greater\"))",
-        &mut env,
-    )
-    .unwrap();
-    eval_source("(newline)", &mut env).unwrap();
-
-    println!("=== I/O Integration Test Complete ===\n");
+    let output = Command::new("cargo")
+        .args(&[
+            "run",
+            "--bin",
+            "test_io",
+            "(if (> 5 3) (display \"5 is greater\") (display \"5 is not greater\")) (newline)",
+        ])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "5 is greater\n");
 }
 
 #[test]
