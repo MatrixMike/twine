@@ -9,7 +9,6 @@
 mod common;
 
 use common::eval_source;
-use twine_scheme::types::Value;
 
 #[test]
 fn test_integration_conditional_expressions() {

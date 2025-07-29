@@ -9,8 +9,6 @@
 mod common;
 
 use common::eval_source;
-use twine_scheme::runtime::Environment;
-use twine_scheme::types::Value;
 
 #[test]
 fn test_integration_self_evaluating_atoms() {
@@ -110,8 +108,19 @@ fn test_integration_error_cases() {
     let result = eval_source("(+ 1 \"not a number\")", &mut env);
     assert!(result.is_err());
 
-    // Wrong number of arguments
-    let result = eval_source("(+)", &mut env);
+    // Addition with no arguments should return 0 (additive identity)
+    let result = eval_source("(+)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 0.0);
+
+    // Multiplication with no arguments should return 1 (multiplicative identity)
+    let result = eval_source("(*)", &mut env).unwrap();
+    assert_eq!(result.as_number().unwrap(), 1.0);
+
+    // But subtraction and division with no arguments should error
+    let result = eval_source("(-)", &mut env);
+    assert!(result.is_err());
+
+    let result = eval_source("(/)", &mut env);
     assert!(result.is_err());
 
     // Invalid procedure call

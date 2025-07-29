@@ -11,7 +11,6 @@
 mod common;
 
 use common::eval_source;
-use twine_scheme::runtime::Environment;
 
 #[test]
 fn test_integration_arithmetic_operations() {
@@ -232,7 +231,8 @@ fn test_integration_arithmetic_precision() {
 
     // Test very small numbers
     let result = eval_source("(+ 0.0001 0.0002)", &mut env).unwrap();
-    assert_eq!(result.as_number().unwrap(), 0.0003);
+    let value = result.as_number().unwrap();
+    assert!((value - 0.0003).abs() < 0.0000001);
 
     // Test very large numbers
     let result = eval_source("(+ 1000000 2000000)", &mut env).unwrap();

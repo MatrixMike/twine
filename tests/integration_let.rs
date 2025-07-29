@@ -11,7 +11,6 @@
 mod common;
 
 use common::eval_source;
-use twine_scheme::runtime::Environment;
 
 #[test]
 fn test_integration_let_binding_basic() {

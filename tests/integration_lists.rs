@@ -11,8 +11,6 @@
 mod common;
 
 use common::eval_source;
-use twine_scheme::runtime::Environment;
-use twine_scheme::types::Value;
 
 #[test]
 fn test_integration_basic_list_construction() {
