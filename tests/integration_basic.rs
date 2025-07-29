@@ -6,22 +6,11 @@
 //! - Quoted expressions
 //! - Basic error handling
 
+mod common;
+
+use common::eval_source;
 use twine_scheme::runtime::Environment;
-use twine_scheme::types::{Symbol, Value};
-use twine_scheme::{Error, Result};
-
-// Helper function for end-to-end evaluation testing
-fn eval_source(
-    source: &str,
-    env: &mut twine_scheme::runtime::Environment,
-) -> Result<twine_scheme::types::Value> {
-    use twine_scheme::parser::Parser;
-    use twine_scheme::runtime::eval::eval;
-
-    let mut parser = Parser::new(source.to_string())?;
-    let expr = parser.parse_expression()?.expr;
-    eval(expr, env)
-}
+use twine_scheme::types::Value;
 
 #[test]
 fn test_integration_self_evaluating_atoms() {
@@ -190,17 +179,14 @@ fn test_integration_identifier_binding_with_lists() {
 
     env.define_str(
         "words",
-        Value::list(vec![
-            Value::string("hello".to_string()),
-            Value::string("world".to_string()),
-        ]),
+        Value::list(vec![Value::string("hello"), Value::string("world")]),
     );
 
     env.define_str(
         "mixed",
         Value::list(vec![
             Value::number(42.0),
-            Value::string("answer".to_string()),
+            Value::string("answer"),
             Value::boolean(true),
         ]),
     );

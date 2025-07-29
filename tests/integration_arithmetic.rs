@@ -4,24 +4,14 @@
 //! - Basic arithmetic operations (+, -, *, /)
 //! - Arithmetic with variables and expressions
 //! - Arithmetic edge cases and error handling
-//! - Complex arithmetic expressions
+//! - Division and modulo operations
+//! - Mixed arithmetic expressions
+//! - Error handling for invalid arithmetic operations
 
+mod common;
+
+use common::eval_source;
 use twine_scheme::runtime::Environment;
-use twine_scheme::types::Value;
-use twine_scheme::{Error, Result};
-
-// Helper function for end-to-end evaluation testing
-fn eval_source(
-    source: &str,
-    env: &mut twine_scheme::runtime::Environment,
-) -> Result<twine_scheme::types::Value> {
-    use twine_scheme::parser::Parser;
-    use twine_scheme::runtime::eval::eval;
-
-    let mut parser = Parser::new(source.to_string())?;
-    let expr = parser.parse_expression()?.expr;
-    eval(expr, env)
-}
 
 #[test]
 fn test_integration_arithmetic_operations() {

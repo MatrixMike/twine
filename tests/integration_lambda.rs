@@ -6,23 +6,15 @@
 //! - Lambda with different body types
 //! - Lambda error handling
 //! - Lambda with special form names as parameters
+//! - Lambda expressions with closures
+//! - Complex lambda expressions and applications
+//! - Error handling for lambda syntax
 
+mod common;
+
+use common::eval_source;
 use twine_scheme::runtime::Environment;
-use twine_scheme::types::Value;
-use twine_scheme::{Error, Result};
-
-// Helper function for end-to-end evaluation testing
-fn eval_source(
-    source: &str,
-    env: &mut twine_scheme::runtime::Environment,
-) -> Result<twine_scheme::types::Value> {
-    use twine_scheme::parser::Parser;
-    use twine_scheme::runtime::eval::eval;
-
-    let mut parser = Parser::new(source.to_string())?;
-    let expr = parser.parse_expression()?.expr;
-    eval(expr, env)
-}
+use twine_scheme::types::{Symbol, Value};
 
 #[test]
 fn test_integration_lambda_creation_basic() {

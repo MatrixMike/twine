@@ -8,22 +8,11 @@
 //! - Nested list operations
 //! - List error handling
 
+mod common;
+
+use common::eval_source;
 use twine_scheme::runtime::Environment;
 use twine_scheme::types::Value;
-use twine_scheme::{Error, Result};
-
-// Helper function for end-to-end evaluation testing
-fn eval_source(
-    source: &str,
-    env: &mut twine_scheme::runtime::Environment,
-) -> Result<twine_scheme::types::Value> {
-    use twine_scheme::parser::Parser;
-    use twine_scheme::runtime::eval::eval;
-
-    let mut parser = Parser::new(source.to_string())?;
-    let expr = parser.parse_expression()?.expr;
-    eval(expr, env)
-}
 
 #[test]
 fn test_integration_basic_list_construction() {
@@ -426,10 +415,7 @@ fn test_integration_list_comprehensive() {
         "nested-data",
         Value::list(vec![
             Value::list(vec![Value::number(1.0), Value::number(2.0)]),
-            Value::list(vec![
-                Value::string("hello".to_string()),
-                Value::string("world".to_string()),
-            ]),
+            Value::list(vec![Value::string("hello"), Value::string("world")]),
             Value::list(vec![Value::boolean(true), Value::boolean(false)]),
         ]),
     );

@@ -7,34 +7,11 @@
 //! - Mixed operations combining multiple language features
 //! - Complex nested expressions and procedures
 
-use twine_scheme::Result;
+mod common;
+
+use common::{eval_source, test_io};
 use twine_scheme::runtime::Environment;
 use twine_scheme::types::Value;
-
-// Helper function for end-to-end evaluation testing
-fn eval_source(
-    source: &str,
-    env: &mut twine_scheme::runtime::Environment,
-) -> Result<twine_scheme::types::Value> {
-    use twine_scheme::parser::Parser;
-    use twine_scheme::runtime::eval::eval;
-
-    let mut parser = Parser::new(source.to_string())?;
-    let expr = parser.parse_expression()?.expr;
-    eval(expr, env)
-}
-
-// Helper function for testing I/O side effects using subprocess execution
-fn test_io(source: &str, expected_output: &str) {
-    use std::process::Command;
-
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "test_io", source])
-        .output()
-        .expect("Failed to execute test binary");
-    assert!(output.status.success(), "Test binary execution failed");
-    assert_eq!(String::from_utf8(output.stdout).unwrap(), expected_output);
-}
 
 #[test]
 fn test_integration_tail_call_optimization() {

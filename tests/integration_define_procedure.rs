@@ -8,23 +8,16 @@
 //! - Parameter shadowing and nested calls
 //! - Error handling and syntax validation
 //! - Interaction with lambda expressions
+//! - Procedure definitions with lambda expressions
+//! - Complex procedure definitions and calls
+//! - Error handling for procedure definitions
 
+mod common;
+
+use common::eval_source;
+use twine_scheme::Error;
 use twine_scheme::runtime::Environment;
 use twine_scheme::types::{Symbol, Value};
-use twine_scheme::{Error, Result};
-
-// Helper function for end-to-end evaluation testing
-fn eval_source(
-    source: &str,
-    env: &mut twine_scheme::runtime::Environment,
-) -> Result<twine_scheme::types::Value> {
-    use twine_scheme::parser::Parser;
-    use twine_scheme::runtime::eval::eval;
-
-    let mut parser = Parser::new(source.to_string())?;
-    let expr = parser.parse_expression()?.expr;
-    eval(expr, env)
-}
 
 #[test]
 fn test_integration_define_procedure_basic() {
