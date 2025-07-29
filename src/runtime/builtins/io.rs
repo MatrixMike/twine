@@ -14,15 +14,16 @@
 //! - Verify all data types format correctly (strings without quotes, proper list formatting, etc.)
 //!
 //! ### Integration Tests (tests/integration.rs)
-//! - Use the main `display()` and `newline()` functions through full evaluation pipeline
-//! - Verify procedures execute correctly with proper return values (`Value::Nil`)
+//! - Use `std::process::Command` to capture stdout from test binaries
+//! - Test the main `display()` and `newline()` functions through full evaluation pipeline
+//! - Verify both return values (`Value::Nil`) and exact output content
 //! - Test I/O in real contexts (arithmetic expressions, conditionals, lambdas)
-//! - Run with `cargo test -- --nocapture` to see actual stdout output
 //!
-//! ### Alternative Approaches Available
-//! - **Subprocess testing**: Use `std::process::Command` to capture stdout from test binaries
-//! - **External crates**: Use `gag` crate for stdout redirection (requires dependency)
-//! - **Current approach**: Provides comprehensive testing without external dependencies
+//! ### Benefits of Current Approach
+//! - **Complete verification**: Both unit and integration tests verify actual output
+//! - **No API changes**: Production code uses `print!`/`println!` directly
+//! - **Comprehensive coverage**: All data types, edge cases, and real-world contexts
+//! - **Educational value**: Demonstrates proper I/O testing patterns
 //!
 //! ## Implementation Notes
 //!
