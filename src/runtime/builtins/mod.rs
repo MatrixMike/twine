@@ -32,6 +32,10 @@ pub enum Builtin {
     Cons,
     List,
     NullP,
+
+    // I/O operations
+    Display,
+    Newline,
 }
 
 impl Builtin {
@@ -52,6 +56,8 @@ impl Builtin {
             Builtin::Cons => "cons",
             Builtin::List => "list",
             Builtin::NullP => "null?",
+            Builtin::Display => "display",
+            Builtin::Newline => "newline",
         }
     }
 
@@ -72,6 +78,8 @@ impl Builtin {
             Builtin::Cons => cons(args),
             Builtin::List => list(args),
             Builtin::NullP => null_p(args),
+            Builtin::Display => display(args),
+            Builtin::Newline => newline(args),
         }
     }
 
@@ -92,6 +100,8 @@ impl Builtin {
             "cons" => Some(Builtin::Cons),
             "list" => Some(Builtin::List),
             "null?" => Some(Builtin::NullP),
+            "display" => Some(Builtin::Display),
+            "newline" => Some(Builtin::Newline),
             _ => None,
         }
     }
@@ -99,6 +109,7 @@ impl Builtin {
 
 pub mod arithmetic;
 pub mod comparison;
+pub mod io;
 pub mod list;
 
 // Re-export arithmetic functions for convenience
@@ -109,6 +120,9 @@ pub use comparison::{equal, greater_than, greater_than_or_equal, less_than, less
 
 // Re-export list functions for convenience
 pub use list::{car, cdr, cons, list, null_p};
+
+// Re-export I/O functions for convenience
+pub use io::{display, newline};
 
 #[cfg(test)]
 mod tests {
@@ -272,6 +286,8 @@ mod tests {
         assert_eq!(Builtin::Cons.name(), "cons");
         assert_eq!(Builtin::List.name(), "list");
         assert_eq!(Builtin::NullP.name(), "null?");
+        assert_eq!(Builtin::Display.name(), "display");
+        assert_eq!(Builtin::Newline.name(), "newline");
     }
 
     #[test]
@@ -290,6 +306,8 @@ mod tests {
         assert_eq!(Builtin::from_name("cons"), Some(Builtin::Cons));
         assert_eq!(Builtin::from_name("list"), Some(Builtin::List));
         assert_eq!(Builtin::from_name("null?"), Some(Builtin::NullP));
+        assert_eq!(Builtin::from_name("display"), Some(Builtin::Display));
+        assert_eq!(Builtin::from_name("newline"), Some(Builtin::Newline));
 
         // Test unknown names
         assert_eq!(Builtin::from_name("unknown"), None);
@@ -363,6 +381,13 @@ mod tests {
         let empty = Value::empty_list();
         let result = Builtin::NullP.call(&[empty]).unwrap();
         assert_eq!(result, Value::boolean(true));
+
+        // Test I/O operations
+        let result = Builtin::Display.call(&[Value::string("test")]).unwrap();
+        assert_eq!(result, Value::Nil);
+
+        let result = Builtin::Newline.call(&[]).unwrap();
+        assert_eq!(result, Value::Nil);
     }
 
     #[test]

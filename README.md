@@ -44,10 +44,10 @@ For detailed project information, see:
 - **Environment Management**: Lexical scoping with identifier binding and closure support
 - **Basic Evaluation Engine**: Expression evaluation with special forms and procedure application
 - **Function System**: Lambda procedures with lexical closures and tail call optimization
-- **Built-in Procedures**: Arithmetic operations, comparisons, and list operations
+- **Built-in Procedures**: Arithmetic operations, comparisons, list operations, and I/O (`display`, `newline`)
 - **Special Forms**: `define`, `lambda`, `let`, `if`, and `quote`
 - **Error Handling**: Comprehensive syntax error reporting with precise position information
-- **Test Coverage**: 295+ tests covering all implemented features
+- **Test Coverage**: 313+ tests covering all implemented features with verified I/O output
 
 ### 🚧 In Progress
 - Interactive REPL implementation
@@ -69,20 +69,25 @@ For detailed project information, see:
 (square 5)  ; => 25
 
 ;; List operations
-(define numbers '(1 2 3 4 5))
-(map square numbers)  ; => (1 4 9 16 25)
+(define factorial 
+  (lambda (n) 
+    (if (= n 0) 
+        1 
+        (* n (factorial (- n 1))))))
+(factorial 5)  ; => 120
 
-;; Async tasks with fiber concurrency
-(define task1 (async (+ 1 2)))
-(define task2 (async (* 3 4)))
-(+ (task-wait task1) (task-wait task2))  ; => 15
+;; I/O operations (currently implemented)
+(display "Hello, ")
+(display "World!")
+(newline)
+(display (+ 2 3))  ; outputs: 5
+(newline)
 
-;; Macros for code transformation
-(define-syntax when
-  (syntax-rules ()
-    ((when condition body ...)
-     (if condition (begin body ...)))))
-(when #t (display "Hello World"))
+;; Conditional expressions
+(if (> 10 5)
+    (display "10 is greater than 5")
+    (display "This won't print"))
+(newline)
 ```
 
 ## Architecture
