@@ -168,13 +168,13 @@ fn call_lambda(lambda: Arc<Lambda>, args: Vec<Value>) -> Result<Value> {
             eval_lambda_last_expression_returning_tail_call(last_expr, &mut call_env)?
         {
             match next_procedure {
-                crate::types::Procedure::Lambda(next_lambda) => {
+                Procedure::Lambda(next_lambda) => {
                     // Tail call to another lambda - optimize by continuing loop
                     current_lambda = next_lambda;
                     current_args = next_args;
                     continue;
                 }
-                crate::types::Procedure::Builtin(builtin) => {
+                Procedure::Builtin(builtin) => {
                     // Tail call to builtin - just call it directly
                     return builtin.call(&next_args);
                 }
