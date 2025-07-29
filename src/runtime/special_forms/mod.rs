@@ -19,6 +19,7 @@ use std::sync::Arc;
 pub enum SpecialForm {
     // Control flow expressions
     If,
+    Begin,
 
     // Binding and definition forms
     Define,
@@ -36,6 +37,7 @@ impl SpecialForm {
     pub fn name(self) -> &'static str {
         match self {
             SpecialForm::If => "if",
+            SpecialForm::Begin => "begin",
             SpecialForm::Define => "define",
             SpecialForm::Let => "let",
             SpecialForm::Lambda => "lambda",
@@ -47,6 +49,7 @@ impl SpecialForm {
     pub fn call(self, args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
         match self {
             SpecialForm::If => control_flow::eval_if(args, env),
+            SpecialForm::Begin => control_flow::eval_begin(args, env),
             SpecialForm::Define => binding::eval_define(args, env),
             SpecialForm::Lambda => lambda::eval_lambda(args, env),
             SpecialForm::Let => binding::eval_let(args, env),
@@ -58,6 +61,7 @@ impl SpecialForm {
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "if" => Some(SpecialForm::If),
+            "begin" => Some(SpecialForm::Begin),
             "define" => Some(SpecialForm::Define),
             "let" => Some(SpecialForm::Let),
             "lambda" => Some(SpecialForm::Lambda),
@@ -93,6 +97,27 @@ mod tests {
         let special_form = SpecialForm::from_name("if").unwrap();
         let result = special_form.call(&args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
+    }
+
+    #[test]
+    fn test_begin_special_form_direct() {
+        let mut env = Environment::new();
+
+        // Test begin special form direct access with multiple expressions
+        let args = vec![
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::string("middle")),
+            Expression::arc_atom(Value::boolean(true)),
+        ];
+
+        let special_form = SpecialForm::from_name("begin").unwrap();
+        let result = special_form.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(true));
+
+        // Test empty begin
+        let empty_args: Vec<Arc<Expression>> = vec![];
+        let result = special_form.call(&empty_args, &mut env).unwrap();
+        assert_eq!(result, Value::Nil);
     }
 
     #[test]
@@ -201,6 +226,7 @@ mod tests {
     #[test]
     fn test_special_form_name() {
         assert_eq!(SpecialForm::If.name(), "if");
+        assert_eq!(SpecialForm::Begin.name(), "begin");
         assert_eq!(SpecialForm::Define.name(), "define");
         assert_eq!(SpecialForm::Let.name(), "let");
         assert_eq!(SpecialForm::Lambda.name(), "lambda");
@@ -210,6 +236,7 @@ mod tests {
     #[test]
     fn test_special_form_from_name() {
         assert_eq!(SpecialForm::from_name("if"), Some(SpecialForm::If));
+        assert_eq!(SpecialForm::from_name("begin"), Some(SpecialForm::Begin));
         assert_eq!(SpecialForm::from_name("define"), Some(SpecialForm::Define));
         assert_eq!(SpecialForm::from_name("let"), Some(SpecialForm::Let));
         assert_eq!(SpecialForm::from_name("lambda"), Some(SpecialForm::Lambda));
@@ -233,6 +260,15 @@ mod tests {
         ];
         let result = SpecialForm::If.call(&args, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "yes");
+
+        // Test begin special form
+        let args = vec![
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::string("middle")),
+            Expression::arc_atom(Value::boolean(true)),
+        ];
+        let result = SpecialForm::Begin.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(true));
 
         // Test define special form
         let args = vec![
@@ -298,11 +334,13 @@ mod tests {
         // Test that they can be used in HashSet (implements Hash + Eq)
         let mut set = HashSet::new();
         set.insert(SpecialForm::If);
+        set.insert(SpecialForm::Begin);
         set.insert(SpecialForm::Define);
         set.insert(SpecialForm::If); // Duplicate should not increase size
 
-        assert_eq!(set.len(), 2);
+        assert_eq!(set.len(), 3);
         assert!(set.contains(&SpecialForm::If));
+        assert!(set.contains(&SpecialForm::Begin));
         assert!(set.contains(&SpecialForm::Define));
         assert!(!set.contains(&SpecialForm::Let));
         assert!(!set.contains(&SpecialForm::Lambda));
@@ -312,6 +350,9 @@ mod tests {
     fn test_special_form_debug() {
         let debug_output = format!("{:?}", SpecialForm::If);
         assert_eq!(debug_output, "If");
+
+        let debug_output = format!("{:?}", SpecialForm::Begin);
+        assert_eq!(debug_output, "Begin");
 
         let debug_output = format!("{:?}", SpecialForm::Async);
         assert_eq!(debug_output, "Async");

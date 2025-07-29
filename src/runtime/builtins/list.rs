@@ -6,6 +6,7 @@
 //! - `cons`: Construct a new list by prepending an element
 //! - `list`: Create a new list from multiple arguments
 //! - `null?`: Check if a value is the empty list
+//! - `length`: Get the number of elements in a list
 
 use crate::error::{Error, Result};
 use crate::types::Value;
@@ -163,6 +164,36 @@ pub fn null_p(args: &[Value]) -> Result<Value> {
     };
 
     Ok(Value::boolean(is_null))
+}
+
+/// Get the number of elements in a list (length)
+///
+/// In Scheme, `length` returns the number of elements in a list.
+/// It only accepts lists as arguments.
+///
+/// # Arguments
+/// * `args` - Should contain exactly one argument that is a list
+///
+/// # Returns
+/// * `Ok(Value)` - A number representing the length of the list
+/// * `Err(SchemeError)` - If wrong number of arguments or not a list
+///
+/// # Examples
+/// ```scheme
+/// (length '())       ; => 0
+/// (length '(1 2 3))  ; => 3
+/// (length '(a))      ; => 1
+/// ```
+pub fn length(args: &[Value]) -> Result<Value> {
+    if args.len() != 1 {
+        return Err(Error::arity_error("length", 1, args.len()));
+    }
+
+    let list = args[0]
+        .as_list()
+        .ok_or_else(|| Error::type_error("length", "list", args[0].type_name(), None))?;
+
+    Ok(Value::number(list.len() as f64))
 }
 
 #[cfg(test)]
@@ -430,6 +461,53 @@ mod tests {
     }
 
     #[test]
+    fn test_length() {
+        // Test empty list
+        let empty = Value::empty_list();
+        let result = length(&[empty]).unwrap();
+        assert_eq!(result, Value::number(0.0));
+
+        // Test single element
+        let single = Value::list(vec![Value::number(42.0)]);
+        let result = length(&[single]).unwrap();
+        assert_eq!(result, Value::number(1.0));
+
+        // Test multiple elements
+        let multiple = Value::list(vec![
+            Value::number(1.0),
+            Value::string("hello"),
+            Value::boolean(true),
+        ]);
+        let result = length(&[multiple]).unwrap();
+        assert_eq!(result, Value::number(3.0));
+
+        // Test nested lists (they still count as single elements)
+        let nested = Value::list(vec![
+            Value::list(vec![Value::number(1.0), Value::number(2.0)]),
+            Value::number(3.0),
+        ]);
+        let result = length(&[nested]).unwrap();
+        assert_eq!(result, Value::number(2.0));
+    }
+
+    #[test]
+    fn test_length_errors() {
+        // Test wrong arity
+        let result = length(&[]);
+        assert!(result.is_err());
+
+        let result = length(&[Value::empty_list(), Value::number(1.0)]);
+        assert!(result.is_err());
+
+        // Test non-list argument
+        let result = length(&[Value::number(42.0)]);
+        assert!(result.is_err());
+
+        let result = length(&[Value::string("not a list")]);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_type_checking() {
         // Verify that type errors give meaningful messages
         let not_list = Value::number(42.0);
@@ -440,7 +518,10 @@ mod tests {
         let cdr_err = cdr(&[not_list.clone()]).unwrap_err();
         assert!(cdr_err.to_string().contains("expected list"));
 
-        let cons_err = cons(&[Value::number(1.0), not_list]).unwrap_err();
+        let cons_err = cons(&[Value::number(1.0), not_list.clone()]).unwrap_err();
         assert!(cons_err.to_string().contains("expected list"));
+
+        let length_err = length(&[not_list]).unwrap_err();
+        assert!(length_err.to_string().contains("expected list"));
     }
 }

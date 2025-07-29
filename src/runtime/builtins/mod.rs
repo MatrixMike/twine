@@ -32,6 +32,7 @@ pub enum Builtin {
     Cons,
     List,
     NullP,
+    Length,
 
     // I/O operations
     Display,
@@ -56,6 +57,7 @@ impl Builtin {
             Builtin::Cons => "cons",
             Builtin::List => "list",
             Builtin::NullP => "null?",
+            Builtin::Length => "length",
             Builtin::Display => "display",
             Builtin::Newline => "newline",
         }
@@ -78,6 +80,7 @@ impl Builtin {
             Builtin::Cons => cons(args),
             Builtin::List => list(args),
             Builtin::NullP => null_p(args),
+            Builtin::Length => length(args),
             Builtin::Display => display(args),
             Builtin::Newline => newline(args),
         }
@@ -100,6 +103,7 @@ impl Builtin {
             "cons" => Some(Builtin::Cons),
             "list" => Some(Builtin::List),
             "null?" => Some(Builtin::NullP),
+            "length" => Some(Builtin::Length),
             "display" => Some(Builtin::Display),
             "newline" => Some(Builtin::Newline),
             _ => None,
@@ -119,7 +123,7 @@ pub use arithmetic::{add, divide, multiply, subtract};
 pub use comparison::{equal, greater_than, greater_than_or_equal, less_than, less_than_or_equal};
 
 // Re-export list functions for convenience
-pub use list::{car, cdr, cons, list, null_p};
+pub use list::{car, cdr, cons, length, list, null_p};
 
 // Re-export I/O functions for convenience
 pub use io::{display, newline};
@@ -268,6 +272,20 @@ mod tests {
         let non_empty = Value::list(vec![Value::number(1.0)]);
         let result = builtin.call(&[non_empty]).unwrap();
         assert_eq!(result, Value::boolean(false));
+
+        // Test length
+        let list = Value::list(vec![
+            Value::number(1.0),
+            Value::number(2.0),
+            Value::number(3.0),
+        ]);
+        let builtin = Builtin::from_name("length").unwrap();
+        let result = builtin.call(&[list]).unwrap();
+        assert_eq!(result, Value::number(3.0));
+
+        let empty = Value::empty_list();
+        let result = builtin.call(&[empty]).unwrap();
+        assert_eq!(result, Value::number(0.0));
     }
 
     #[test]
@@ -286,6 +304,7 @@ mod tests {
         assert_eq!(Builtin::Cons.name(), "cons");
         assert_eq!(Builtin::List.name(), "list");
         assert_eq!(Builtin::NullP.name(), "null?");
+        assert_eq!(Builtin::Length.name(), "length");
         assert_eq!(Builtin::Display.name(), "display");
         assert_eq!(Builtin::Newline.name(), "newline");
     }
@@ -306,6 +325,7 @@ mod tests {
         assert_eq!(Builtin::from_name("cons"), Some(Builtin::Cons));
         assert_eq!(Builtin::from_name("list"), Some(Builtin::List));
         assert_eq!(Builtin::from_name("null?"), Some(Builtin::NullP));
+        assert_eq!(Builtin::from_name("length"), Some(Builtin::Length));
         assert_eq!(Builtin::from_name("display"), Some(Builtin::Display));
         assert_eq!(Builtin::from_name("newline"), Some(Builtin::Newline));
 
@@ -381,6 +401,15 @@ mod tests {
         let empty = Value::empty_list();
         let result = Builtin::NullP.call(&[empty]).unwrap();
         assert_eq!(result, Value::boolean(true));
+
+        // Test length
+        let list = Value::list(vec![Value::number(1.0), Value::number(2.0)]);
+        let result = Builtin::Length.call(&[list]).unwrap();
+        assert_eq!(result, Value::number(2.0));
+
+        let empty = Value::empty_list();
+        let result = Builtin::Length.call(&[empty]).unwrap();
+        assert_eq!(result, Value::number(0.0));
 
         // Test I/O operations
         let result = Builtin::Display.call(&[Value::string("test")]).unwrap();

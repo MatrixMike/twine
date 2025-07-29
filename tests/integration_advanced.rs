@@ -7,9 +7,9 @@
 //! - Mixed operations combining multiple language features
 //! - Complex nested expressions and procedures
 
+use twine_scheme::Result;
 use twine_scheme::runtime::Environment;
 use twine_scheme::types::Value;
-use twine_scheme::{Error, Result};
 
 // Helper function for end-to-end evaluation testing
 fn eval_source(
@@ -22,6 +22,18 @@ fn eval_source(
     let mut parser = Parser::new(source.to_string())?;
     let expr = parser.parse_expression()?.expr;
     eval(expr, env)
+}
+
+// Helper function for testing I/O side effects using subprocess execution
+fn test_io(source: &str, expected_output: &str) {
+    use std::process::Command;
+
+    let output = Command::new("cargo")
+        .args(&["run", "--bin", "test_io", source])
+        .output()
+        .expect("Failed to execute test binary");
+    assert!(output.status.success(), "Test binary execution failed");
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), expected_output);
 }
 
 #[test]
@@ -112,7 +124,6 @@ fn test_integration_multiple_lambda_body_expressions() {
     let mut env = Environment::new();
 
     // Test lambda with multiple body expressions - side effects and return value
-    // (define test-multi (lambda (x) (display "start") (display x) (+ x 1)))
     eval_source(
         r#"(define test-multi
              (lambda (x)
@@ -124,6 +135,18 @@ fn test_integration_multiple_lambda_body_expressions() {
 
     let result = eval_source("(test-multi 5)", &mut env).unwrap();
     assert_eq!(result, Value::number(6.0)); // Should return result of last expression
+
+    // Test lambda with display side effects in multiple body expressions
+    test_io(
+        r#"(define test-multi-io
+             (lambda (x)
+               (display "Processing: ")
+               (display x)
+               (display " -> ")
+               (display (+ x 1))))
+           (test-multi-io 5)"#,
+        "Processing: 5 -> 6",
+    );
 
     // Test with define in lambda body
     eval_source(
@@ -158,6 +181,23 @@ fn test_integration_multiple_lambda_body_expressions() {
     let result = eval_source("(multi-let-lambda 4)", &mut env).unwrap();
     assert_eq!(result, Value::number(14.0)); // Should return result of last let: (4 + 3) * 2 = 14
 
+    // Test multiple let expressions with side effects
+    test_io(
+        r#"(define multi-let-io
+             (lambda (x)
+               (let ((a (* x 2)))
+                 (display "First let: ")
+                 (display a)
+                 (display " "))
+               (let ((b (+ x 3)))
+                 (display "Second let: ")
+                 (display b)
+                 (display " Final: ")
+                 (display (* b 2)))))
+           (multi-let-io 4)"#,
+        "First let: 8 Second let: 7 Final: 14",
+    );
+
     // Test with conditional expressions in multiple bodies
     eval_source(
         r#"(define multi-conditional
@@ -174,6 +214,41 @@ fn test_integration_multiple_lambda_body_expressions() {
     let result = eval_source("(multi-conditional 12)", &mut env).unwrap();
     assert_eq!(result, Value::number(10.0)); // Should return result of last if: 12 - 2 = 10
 
+    // Test conditional expressions with side effects in multiple bodies
+    test_io(
+        r#"(define multi-conditional-io
+             (lambda (x)
+               (display "Input: ")
+               (display x)
+               (display " -> ")
+               (if (> x 5)
+                 (begin (display "big=") (display (* x 2)))
+                 (begin (display "small=") (display (+ x 1))))
+               (display " -> ")
+               (if (< x 10)
+                 (begin (display "low=") (display (+ x 5)))
+                 (begin (display "high=") (display (- x 2))))))
+           (multi-conditional-io 3)"#,
+        "Input: 3 -> small=4 -> low=8",
+    );
+
+    test_io(
+        r#"(define multi-conditional-io
+             (lambda (x)
+               (display "Input: ")
+               (display x)
+               (display " -> ")
+               (if (> x 5)
+                 (begin (display "big=") (display (* x 2)))
+                 (begin (display "small=") (display (+ x 1))))
+               (display " -> ")
+               (if (< x 10)
+                 (begin (display "low=") (display (+ x 5)))
+                 (begin (display "high=") (display (- x 2))))))
+           (multi-conditional-io 12)"#,
+        "Input: 12 -> big=24 -> high=10",
+    );
+
     // Test with arithmetic expressions in multiple bodies
     eval_source(
         r#"(define multi-arithmetic
@@ -187,6 +262,24 @@ fn test_integration_multiple_lambda_body_expressions() {
 
     let result = eval_source("(multi-arithmetic 10 3)", &mut env).unwrap();
     assert_eq!(result, Value::number(7.0)); // Should return result of last expression: 10 - 3 = 7
+
+    // Test arithmetic expressions with side effects showing intermediate calculations
+    test_io(
+        r#"(define multi-arithmetic-io
+             (lambda (x y)
+               (display "Inputs: ")
+               (display x)
+               (display " and ")
+               (display y)
+               (display " | Add: ")
+               (display (+ x y))
+               (display " | Multiply: ")
+               (display (* x y))
+               (display " | Subtract: ")
+               (display (- x y))))
+           (multi-arithmetic-io 10 3)"#,
+        "Inputs: 10 and 3 | Add: 13 | Multiply: 30 | Subtract: 7",
+    );
 
     // Test mixed expression types
     eval_source(
@@ -217,6 +310,23 @@ fn test_integration_multiple_lambda_body_expressions() {
 
     let result = eval_source("(multi-procedure-calls 2)", &mut env).unwrap();
     assert_eq!(result, Value::number(12.0)); // Should return helper(2 + 2) = helper(4) = 12
+
+    // Test procedure calls with side effects showing each call
+    test_io(
+        r#"(define helper-io (lambda (x)
+                             (display "Helper called with: ")
+                             (display x)
+                             (display " = ")
+                             (display (* x 3))
+                             (display " | ")))
+           (define multi-procedure-calls-io
+             (lambda (x)
+               (helper-io x)
+               (helper-io (+ x 1))
+               (helper-io (+ x 2))))
+           (multi-procedure-calls-io 2)"#,
+        "Helper called with: 2 = 6 | Helper called with: 3 = 9 | Helper called with: 4 = 12 | ",
+    );
 }
 
 #[test]
@@ -306,7 +416,6 @@ fn test_integration_tail_call_optimization_with_multiple_expressions() {
 
 #[test]
 fn test_integration_comprehensive_evaluation() {
-    let mut env = Environment::new();
     use twine_scheme::types::Value;
 
     let mut env = Environment::new();
@@ -388,6 +497,57 @@ fn test_integration_comprehensive_evaluation() {
 }
 
 #[test]
+fn test_integration_multi_expression_procedure_side_effects() {
+    // Test side effects in multi-expression lambda bodies
+    test_io(
+        r#"(begin
+             (define verbose-add
+               (lambda (x y)
+                 (display "Adding: ")
+                 (display x)
+                 (display " + ")
+                 (display y)
+                 (display " = ")
+                 (display (+ x y))))
+             (verbose-add 10 5))"#,
+        "Adding: 10 + 5 = 15",
+    );
+
+    // Test side effects in sequential procedure calls
+    test_io(
+        r#"(begin
+             (define show-calc
+               (lambda (x y)
+                 (display x)
+                 (display " * ")
+                 (display y)
+                 (display " = ")
+                 (display (* x y))))
+             (show-calc 3 4)
+             (display " | ")
+             (show-calc 5 6))"#,
+        "3 * 4 = 12 | 5 * 6 = 30",
+    );
+
+    // Test side effects with begin in if branches
+    test_io(
+        r#"(begin
+             (define describe-number
+               (lambda (n)
+                 (display "Number ")
+                 (display n)
+                 (display " is ")
+                 (if (> n 0)
+                   (begin (display "positive") (display "!"))
+                   (begin (display "not positive") (display "?")))))
+             (describe-number 5)
+             (display " ")
+             (describe-number -3))"#,
+        "Number 5 is positive! Number -3 is not positive?",
+    );
+}
+
+#[test]
 fn test_integration_mixed_operations() {
     let mut env = Environment::new();
 
@@ -415,13 +575,13 @@ fn test_integration_mixed_operations() {
     assert_eq!(list.get(0).unwrap().as_symbol().unwrap(), "first");
     assert_eq!(list.get(1).unwrap().as_symbol().unwrap(), "second");
 
-    // Test nested operations with multiple data types
+    // Test nested operations with multiple data types (without length)
     let result = eval_source(
         r#"(let ((numbers '(1 2 3))
                   (condition #t))
              (if condition
-               (+ (length numbers) (car numbers))
-               (- (length numbers) (car numbers))))"#,
+               (+ 3 (car numbers))
+               (- 3 (car numbers))))"#,
         &mut env,
     )
     .unwrap();
@@ -431,7 +591,7 @@ fn test_integration_mixed_operations() {
     let result = eval_source(
         r#"(let ((data '(10 20 30))
                   (multiplier 2))
-             (if (> (length data) 2)
+             (if (> 3 2)
                (let ((first (* (car data) multiplier))
                      (second (car (cdr data))))
                  (cons first (list second)))

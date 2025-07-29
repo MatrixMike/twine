@@ -5,12 +5,12 @@
 //!
 //! ## Current Special Forms
 //! - `if`: Conditional expressions
+//! - `begin`: Expression sequencing
 //!
 //! ## Future Special Forms (planned)
 //! - `cond`: Multi-way conditionals
 //! - `case`: Pattern matching conditionals
 //! - `when`/`unless`: Single-branch conditionals
-//! - `begin`: Expression sequencing
 
 use crate::error::Result;
 use crate::parser::Expression;
@@ -43,6 +43,27 @@ pub fn eval_if(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value>
     } else {
         eval(alternative_expr, env)
     }
+}
+
+/// Evaluate a begin special form
+///
+/// Syntax: (begin <expr1> <expr2> ... <exprN>)
+/// - Evaluates all expressions in sequence
+/// - Returns the value of the last expression
+/// - If no expressions are provided, returns Nil
+pub fn eval_begin(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
+    if args.is_empty() {
+        return Ok(Value::Nil);
+    }
+
+    let mut result = Value::Nil;
+
+    // Evaluate all expressions in sequence, keeping only the last result
+    for expr in args {
+        result = eval(Arc::clone(expr), env)?;
+    }
+
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -119,5 +140,69 @@ mod tests {
         ];
         let result = eval_if(&args_false, &mut env).unwrap();
         assert_eq!(result.as_string().unwrap(), "false-branch");
+    }
+
+    #[test]
+    fn test_eval_begin_empty() {
+        let mut env = Environment::new();
+
+        // Empty begin should return Nil
+        let args: Vec<Arc<Expression>> = vec![];
+        let result = eval_begin(&args, &mut env).unwrap();
+        assert_eq!(result, Value::Nil);
+    }
+
+    #[test]
+    fn test_eval_begin_single_expression() {
+        let mut env = Environment::new();
+
+        // Single expression should return its value
+        let args = vec![Expression::arc_atom(Value::number(42.0))];
+        let result = eval_begin(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_begin_multiple_expressions() {
+        let mut env = Environment::new();
+
+        // Multiple expressions should return the value of the last one
+        let args = vec![
+            Expression::arc_atom(Value::number(1.0)),
+            Expression::arc_atom(Value::string("middle")),
+            Expression::arc_atom(Value::boolean(true)),
+        ];
+        let result = eval_begin(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(true));
+    }
+
+    #[test]
+    fn test_eval_begin_with_side_effects() {
+        let mut env = Environment::new();
+
+        // Test that all expressions are evaluated (side effects would occur)
+        // We can't easily test side effects here, but we can test that
+        // variables are defined in sequence
+        let args = vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("define")),
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(10.0)),
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("define")),
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_atom(Value::number(20.0)),
+            ]),
+            Expression::arc_atom(Value::symbol("x")),
+        ];
+
+        let result = eval_begin(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(10.0));
+
+        // Verify both variables were defined
+        use crate::types::Symbol;
+        assert_eq!(env.lookup(&Symbol::new("x")).unwrap(), Value::number(10.0));
+        assert_eq!(env.lookup(&Symbol::new("y")).unwrap(), Value::number(20.0));
     }
 }
