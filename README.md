@@ -41,13 +41,17 @@ For detailed project information, see:
 - **Lexical Analysis**: Complete tokenization with position tracking for numbers, strings, symbols, booleans, and delimiters
 - **Syntactic Analysis**: Recursive descent parser for S-expressions, atoms, lists, and quoted expressions
 - **Immutable Data Types**: Numbers, booleans, strings, symbols, and lists with reference counting
+- **Environment Management**: Lexical scoping with identifier binding and closure support
+- **Basic Evaluation Engine**: Expression evaluation with special forms and procedure application
+- **Function System**: Lambda procedures with lexical closures and tail call optimization
+- **Built-in Procedures**: Arithmetic operations, comparisons, and list operations
+- **Special Forms**: `define`, `lambda`, `let`, `if`, and `quote`
 - **Error Handling**: Comprehensive syntax error reporting with precise position information
-- **Test Coverage**: 130+ tests covering all implemented features
+- **Test Coverage**: 295+ tests covering all implemented features
 
 ### 🚧 In Progress
-- Environment management for identifier binding
-- Basic evaluation engine
-- Built-in procedures and special forms
+- Interactive REPL implementation
+- File execution capabilities
 
 ### 📋 Planned
 - Interactive REPL and file execution

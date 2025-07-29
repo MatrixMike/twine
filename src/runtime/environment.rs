@@ -1194,7 +1194,7 @@ mod tests {
 
         // Verify the error message is about unbound identifier
         let error = result.unwrap_err();
-        let error_msg = format!("{}", error);
+        let error_msg = format!("{error}");
         assert!(error_msg.contains("Unbound identifier"));
         assert!(error_msg.contains("unknown-identifier"));
     }

@@ -12,14 +12,15 @@ use std::sync::Arc;
 
 /// Evaluate a lambda expression
 ///
-/// Lambda syntax: `(lambda (param1 param2 ...) body)`
+/// Lambda syntax: `(lambda (param1 param2 ...) body1 body2 ... bodyn)`
 ///
-/// Creates a new procedure with the specified parameters and body expression.
+/// Creates a new procedure with the specified parameters and body expressions.
 /// The procedure captures the current environment as a closure, implementing
-/// lexical scoping as required by FR-13.
+/// lexical scoping as required by FR-13. Multiple body expressions are evaluated
+/// in sequence, with only the last expression in tail position.
 ///
 /// # Arguments
-/// * `args` - The lambda arguments: parameter list and body expression
+/// * `args` - The lambda arguments: parameter list followed by one or more body expressions
 /// * `env` - Current environment for closure capture
 ///
 /// # Returns
@@ -30,10 +31,11 @@ use std::sync::Arc;
 /// // (lambda (x) (* x x))
 /// // (lambda (x y) (+ x y))
 /// // (lambda () 42)
+/// // (lambda (x) (display x) (+ x 1))  ; Multi-expression body
 /// ```
 pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value> {
-    // Lambda requires exactly 2 arguments: parameter list and body
-    if args.len() != 2 {
+    // Lambda requires at least 2 arguments: parameter list and one or more body expressions
+    if args.len() < 2 {
         return Err(Error::arity_error("lambda", 2, args.len()));
     }
 
@@ -61,30 +63,31 @@ pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value>
     let params = parse_parameters(param_elements)?;
     validate_parameters(&params)?;
 
-    let body_expr = Arc::clone(&args[1]);
+    // Collect all body expressions (everything after the parameter list)
+    let body_exprs = args[1..].iter().map(Arc::clone).collect();
 
     // Create lambda procedure using shared logic
-    Ok(create_lambda_procedure(params, body_expr, env))
+    Ok(create_lambda_procedure(params, body_exprs, env))
 }
 
-/// Create a lambda procedure from validated parameters and body
+/// Create a lambda procedure from validated parameters and body expressions
 ///
 /// This shared function handles the common logic of creating lambda procedures
 /// used by both `eval_lambda` and procedure definitions in `define`.
 ///
 /// # Arguments
 /// * `params` - Already validated parameter symbols
-/// * `body_expr` - The body expression for the lambda
+/// * `body_exprs` - The body expressions for the lambda (one or more)
 /// * `env` - Environment to capture for closure
 ///
 /// # Returns
 /// A new lambda procedure value
 pub fn create_lambda_procedure(
     params: Vec<Symbol>,
-    body_expr: Arc<Expression>,
+    body_exprs: Vec<Arc<Expression>>,
     env: &Environment,
 ) -> Value {
-    let lambda_proc = Procedure::lambda(params, body_expr, env.flatten());
+    let lambda_proc = Procedure::lambda(params, body_exprs, env.flatten());
     Value::Procedure(lambda_proc)
 }
 
@@ -176,7 +179,7 @@ mod tests {
             assert!(proc.is_lambda());
             assert_eq!(proc.arity(), Some(0));
             assert_eq!(proc.params().unwrap().len(), 0);
-            assert_eq!(proc.body().unwrap(), &body);
+            assert_eq!(proc.body().unwrap(), &[body]);
         } else {
             panic!("Expected lambda procedure");
         }
@@ -199,7 +202,7 @@ mod tests {
             let param_list = proc.params().unwrap();
             assert_eq!(param_list.len(), 1);
             assert_eq!(param_list[0], Symbol::new("x"));
-            assert_eq!(proc.body().unwrap(), &body);
+            assert_eq!(proc.body().unwrap(), &[body]);
         } else {
             panic!("Expected lambda procedure");
         }
@@ -233,7 +236,7 @@ mod tests {
             assert_eq!(param_list[0], Symbol::new("x"));
             assert_eq!(param_list[1], Symbol::new("y"));
             assert_eq!(param_list[2], Symbol::new("z"));
-            assert_eq!(proc.body().unwrap(), &body);
+            assert_eq!(proc.body().unwrap(), &[body]);
         } else {
             panic!("Expected lambda procedure");
         }
@@ -283,20 +286,14 @@ mod tests {
                 .contains("expected 2 arguments")
         );
 
-        // Test too many arguments
+        // Test that multiple body expressions are now valid (no longer an error)
         let args = vec![
             Expression::arc_list(vec![]),
             Expression::arc_atom(Value::number(42.0)),
             Expression::arc_atom(Value::number(43.0)),
         ];
         let result = eval_lambda(&args, &env);
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("expected 2 arguments")
-        );
+        assert!(result.is_ok()); // This should now succeed with multiple body expressions
     }
 
     #[test]
@@ -478,7 +475,7 @@ mod tests {
 
         if let Value::Procedure(proc) = result {
             assert!(proc.is_lambda());
-            assert_eq!(proc.body().unwrap(), &body);
+            assert_eq!(proc.body().unwrap(), &[body]);
         } else {
             panic!("Expected lambda procedure");
         }
@@ -527,5 +524,82 @@ mod tests {
         } else {
             panic!("Expected lambda procedure");
         }
+    }
+
+    #[test]
+    fn test_lambda_multiple_body_expressions() {
+        let env = Environment::new();
+
+        // Test lambda with two body expressions
+        let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
+        let body1 = Expression::arc_atom(Value::number(1.0));
+        let body2 = Expression::arc_atom(Value::symbol("x"));
+        let args = vec![params, body1, body2];
+
+        let result = eval_lambda(&args, &env).unwrap();
+
+        if let Value::Procedure(proc) = result {
+            assert!(proc.is_lambda());
+            assert_eq!(proc.arity(), Some(1));
+            let body_exprs = proc.body().unwrap();
+            assert_eq!(body_exprs.len(), 2);
+            assert_eq!(body_exprs[0], Expression::arc_atom(Value::number(1.0)));
+            assert_eq!(body_exprs[1], Expression::arc_atom(Value::symbol("x")));
+        } else {
+            panic!("Expected lambda procedure");
+        }
+    }
+
+    #[test]
+    fn test_lambda_three_body_expressions() {
+        let env = Environment::new();
+
+        // Test lambda with three body expressions
+        let params = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
+        ]);
+        let body1 = Expression::arc_atom(Value::number(1.0));
+        let body2 = Expression::arc_atom(Value::number(2.0));
+        let body3 = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
+        ]);
+        let args = vec![params, body1, body2, body3];
+
+        let result = eval_lambda(&args, &env).unwrap();
+
+        if let Value::Procedure(proc) = result {
+            assert!(proc.is_lambda());
+            assert_eq!(proc.arity(), Some(2));
+            let body_exprs = proc.body().unwrap();
+            assert_eq!(body_exprs.len(), 3);
+            assert_eq!(body_exprs[0], Expression::arc_atom(Value::number(1.0)));
+            assert_eq!(body_exprs[1], Expression::arc_atom(Value::number(2.0)));
+            // The third expression should be the addition
+            if let Expression::List(elements) = body_exprs[2].as_ref() {
+                assert_eq!(elements.len(), 3);
+            } else {
+                panic!("Expected list expression");
+            }
+        } else {
+            panic!("Expected lambda procedure");
+        }
+    }
+
+    #[test]
+    fn test_lambda_minimum_body_requirement() {
+        let env = Environment::new();
+
+        // Test that lambda still requires at least one body expression
+        let params = Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]);
+        let args = vec![params]; // Only parameters, no body
+
+        let result = eval_lambda(&args, &env);
+        assert!(result.is_err());
+        // Check that the error is about requiring at least 2 arguments (params + body)
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("arity") || error_msg.contains("2"));
     }
 }

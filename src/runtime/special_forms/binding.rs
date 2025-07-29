@@ -99,15 +99,11 @@ fn eval_define_procedure(
         ));
     }
 
-    // Create body expression - wrap multiple expressions in a list if needed
-    let body_expr = if args.len() == 1 {
-        Arc::clone(&args[0])
-    } else {
-        Expression::arc_list(args.iter().map(Arc::clone).collect())
-    };
+    // Collect all body expressions
+    let body_exprs = args.iter().map(Arc::clone).collect();
 
     // Create lambda procedure and bind it to the identifier
-    let lambda_proc = create_lambda_procedure(params, body_expr, env);
+    let lambda_proc = create_lambda_procedure(params, body_exprs, env);
     env.define(identifier, lambda_proc);
     Ok(Value::Nil)
 }

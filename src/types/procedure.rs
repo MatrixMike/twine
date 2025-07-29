@@ -17,8 +17,8 @@ use std::sync::Arc;
 pub struct Lambda {
     /// Parameter identifiers for the procedure
     params: Vec<Symbol>,
-    /// Expression that forms the procedure body
-    body: Arc<Expression>,
+    /// Expressions that form the procedure body
+    body: Vec<Arc<Expression>>,
     /// Captured environment (closure) from procedure definition
     env: Environment<'static>,
 }
@@ -47,12 +47,16 @@ impl Lambda {
     ///
     /// # Arguments
     /// * `params` - Parameter identifiers for the procedure
-    /// * `body` - Expression that forms the procedure body
+    /// * `body` - Expressions that form the procedure body
     /// * `env` - Captured environment from procedure definition
     ///
     /// # Returns
     /// A new Arc<Lambda> for efficient sharing
-    pub fn new(params: Vec<Symbol>, body: Arc<Expression>, env: Environment<'static>) -> Arc<Self> {
+    pub fn new(
+        params: Vec<Symbol>,
+        body: Vec<Arc<Expression>>,
+        env: Environment<'static>,
+    ) -> Arc<Self> {
         Arc::new(Lambda { params, body, env })
     }
 
@@ -61,8 +65,8 @@ impl Lambda {
         &self.params
     }
 
-    /// Get a reference to the body expression
-    pub fn body(&self) -> &Arc<Expression> {
+    /// Get a reference to the body expressions
+    pub fn body(&self) -> &[Arc<Expression>] {
         &self.body
     }
 
@@ -93,12 +97,16 @@ impl Procedure {
     ///
     /// # Arguments
     /// * `params` - Parameter identifiers for the procedure
-    /// * `body` - Expression that forms the procedure body
+    /// * `body` - Expressions that form the procedure body
     /// * `env` - Captured environment from procedure definition
     ///
     /// # Returns
     /// A new `Procedure::Lambda` instance with Arc sharing
-    pub fn lambda(params: Vec<Symbol>, body: Arc<Expression>, env: Environment<'static>) -> Self {
+    pub fn lambda(
+        params: Vec<Symbol>,
+        body: Vec<Arc<Expression>>,
+        env: Environment<'static>,
+    ) -> Self {
         Procedure::Lambda(Lambda::new(params, body, env))
     }
 
@@ -143,8 +151,8 @@ impl Procedure {
         }
     }
 
-    /// Get a reference to the body expression (lambda procedures only)
-    pub fn body(&self) -> Option<&Arc<Expression>> {
+    /// Get a reference to the body expressions (lambda procedures only)
+    pub fn body(&self) -> Option<&[Arc<Expression>]> {
         match self {
             Procedure::Builtin(_) => None,
             Procedure::Lambda(lambda) => Some(lambda.body()),
@@ -172,7 +180,13 @@ impl PartialEq for Lambda {
     fn eq(&self, other: &Self) -> bool {
         // Lambda procedures are equal if they have the same parameters and body
         // (environments are not easily comparable)
-        self.params == other.params && format!("{}", self.body) == format!("{}", other.body)
+        self.params == other.params
+            && self.body.len() == other.body.len()
+            && self
+                .body
+                .iter()
+                .zip(other.body.iter())
+                .all(|(a, b)| format!("{a}") == format!("{b}"))
     }
 }
 
@@ -223,10 +237,10 @@ mod tests {
     #[test]
     fn test_lambda_struct_creation() {
         let params = vec![Symbol::new("x"), Symbol::new("y")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
 
-        let lambda = Lambda::new(params.clone(), Arc::clone(&body), env);
+        let lambda = Lambda::new(params.clone(), body.clone(), env);
 
         assert_eq!(lambda.params(), &params);
         assert_eq!(lambda.body(), &body);
@@ -238,19 +252,19 @@ mod tests {
     #[test]
     fn test_lambda_struct_equality() {
         let params = vec![Symbol::new("x")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env1 = Environment::new();
         let env2 = Environment::new();
 
-        let lambda1 = Lambda::new(params.clone(), Arc::clone(&body), env1);
-        let lambda2 = Lambda::new(params.clone(), Arc::clone(&body), env2);
+        let lambda1 = Lambda::new(params.clone(), body.clone(), env1);
+        let lambda2 = Lambda::new(params.clone(), body.clone(), env2);
 
         // Lambda structs with same params and body are equal (despite different envs)
         assert_eq!(lambda1.as_ref(), lambda2.as_ref());
 
         let different_params = vec![Symbol::new("y")];
         let env3 = Environment::new();
-        let lambda3 = Lambda::new(different_params, Arc::clone(&body), env3);
+        let lambda3 = Lambda::new(different_params, body.clone(), env3);
 
         assert_ne!(lambda1.as_ref(), lambda3.as_ref());
     }
@@ -258,7 +272,7 @@ mod tests {
     #[test]
     fn test_lambda_display() {
         let params = vec![Symbol::new("x"), Symbol::new("y")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
         let lambda = Lambda::new(params, body, env);
 
@@ -266,7 +280,7 @@ mod tests {
 
         // Test lambda with no parameters
         let no_params = vec![];
-        let body = Expression::arc_atom(Value::number(42.0));
+        let body = vec![Expression::arc_atom(Value::number(42.0))];
         let env = Environment::new();
         let lambda_no_params = Lambda::new(no_params, body, env);
         assert_eq!(format!("{lambda_no_params}"), "#<lambda:>");
@@ -285,7 +299,7 @@ mod tests {
     #[test]
     fn test_lambda_procedure_creation() {
         let params = vec![Symbol::new("x"), Symbol::new("y")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
 
         let proc = Procedure::lambda(params.clone(), body, env);
@@ -311,7 +325,7 @@ mod tests {
 
         // Test lambda accessors
         let params = vec![Symbol::new("x")];
-        let body = Expression::arc_atom(Value::number(42.0));
+        let body = vec![Expression::arc_atom(Value::number(42.0))];
         let env = Environment::new();
         let lambda = Procedure::lambda(params.clone(), body, env);
 
@@ -325,10 +339,10 @@ mod tests {
     fn test_arc_sharing() {
         // Test that Arc sharing works correctly
         let params = vec![Symbol::new("x")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
 
-        let proc1 = Procedure::lambda(params.clone(), Arc::clone(&body), env.flatten());
+        let proc1 = Procedure::lambda(params.clone(), body.clone(), env.flatten());
         let proc2 = proc1.clone();
 
         // Verify they share the same Arc
@@ -364,16 +378,16 @@ mod tests {
 
         // Same lambda procedures are equal
         let params = vec![Symbol::new("x")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env1 = Environment::new();
         let env2 = Environment::new();
 
-        let lambda1 = Procedure::lambda(params.clone(), Arc::clone(&body), env1);
-        let _lambda2 = Procedure::lambda(params.clone(), Arc::clone(&body), env2);
+        let lambda1 = Procedure::lambda(params.clone(), body.clone(), env1);
+        let _lambda2 = Procedure::lambda(params.clone(), body.clone(), env2);
 
         let different_params = vec![Symbol::new("y")];
         let env3 = Environment::new();
-        let lambda3 = Procedure::lambda(different_params, Arc::clone(&body), env3);
+        let lambda3 = Procedure::lambda(different_params, body.clone(), env3);
         assert_ne!(lambda1, lambda3);
 
         // Built-in and lambda are never equal
@@ -386,14 +400,14 @@ mod tests {
         assert_eq!(format!("{builtin}"), "#<builtin:+>");
 
         let params = vec![Symbol::new("x"), Symbol::new("y")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
         let lambda = Procedure::lambda(params, body, env);
         assert_eq!(format!("{lambda}"), "#<lambda:x y>");
 
         // Test lambda with no parameters
         let no_params = vec![];
-        let body = Expression::arc_atom(Value::number(42.0));
+        let body = vec![Expression::arc_atom(Value::number(42.0))];
         let env = Environment::new();
 
         let lambda_no_params = Procedure::lambda(no_params, body, env);
@@ -408,7 +422,7 @@ mod tests {
         assert!(debug_output.contains("Add"));
 
         let params = vec![Symbol::new("x")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
         let lambda = Procedure::lambda(params, body, env);
         let debug_output = format!("{lambda:?}");
@@ -419,7 +433,7 @@ mod tests {
     fn test_procedure_clone_efficiency() {
         // Test that cloning is efficient (Arc-based)
         let params = vec![Symbol::new("x")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
         let original = Procedure::lambda(params, body, env);
 
@@ -436,7 +450,7 @@ mod tests {
     #[test]
     fn test_lambda_arc_strong_count() {
         let params = vec![Symbol::new("x")];
-        let body = Expression::arc_atom(Value::symbol("x"));
+        let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env = Environment::new();
 
         let proc1 = Procedure::lambda(params, body, env);

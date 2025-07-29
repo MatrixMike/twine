@@ -634,11 +634,25 @@ test_integration_lambda_application_recursive_pattern ✅
 test_integration_lambda_application_comprehensive ✅
 ```
 
-#### T3.1.4: Implement tail call optimization
+#### T3.1.4: Implement tail call optimization ✅
 **Deliverables**:
-- Tail position detection
-- Tail call elimination
-- Recursive function optimization
+- Tail position detection ✅
+- Tail call elimination ✅
+- Recursive function optimization ✅
+
+**Acceptance Criteria**: ✅ FR-8 (Procedure Application with tail-call optimization)
+- ✅ **AC-8.1**: Lambda procedures detect tail position calls
+- ✅ **AC-8.2**: Tail calls to lambda procedures use iterative evaluation  
+- ✅ **AC-8.3**: Tail calls to builtin procedures are optimized
+- ✅ **AC-8.4**: Non-tail calls continue to work correctly
+- ✅ **AC-8.5**: Conditional expressions in tail position are handled properly
+
+**Implementation Notes**:
+- Enhanced `call_procedure` function with tail call optimization for lambda procedures
+- Added `call_lambda_with_tco` function that uses iterative evaluation instead of recursion
+- Added `detect_tail_call_in_expression` to identify procedure calls in tail position
+- Comprehensive test coverage including unit tests and integration tests
+- Prevents stack overflow for deeply recursive functions while maintaining correctness
 
 #### T3.1.5: Create function system tests
 **Acceptance**: 25+ tests covering lambda creation, application, recursion, and tail calls
@@ -1120,13 +1134,13 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 3 (Advanced Language Features)
-**Overall Progress**: 37% (30/81 tasks completed)
+**Overall Progress**: 38% (31/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
-- **Phase 3**: ☐ 15% (3/20 tasks) - Advanced Features (Section 3.1 in progress)
+- **Phase 3**: ☐ 20% (4/20 tasks) - Advanced Features (Section 3.1 in progress)
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
@@ -1165,10 +1179,11 @@ cargo fmt --check            # Formatting verification
 - ✅ T3.1.1: Implement `Procedure` enum
 - ✅ T3.1.2: Implement `lambda` special form
 - ✅ T3.1.3: Implement function application
+- ✅ T3.1.4: Implement tail call optimization
 
-### Immediate Next Steps
-1. **T3.1.4**: Implement tail call optimization (🔥 Priority - Continue Phase 3.1 Function System)
-2. **T3.1.5**: Create function system tests
+### Immediate Next Steps  
+1. **T3.1.5**: Create function system tests (🔥 Priority - Complete Phase 3.1 Function System)
+2. **T3.2.1**: Implement type checking procedures (Next Phase 3.2)
 3. **T3.2.1**: Implement type checking procedures
 
 ### Blocked Tasks

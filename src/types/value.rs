@@ -817,7 +817,7 @@ mod tests {
         let params = vec![Symbol::new("x")];
         let body = crate::parser::Expression::arc_atom(Value::symbol("x"));
         let env = crate::runtime::Environment::new();
-        let lambda = Value::procedure(Procedure::lambda(params, body, env));
+        let lambda = Value::procedure(Procedure::lambda(params, vec![body], env));
         assert_eq!(format!("{lambda}"), "#<lambda:x>");
     }
 

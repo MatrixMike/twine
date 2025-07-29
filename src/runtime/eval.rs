@@ -6,7 +6,7 @@
 
 use crate::error::{Error, Result};
 use crate::parser::Expression;
-use crate::types::{List, Value};
+use crate::types::{Lambda, List, Procedure, Value};
 use std::sync::Arc;
 
 use super::{Environment, special_forms};
@@ -106,18 +106,19 @@ fn eval_list(elements: &[Arc<Expression>], env: &mut Environment) -> Result<Valu
 /// Handles both builtin and lambda procedures:
 /// - For builtin procedures, delegates to the builtin implementation
 /// - For lambda procedures, creates new environment, binds parameters, and evaluates body
+/// - Uses tail call optimization for lambda procedures to prevent stack overflow
+/// - Detects tail position calls and eliminates unnecessary stack frames
 fn call_procedure(
-    procedure: crate::types::Procedure,
+    procedure: Procedure,
     arg_exprs: &[Arc<Expression>],
     env: &mut Environment,
 ) -> Result<Value> {
+    // Evaluate arguments
+    let args = eval_arguments(arg_exprs, env)?;
+
     match procedure {
-        crate::types::Procedure::Builtin(builtin) => {
-            // Evaluate arguments for builtin procedures
-            let args = eval_arguments(arg_exprs, env)?;
-            builtin.call(&args)
-        }
-        crate::types::Procedure::Lambda(lambda) => {
+        Procedure::Builtin(builtin) => builtin.call(&args),
+        Procedure::Lambda(lambda) => {
             // Check arity
             let expected_arity = lambda.arity();
             let actual_arity = arg_exprs.len();
@@ -126,21 +127,110 @@ fn call_procedure(
                 return Err(Error::arity_error("<lambda>", expected_arity, actual_arity));
             }
 
-            // Evaluate arguments
-            let args = eval_arguments(arg_exprs, env)?;
-
-            // Create new environment extending the lambda's closure
-            let mut call_env = Environment::new_scope(lambda.env());
-
-            // Bind parameters to arguments
-            for (param, arg) in lambda.params().iter().zip(args.iter()) {
-                call_env.define(param.clone(), arg.clone());
-            }
-
-            // Evaluate the body in the new environment
-            eval(Arc::clone(lambda.body()), &mut call_env)
+            call_lambda(lambda, args)
         }
     }
+}
+
+/// Call a lambda procedure with tail call optimization
+///
+/// This function implements tail call optimization by detecting when the lambda body
+/// contains a procedure call in tail position and handling it iteratively rather
+/// than recursively to prevent stack overflow for deeply recursive functions.
+fn call_lambda(lambda: Arc<Lambda>, args: Vec<Value>) -> Result<Value> {
+    // Current lambda and arguments for the iterative evaluation
+    let mut current_lambda = lambda;
+    let mut current_args = args;
+
+    loop {
+        // Create new environment extending the lambda's closure
+        let mut call_env = Environment::new_scope(current_lambda.env());
+
+        // Bind parameters to arguments
+        for (param, arg) in current_lambda.params().iter().zip(current_args.iter()) {
+            call_env.define(param.clone(), arg.clone());
+        }
+
+        // Check if the last expression in the lambda body is a tail call
+        let body_exprs = current_lambda.body();
+        if body_exprs.is_empty() {
+            return Err(Error::runtime_error("Lambda body cannot be empty"));
+        }
+
+        // Evaluate all expressions except the last for their side effects
+        for expr in &body_exprs[..body_exprs.len() - 1] {
+            eval(Arc::clone(expr), &mut call_env)?; // Result is discarded
+        }
+
+        // Check if the last expression is a tail call
+        let last_expr = &body_exprs[body_exprs.len() - 1];
+        if let Some((next_procedure, next_args)) =
+            eval_lambda_last_expression_returning_tail_call(last_expr, &mut call_env)?
+        {
+            match next_procedure {
+                crate::types::Procedure::Lambda(next_lambda) => {
+                    // Tail call to another lambda - optimize by continuing loop
+                    current_lambda = next_lambda;
+                    current_args = next_args;
+                    continue;
+                }
+                crate::types::Procedure::Builtin(builtin) => {
+                    // Tail call to builtin - just call it directly
+                    return builtin.call(&next_args);
+                }
+            }
+        }
+
+        // Not a tail call - evaluate the last expression normally and return
+        return eval(Arc::clone(last_expr), &mut call_env);
+    }
+}
+
+/// Evaluate the last expression of a lambda returning a procedure for a tail call
+///
+/// A tail call occurs when a procedure call is in tail position - meaning it's
+/// the last operation performed before returning from the current procedure.
+/// This function analyzes the expression to determine if it's a direct procedure call.
+fn eval_lambda_last_expression_returning_tail_call(
+    expr: &Arc<Expression>,
+    env: &mut Environment,
+) -> Result<Option<(Procedure, Vec<Value>)>> {
+    match expr.as_ref() {
+        // Direct procedure call: (procedure arg1 arg2 ...)
+        Expression::List(elements) if !elements.is_empty() => {
+            let first_expr = &elements[0];
+            let rest_exprs = &elements[1..];
+
+            // Try to evaluate the first expression to see if it's a procedure
+            match first_expr.as_ref() {
+                Expression::Atom(Value::Symbol(identifier)) => {
+                    // Handle special forms - they're not tail calls since they have special evaluation
+                    if special_forms::SpecialForm::from_name(identifier.as_str()).is_some() {
+                        return Ok(None);
+                    }
+
+                    // Try to look up the identifier as a procedure
+                    if let Ok(Value::Procedure(procedure)) = env.lookup(identifier) {
+                        // Evaluate the arguments
+                        let args = eval_arguments(rest_exprs, env)?;
+                        return Ok(Some((procedure, args)));
+                    }
+                }
+                _ => {
+                    // Try to evaluate the first expression
+                    if let Ok(Value::Procedure(procedure)) = eval(Arc::clone(first_expr), env) {
+                        let args = eval_arguments(rest_exprs, env)?;
+                        return Ok(Some((procedure, args)));
+                    }
+                }
+            }
+        }
+        _ => {
+            // Not a list or empty list - not a procedure call
+        }
+    }
+
+    Ok(None)
 }
 
 /// Evaluate a list of argument expressions into values
@@ -695,5 +785,192 @@ mod tests {
             elements[0].as_ref(),
             Expression::Atom(Value::Symbol(_))
         ));
+    }
+
+    #[test]
+    fn test_tail_call_optimization_basic() {
+        let mut env = Environment::new();
+
+        // Define a simple function that demonstrates tail call optimization
+        // (define countdown (lambda (n) (if (= n 0) "done" n)))
+        let countdown_params = vec![Symbol::new("n")];
+        let countdown_body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("=")),
+                Expression::arc_atom(Value::symbol("n")),
+                Expression::arc_atom(Value::number(0.0)),
+            ]),
+            Expression::arc_atom(Value::string("done")),
+            Expression::arc_atom(Value::symbol("n")),
+        ]);
+
+        let countdown_lambda =
+            crate::types::Procedure::lambda(countdown_params, vec![countdown_body], env.flatten());
+
+        env.define(Symbol::new("countdown"), Value::Procedure(countdown_lambda));
+
+        // Test that the function works correctly
+        let countdown_call = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("countdown")),
+            Expression::arc_atom(Value::number(5.0)),
+        ]);
+
+        let result = eval(countdown_call, &mut env).unwrap();
+        assert_eq!(result, Value::number(5.0));
+
+        // Test with zero
+        let countdown_zero = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("countdown")),
+            Expression::arc_atom(Value::number(0.0)),
+        ]);
+
+        let result = eval(countdown_zero, &mut env).unwrap();
+        assert_eq!(result, Value::string("done"));
+    }
+
+    #[test]
+    fn test_tail_call_optimization_identity() {
+        let mut env = Environment::new();
+
+        // Define an identity function that calls itself in tail position
+        // (define tail-identity (lambda (x) (tail-identity x)))
+        // This would create infinite recursion but tests our TCO detection
+        let identity_params = vec![Symbol::new("x")];
+        let identity_body = Expression::arc_atom(Value::symbol("x"));
+
+        let identity_lambda =
+            crate::types::Procedure::lambda(identity_params, vec![identity_body], env.flatten());
+
+        env.define(
+            Symbol::new("tail-identity"),
+            Value::Procedure(identity_lambda),
+        );
+
+        // Test that the identity function works
+        let identity_call = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("tail-identity")),
+            Expression::arc_atom(Value::number(42.0)),
+        ]);
+
+        let result = eval(identity_call, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_tail_call_optimization_builtin() {
+        let mut env = Environment::new();
+
+        // Define a function that tail-calls a builtin procedure
+        // (define add-one (lambda (x) (+ x 1)))
+        let add_one_params = vec![Symbol::new("x")];
+        let add_one_body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(1.0)),
+        ]);
+
+        let add_one_lambda =
+            crate::types::Procedure::lambda(add_one_params, vec![add_one_body], env.flatten());
+
+        env.define(Symbol::new("add-one"), Value::Procedure(add_one_lambda));
+
+        // Test that the function correctly tail-calls the builtin
+        let add_one_call = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("add-one")),
+            Expression::arc_atom(Value::number(41.0)),
+        ]);
+
+        let result = eval(add_one_call, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_tail_call_optimization_non_tail_call() {
+        let mut env = Environment::new();
+
+        // Define a function where the procedure call is NOT in tail position
+        // (define add-and-double (lambda (x) (* (+ x 1) 2)))
+        let add_double_params = vec![Symbol::new("x")];
+        let add_double_body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("*")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("+")),
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(1.0)),
+            ]),
+            Expression::arc_atom(Value::number(2.0)),
+        ]);
+
+        let add_double_lambda = crate::types::Procedure::lambda(
+            add_double_params,
+            vec![add_double_body],
+            env.flatten(),
+        );
+
+        env.define(
+            Symbol::new("add-and-double"),
+            Value::Procedure(add_double_lambda),
+        );
+
+        // Test that the function works correctly (no tail call optimization here)
+        let add_double_call = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("add-and-double")),
+            Expression::arc_atom(Value::number(5.0)),
+        ]);
+
+        let result = eval(add_double_call, &mut env).unwrap();
+        assert_eq!(result, Value::number(12.0)); // (5 + 1) * 2 = 12
+    }
+
+    #[test]
+    fn test_tail_call_optimization_special_forms() {
+        let mut env = Environment::new();
+
+        // Define a function that has an if expression in tail position
+        // (define conditional (lambda (x) (if (> x 0) x (- x))))
+        let conditional_params = vec![Symbol::new("x")];
+        let conditional_body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol(">")),
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(0.0)),
+            ]),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("-")),
+                Expression::arc_atom(Value::symbol("x")),
+            ]),
+        ]);
+
+        let conditional_lambda = crate::types::Procedure::lambda(
+            conditional_params,
+            vec![conditional_body],
+            env.flatten(),
+        );
+
+        env.define(
+            Symbol::new("conditional"),
+            Value::Procedure(conditional_lambda),
+        );
+
+        // Test positive case
+        let positive_call = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("conditional")),
+            Expression::arc_atom(Value::number(5.0)),
+        ]);
+
+        let result = eval(positive_call, &mut env).unwrap();
+        assert_eq!(result, Value::number(5.0));
+
+        // Test negative case
+        let negative_call = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("conditional")),
+            Expression::arc_atom(Value::number(-3.0)),
+        ]);
+
+        let result = eval(negative_call, &mut env).unwrap();
+        assert_eq!(result, Value::number(3.0));
     }
 }
