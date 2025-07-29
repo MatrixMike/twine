@@ -176,29 +176,18 @@ impl Procedure {
     }
 }
 
-impl PartialEq for Lambda {
-    fn eq(&self, other: &Self) -> bool {
-        // Lambda procedures are equal if they have the same parameters and body
-        // (environments are not easily comparable)
-        self.params == other.params
-            && self.body.len() == other.body.len()
-            && self
-                .body
-                .iter()
-                .zip(other.body.iter())
-                .all(|(a, b)| format!("{a}") == format!("{b}"))
-    }
-}
-
 impl PartialEq for Procedure {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             // Built-in procedures are equal if they have the same kind
             (Procedure::Builtin(kind1), Procedure::Builtin(kind2)) => kind1 == kind2,
 
-            // Lambda procedures are equal if their Lambda structs are equal
+            // Lambda procedures are equal if both Arc<Lambda> point to the same Lambda.
+            // This uses pointer equality rather than content equality - two lambdas
+            // are only equal if they're the exact same Arc instance (e.g., via cloning).
+            // Lambdas with identical content but different Arc instances are NOT equal.
             (Procedure::Lambda(lambda1), Procedure::Lambda(lambda2)) => {
-                lambda1.as_ref() == lambda2.as_ref()
+                Arc::ptr_eq(lambda1, lambda2)
             }
 
             // Different procedure types are never equal
@@ -247,26 +236,6 @@ mod tests {
         assert_eq!(lambda.arity(), 2);
         // Environment is captured correctly
         assert!(lambda.env().lookup(&Symbol::new("nonexistent")).is_err());
-    }
-
-    #[test]
-    fn test_lambda_struct_equality() {
-        let params = vec![Symbol::new("x")];
-        let body = vec![Expression::arc_atom(Value::symbol("x"))];
-        let env1 = Environment::new();
-        let env2 = Environment::new();
-
-        let lambda1 = Lambda::new(params.clone(), body.clone(), env1);
-        let lambda2 = Lambda::new(params.clone(), body.clone(), env2);
-
-        // Lambda structs with same params and body are equal (despite different envs)
-        assert_eq!(lambda1.as_ref(), lambda2.as_ref());
-
-        let different_params = vec![Symbol::new("y")];
-        let env3 = Environment::new();
-        let lambda3 = Lambda::new(different_params, body.clone(), env3);
-
-        assert_ne!(lambda1.as_ref(), lambda3.as_ref());
     }
 
     #[test]
@@ -356,10 +325,11 @@ mod tests {
         let env2 = Environment::new();
         let proc3 = Procedure::lambda(params, body, env2);
 
-        // Should be equal but not share the same Arc
+        // Should NOT be equal since they don't share the same Arc
         if let (Procedure::Lambda(arc1), Procedure::Lambda(arc3)) = (&proc1, &proc3) {
             assert!(!Arc::ptr_eq(arc1, arc3));
-            assert_eq!(arc1.as_ref(), arc3.as_ref()); // Content equality
+            // With pointer equality, different Arc instances are not equal
+            assert_ne!(proc1, proc3);
         } else {
             panic!("Expected lambda procedures");
         }
@@ -376,14 +346,21 @@ mod tests {
         let builtin3 = Procedure::builtin(Builtin::Subtract);
         assert_ne!(builtin1, builtin3);
 
-        // Same lambda procedures are equal
+        // Test lambda procedure Arc pointer equality
         let params = vec![Symbol::new("x")];
         let body = vec![Expression::arc_atom(Value::symbol("x"))];
         let env1 = Environment::new();
         let env2 = Environment::new();
 
         let lambda1 = Procedure::lambda(params.clone(), body.clone(), env1);
-        let _lambda2 = Procedure::lambda(params.clone(), body.clone(), env2);
+        let lambda2 = Procedure::lambda(params.clone(), body.clone(), env2);
+
+        // Lambdas with same content but different Arc instances are NOT equal
+        assert_ne!(lambda1, lambda2);
+
+        // Cloned lambda shares the same Arc, so they ARE equal
+        let lambda1_clone = lambda1.clone();
+        assert_eq!(lambda1, lambda1_clone);
 
         let different_params = vec![Symbol::new("y")];
         let env3 = Environment::new();
