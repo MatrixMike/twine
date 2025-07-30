@@ -2,13 +2,14 @@
 //!
 //! This module implements binding special forms like `define` and `let`.
 
+use crate::Error;
 use crate::error::Result;
 use crate::parser::Expression;
 use crate::runtime::special_forms::lambda::{
     create_lambda_procedure, parse_parameters, validate_parameters,
 };
 use crate::runtime::{environment::Environment, eval::eval};
-use crate::types::{Symbol, Value};
+use crate::types::{Procedure, Symbol, Value};
 use std::sync::Arc;
 
 /// Evaluate a define special form
@@ -26,7 +27,7 @@ use std::sync::Arc;
 /// - Equivalent to: (define name (lambda (param1 param2) body1 body2...))
 pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
-        return Err(crate::Error::arity_error("define", 2, 0));
+        return Err(Error::arity_error("define", 2, 0));
     }
 
     let first_arg = Arc::clone(&args[0]);
@@ -39,7 +40,7 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
         // Procedure definition: (define (name param...) body...)
         Expression::List(param_elements) => eval_define_procedure(param_elements, &args[1..], env),
 
-        _ => Err(crate::Error::runtime_error(
+        _ => Err(Error::runtime_error(
             "define: first argument must be a symbol or parameter list",
         )),
     }
@@ -52,17 +53,47 @@ fn eval_define_binding(
     env: &mut Environment,
 ) -> Result<Value> {
     if value_exprs.len() != 1 {
-        return Err(crate::Error::arity_error(
-            "define",
-            2,
-            value_exprs.len() + 1,
-        ));
+        return Err(Error::arity_error("define", 2, value_exprs.len() + 1));
     }
 
-    // Evaluate the expression and bind it to the identifier
     let value_expr = Arc::clone(&value_exprs[0]);
-    let value = eval(value_expr, env)?;
-    env.define(identifier.clone(), value);
+
+    // Check if this is a lambda expression that might need recursive support
+    let is_lambda = matches!(
+        value_expr.as_ref(),
+        Expression::List(elements) if !elements.is_empty() && matches!(
+            elements[0].as_ref(),
+            Expression::Atom(Value::Symbol(sym)) if sym.as_str() == "lambda"
+        )
+    );
+
+    if is_lambda {
+        // For lambda expressions, use WeakLambda approach for potential recursion
+        // 1. Create WeakLambda placeholder
+        let weak_lambda = Procedure::weak_lambda();
+
+        // 2. Create environment with the WeakLambda placeholder for recursive reference
+        let mut recursive_env = env.flatten();
+        recursive_env.define(identifier.clone(), Value::Procedure(weak_lambda.clone()));
+
+        // 3. Evaluate the lambda in the environment with WeakLambda
+        let lambda_value = eval(value_expr, &mut recursive_env)?;
+
+        // 4. Initialize WeakLambda with actual lambda
+        if let Value::Procedure(Procedure::Lambda(actual_lambda)) = &lambda_value {
+            weak_lambda
+                .set_weak_lambda(actual_lambda)
+                .map_err(|_| Error::runtime_error("Failed to initialize WeakLambda"))?;
+        }
+
+        // 5. Add the final lambda to the environment
+        env.define(identifier.clone(), lambda_value);
+    } else {
+        // For non-lambda expressions, use standard evaluation
+        let value = eval(value_expr, env)?;
+        env.define(identifier.clone(), value);
+    }
+
     Ok(Value::Nil)
 }
 
@@ -73,7 +104,7 @@ fn eval_define_procedure(
     env: &mut Environment,
 ) -> Result<Value> {
     if param_elements.is_empty() {
-        return Err(crate::Error::runtime_error(
+        return Err(Error::runtime_error(
             "define: procedure definition requires non-empty parameter list",
         ));
     }
@@ -82,7 +113,7 @@ fn eval_define_procedure(
     let identifier = match param_elements[0].as_ref() {
         Expression::Atom(Value::Symbol(name)) => name.clone(),
         _ => {
-            return Err(crate::Error::runtime_error(
+            return Err(Error::runtime_error(
                 "define: procedure name must be a symbol",
             ));
         }
@@ -94,7 +125,7 @@ fn eval_define_procedure(
 
     // Validate procedure body
     if args.is_empty() {
-        return Err(crate::Error::runtime_error(
+        return Err(Error::runtime_error(
             "define: procedure definition requires at least one body expression",
         ));
     }
@@ -102,10 +133,25 @@ fn eval_define_procedure(
     // Collect all body expressions
     let body_exprs = args.iter().map(Arc::clone).collect();
 
-    // Create lambda procedure and bind it to the identifier
-    // For recursive procedures, we use the current environment directly
-    // instead of flattening it, so self-references can be resolved
-    let lambda_proc = create_lambda_procedure(params, body_exprs, env);
+    // For recursive procedures, use WeakLambda approach:
+    // 1. Create WeakLambda placeholder
+    let weak_lambda = Procedure::weak_lambda();
+
+    // 2. Create environment with the WeakLambda placeholder for recursive reference
+    let mut recursive_env = env.flatten();
+    recursive_env.define(identifier.clone(), Value::Procedure(weak_lambda.clone()));
+
+    // 3. Create the actual lambda using the environment with WeakLambda
+    let lambda_proc = create_lambda_procedure(params, body_exprs, &recursive_env);
+
+    // 4. Initialize WeakLambda with actual lambda
+    if let Value::Procedure(Procedure::Lambda(actual_lambda)) = &lambda_proc {
+        weak_lambda
+            .set_weak_lambda(actual_lambda)
+            .map_err(|_| Error::runtime_error("Failed to initialize WeakLambda"))?;
+    }
+
+    // 5. Add the final lambda to the original environment
     env.define(identifier, lambda_proc);
     Ok(Value::Nil)
 }
@@ -122,7 +168,7 @@ fn eval_define_procedure(
 /// 5. Return the value of the last body expression
 pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
     if args.is_empty() {
-        return Err(crate::Error::arity_error("let", 1, 0));
+        return Err(Error::arity_error("let", 1, 0));
     }
 
     // First argument must be the binding list
@@ -130,7 +176,7 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
     let body_exprs = &args[1..];
 
     if body_exprs.is_empty() {
-        return Err(crate::Error::runtime_error(
+        return Err(Error::runtime_error(
             "let: requires at least one body expression",
         ));
     }
@@ -139,7 +185,7 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
     let binding_pairs = match bindings_expr.as_ref() {
         Expression::List(pairs) => pairs,
         _ => {
-            return Err(crate::Error::runtime_error(
+            return Err(Error::runtime_error(
                 "let: first argument must be a list of bindings",
             ));
         }
@@ -153,7 +199,7 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
         match pair.as_ref() {
             Expression::List(elements) => {
                 if elements.len() != 2 {
-                    return Err(crate::Error::runtime_error(
+                    return Err(Error::runtime_error(
                         "let: each binding must be a list of exactly 2 elements (identifier expression)",
                     ));
                 }
@@ -162,7 +208,7 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
                 let identifier = match elements[0].as_ref() {
                     Expression::Atom(Value::Symbol(sym)) => sym.clone(),
                     _ => {
-                        return Err(crate::Error::runtime_error(
+                        return Err(Error::runtime_error(
                             "let: binding identifier must be a symbol",
                         ));
                     }
@@ -175,9 +221,7 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
                 expressions.push(expression);
             }
             _ => {
-                return Err(crate::Error::runtime_error(
-                    "let: each binding must be a list",
-                ));
+                return Err(Error::runtime_error("let: each binding must be a list"));
             }
         }
     }
@@ -201,6 +245,179 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
     let mut result = Value::Nil;
     for body_expr in body_exprs {
         result = eval(Arc::clone(body_expr), &mut let_env)?;
+    }
+
+    Ok(result)
+}
+
+/// Evaluate a letrec special form
+///
+/// Syntax: (letrec ((id1 expr1) (id2 expr2) ...) body1 body2 ...)
+///
+/// Letrec enables recursive and mutually recursive bindings by:
+/// 1. Creating WeakLambda placeholders for all identifiers first
+/// 2. Evaluating expressions in an environment containing all placeholders
+/// 3. Initializing WeakLambdas with actual lambdas
+/// 4. Replacing WeakLambdas with actual Lambda procedures
+/// 5. Evaluating body expressions in the final environment
+///
+/// Returns the value of the last body expression.
+pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
+    if args.is_empty() {
+        return Err(Error::arity_error("letrec", 1, 0));
+    }
+
+    // First argument must be the binding list
+    let bindings_expr = Arc::clone(&args[0]);
+    let body_exprs = &args[1..];
+
+    if body_exprs.is_empty() {
+        return Err(Error::arity_error("letrec", 2, args.len()));
+    }
+
+    // Parse binding list
+    let binding_elements = match bindings_expr.as_ref() {
+        Expression::List(elements) => elements,
+        Expression::Atom(atom) => {
+            return Err(Error::parse_error(&format!(
+                "letrec: binding list must be a list, got {}",
+                atom.type_name()
+            )));
+        }
+        Expression::Quote(_) => {
+            return Err(Error::parse_error(
+                "letrec: binding list must be a list, got quote",
+            ));
+        }
+    };
+
+    // Parse and validate individual bindings
+    let mut identifiers = Vec::with_capacity(binding_elements.len());
+    let mut value_exprs = Vec::with_capacity(binding_elements.len());
+
+    for binding_expr in binding_elements {
+        let binding_elements = match binding_expr.as_ref() {
+            Expression::List(elements) => elements,
+            Expression::Atom(atom) => {
+                return Err(Error::parse_error(&format!(
+                    "letrec: binding must be a list, got {}",
+                    atom.type_name()
+                )));
+            }
+            Expression::Quote(_) => {
+                return Err(Error::parse_error(
+                    "letrec: binding must be a list, got quote",
+                ));
+            }
+        };
+
+        if binding_elements.len() != 2 {
+            return Err(Error::parse_error(&format!(
+                "letrec: binding must have exactly 2 elements (identifier and expression), got {}",
+                binding_elements.len()
+            )));
+        }
+
+        // Extract identifier
+        let identifier = match binding_elements[0].as_ref() {
+            Expression::Atom(Value::Symbol(id)) => id.clone(),
+            Expression::Atom(other) => {
+                return Err(Error::parse_error(&format!(
+                    "letrec: identifier must be a symbol, got {}",
+                    other.type_name()
+                )));
+            }
+            Expression::List(_) => {
+                return Err(Error::parse_error(
+                    "letrec: identifier must be a symbol, got list",
+                ));
+            }
+            Expression::Quote(_) => {
+                return Err(Error::parse_error(
+                    "letrec: identifier must be a symbol, got quote",
+                ));
+            }
+        };
+
+        // Extract value expression
+        let value_expr = Arc::clone(&binding_elements[1]);
+
+        // Check for duplicate identifiers
+        if identifiers.contains(&identifier) {
+            return Err(Error::parse_error(&format!(
+                "letrec: duplicate identifier '{}'",
+                identifier
+            )));
+        }
+
+        identifiers.push(identifier);
+        value_exprs.push(value_expr);
+    }
+
+    // Create new environment extending the current one
+    let mut letrec_env = Environment::new_scope(env);
+
+    // Phase 1: Identify lambda and non-lambda expressions
+    let mut is_lambda_expr = Vec::with_capacity(value_exprs.len());
+    let mut lambda_indices = Vec::new();
+    let mut non_lambda_indices = Vec::new();
+
+    for (i, value_expr) in value_exprs.iter().enumerate() {
+        let is_lambda = matches!(
+            value_expr.as_ref(),
+            Expression::List(elements) if !elements.is_empty() && matches!(
+                elements[0].as_ref(),
+                Expression::Atom(Value::Symbol(sym)) if sym.as_str() == "lambda"
+            )
+        );
+        is_lambda_expr.push(is_lambda);
+
+        if is_lambda {
+            lambda_indices.push(i);
+        } else {
+            non_lambda_indices.push(i);
+        }
+    }
+
+    // Phase 2: Evaluate non-lambda expressions first and add them to environment
+    for &i in &non_lambda_indices {
+        let value = eval(Arc::clone(&value_exprs[i]), &mut letrec_env)?;
+        letrec_env.define(identifiers[i].clone(), value);
+    }
+
+    // Phase 3: Create WeakLambda placeholders for lambda expressions
+    let mut weak_lambdas = Vec::new();
+    for &i in &lambda_indices {
+        let weak_lambda = Procedure::weak_lambda();
+        weak_lambdas.push(weak_lambda.clone());
+        letrec_env.define(identifiers[i].clone(), Value::Procedure(weak_lambda));
+    }
+
+    // Phase 4: Evaluate lambda expressions (they can now see all non-lambda values and other WeakLambdas)
+    let mut lambda_values = Vec::new();
+    for &i in &lambda_indices {
+        let lambda_value = eval(Arc::clone(&value_exprs[i]), &mut letrec_env)?;
+        lambda_values.push(lambda_value);
+    }
+
+    // Phase 5: Initialize WeakLambdas with actual lambdas
+    for (weak_lambda, lambda_value) in weak_lambdas.iter().zip(lambda_values.iter()) {
+        if let Value::Procedure(Procedure::Lambda(actual_lambda)) = lambda_value {
+            weak_lambda
+                .set_weak_lambda(actual_lambda)
+                .map_err(|_| Error::runtime_error("Failed to initialize WeakLambda"))?;
+        }
+    }
+
+    // Phase 6: Replace WeakLambdas with actual lambdas in the environment
+    for (&i, lambda_value) in lambda_indices.iter().zip(lambda_values.iter()) {
+        letrec_env.define(identifiers[i].clone(), lambda_value.clone());
+    }
+
+    // Evaluate body expressions sequentially in the final environment
+    let mut result = Value::Nil;
+    for body_expr in body_exprs {
+        result = eval(Arc::clone(body_expr), &mut letrec_env)?;
     }
 
     Ok(result)
@@ -701,5 +918,232 @@ mod tests {
                 .to_string()
                 .contains("Unbound identifier: 'undefined'")
         );
+    }
+
+    #[test]
+    fn test_eval_letrec_basic() {
+        let mut env = Environment::new();
+
+        // (letrec ((x 42)) x)
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
+        ])]);
+        let body = Expression::arc_atom(Value::symbol("x"));
+
+        let args = vec![bindings, body];
+        let result = eval_letrec(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_letrec_recursive_lambda() {
+        let mut env = Environment::new();
+
+        // (letrec ((factorial (lambda (n) (if (= n 0) 1 (* n (factorial (- n 1)))))))
+        //   (factorial 5))
+        let factorial_lambda = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("lambda")),
+            Expression::arc_list(vec![Expression::arc_atom(Value::symbol("n"))]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("if")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("=")),
+                    Expression::arc_atom(Value::symbol("n")),
+                    Expression::arc_atom(Value::number(0.0)),
+                ]),
+                Expression::arc_atom(Value::number(1.0)),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("*")),
+                    Expression::arc_atom(Value::symbol("n")),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("factorial")),
+                        Expression::arc_list(vec![
+                            Expression::arc_atom(Value::symbol("-")),
+                            Expression::arc_atom(Value::symbol("n")),
+                            Expression::arc_atom(Value::number(1.0)),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ]);
+
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("factorial")),
+            factorial_lambda,
+        ])]);
+
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("factorial")),
+            Expression::arc_atom(Value::number(5.0)),
+        ]);
+
+        let args = vec![bindings, body];
+        let result = eval_letrec(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(120.0));
+    }
+
+    #[test]
+    fn test_eval_letrec_mutually_recursive() {
+        let mut env = Environment::new();
+
+        // (letrec ((even? (lambda (n) (if (= n 0) #t (odd? (- n 1)))))
+        //          (odd? (lambda (n) (if (= n 0) #f (even? (- n 1))))))
+        //   (even? 4))
+        let even_lambda = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("lambda")),
+            Expression::arc_list(vec![Expression::arc_atom(Value::symbol("n"))]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("if")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("=")),
+                    Expression::arc_atom(Value::symbol("n")),
+                    Expression::arc_atom(Value::number(0.0)),
+                ]),
+                Expression::arc_atom(Value::boolean(true)),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("odd?")),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("-")),
+                        Expression::arc_atom(Value::symbol("n")),
+                        Expression::arc_atom(Value::number(1.0)),
+                    ]),
+                ]),
+            ]),
+        ]);
+
+        let odd_lambda = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("lambda")),
+            Expression::arc_list(vec![Expression::arc_atom(Value::symbol("n"))]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("if")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("=")),
+                    Expression::arc_atom(Value::symbol("n")),
+                    Expression::arc_atom(Value::number(0.0)),
+                ]),
+                Expression::arc_atom(Value::boolean(false)),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("even?")),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("-")),
+                        Expression::arc_atom(Value::symbol("n")),
+                        Expression::arc_atom(Value::number(1.0)),
+                    ]),
+                ]),
+            ]),
+        ]);
+
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("even?")),
+                even_lambda,
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("odd?")),
+                odd_lambda,
+            ]),
+        ]);
+
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("even?")),
+            Expression::arc_atom(Value::number(4.0)),
+        ]);
+
+        let args = vec![bindings, body];
+        let result = eval_letrec(&args, &mut env).unwrap();
+        assert_eq!(result, Value::boolean(true));
+    }
+
+    #[test]
+    fn test_eval_letrec_multiple_bindings() {
+        let mut env = Environment::new();
+
+        // (letrec ((x 10) (y 20)) (+ x y))
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(10.0)),
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_atom(Value::number(20.0)),
+            ]),
+        ]);
+
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("+")),
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::symbol("y")),
+        ]);
+
+        let args = vec![bindings, body];
+        let result = eval_letrec(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(30.0));
+    }
+
+    #[test]
+    fn test_eval_letrec_empty_bindings() {
+        let mut env = Environment::new();
+
+        // (letrec () 42)
+        let bindings = Expression::arc_list(vec![]);
+        let body = Expression::arc_atom(Value::number(42.0));
+
+        let args = vec![bindings, body];
+        let result = eval_letrec(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_letrec_errors() {
+        let mut env = Environment::new();
+
+        // Test no arguments
+        assert!(eval_letrec(&[], &mut env).is_err());
+
+        // Test no body
+        let bindings = Expression::arc_list(vec![]);
+        assert!(eval_letrec(&[bindings], &mut env).is_err());
+
+        // Test invalid binding list (not a list)
+        let invalid_bindings = Expression::arc_atom(Value::number(42.0));
+        let body = Expression::arc_atom(Value::number(1.0));
+        assert!(eval_letrec(&[invalid_bindings, body], &mut env).is_err());
+
+        // Test invalid binding (not a list)
+        let bindings = Expression::arc_list(vec![Expression::arc_atom(Value::number(42.0))]);
+        let body = Expression::arc_atom(Value::number(1.0));
+        assert!(eval_letrec(&[bindings, body], &mut env).is_err());
+
+        // Test invalid binding (wrong length)
+        let bindings =
+            Expression::arc_list(vec![Expression::arc_list(vec![Expression::arc_atom(
+                Value::symbol("x"),
+            )])]);
+        let body = Expression::arc_atom(Value::number(1.0));
+        assert!(eval_letrec(&[bindings, body], &mut env).is_err());
+
+        // Test invalid identifier (not a symbol)
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::number(42.0)),
+            Expression::arc_atom(Value::number(1.0)),
+        ])]);
+        let body = Expression::arc_atom(Value::number(1.0));
+        assert!(eval_letrec(&[bindings, body], &mut env).is_err());
+
+        // Test duplicate identifiers
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(1.0)),
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(2.0)),
+            ]),
+        ]);
+        let body = Expression::arc_atom(Value::symbol("x"));
+        assert!(eval_letrec(&[bindings, body], &mut env).is_err());
     }
 }

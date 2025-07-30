@@ -6,7 +6,7 @@
 use crate::parser::Expression;
 use crate::runtime::{Environment, builtins::Builtin};
 use crate::types::Symbol;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock, Weak};
 
 /// Lambda procedure definition
 ///
@@ -40,6 +40,14 @@ pub enum Procedure {
     /// Lambda procedures use Arc for efficient sharing and cloning.
     /// Multiple Values can reference the same lambda with zero copying.
     Lambda(Arc<Lambda>),
+
+    /// Weak reference to a lambda procedure for recursive definitions
+    ///
+    /// Used as a placeholder during recursive procedure definition (define and letrec).
+    /// The OnceLock ensures thread-safe, one-time initialization of the weak reference.
+    /// This enables recursive and mutually recursive procedure definitions without
+    /// circular reference issues.
+    WeakLambda(Arc<OnceLock<Weak<Lambda>>>),
 }
 
 impl Lambda {
@@ -118,6 +126,7 @@ impl Procedure {
         match self {
             Procedure::Builtin(builtin) => builtin.name(),
             Procedure::Lambda(_) => "<lambda>",
+            Procedure::WeakLambda(_) => "<lambda>",
         }
     }
 
@@ -126,9 +135,9 @@ impl Procedure {
         matches!(self, Procedure::Builtin(_))
     }
 
-    /// Check if this is a lambda procedure
+    /// Check if this is a lambda procedure (including weak lambda)
     pub fn is_lambda(&self) -> bool {
-        matches!(self, Procedure::Lambda(_))
+        matches!(self, Procedure::Lambda(_) | Procedure::WeakLambda(_))
     }
 
     /// Get the parameter count for the procedure
@@ -136,10 +145,15 @@ impl Procedure {
     /// Returns the number of parameters this procedure expects.
     /// For built-in procedures, this is not directly available, so None is returned.
     /// For lambda procedures, returns the parameter count.
+    /// For weak lambda procedures, returns None if not yet initialized.
     pub fn arity(&self) -> Option<usize> {
         match self {
             Procedure::Builtin(_) => None, // Arity varies for built-ins
             Procedure::Lambda(lambda) => Some(lambda.arity()),
+            Procedure::WeakLambda(once_lock) => once_lock
+                .get()
+                .and_then(|weak| weak.upgrade())
+                .map(|lambda| lambda.arity()),
         }
     }
 
@@ -148,6 +162,7 @@ impl Procedure {
         match self {
             Procedure::Builtin(_) => None,
             Procedure::Lambda(lambda) => Some(lambda.params()),
+            Procedure::WeakLambda(_) => None, // Cannot access params through weak reference
         }
     }
 
@@ -156,6 +171,7 @@ impl Procedure {
         match self {
             Procedure::Builtin(_) => None,
             Procedure::Lambda(lambda) => Some(lambda.body()),
+            Procedure::WeakLambda(_) => None, // Cannot access body through weak reference
         }
     }
 
@@ -164,6 +180,7 @@ impl Procedure {
         match self {
             Procedure::Builtin(_) => None,
             Procedure::Lambda(lambda) => Some(lambda.env()),
+            Procedure::WeakLambda(_) => None, // Cannot access env through weak reference
         }
     }
 
@@ -172,6 +189,50 @@ impl Procedure {
         match self {
             Procedure::Builtin(_) => None,
             Procedure::Lambda(lambda) => Some(lambda),
+            Procedure::WeakLambda(_) => None, // Cannot return Arc through weak reference
+        }
+    }
+
+    /// Create a new weak lambda procedure placeholder
+    ///
+    /// Creates an uninitialized WeakLambda that can later be set to point
+    /// to an actual lambda. Used for recursive procedure definitions.
+    pub fn weak_lambda() -> Self {
+        Procedure::WeakLambda(Arc::new(OnceLock::new()))
+    }
+
+    /// Initialize a WeakLambda with the actual lambda
+    ///
+    /// This can only be called once per WeakLambda instance.
+    /// Returns an error if the WeakLambda was already initialized.
+    pub fn set_weak_lambda(&self, lambda: &Arc<Lambda>) -> Result<(), crate::Error> {
+        match self {
+            Procedure::WeakLambda(once_lock) => once_lock
+                .set(Arc::downgrade(lambda))
+                .map_err(|_| crate::Error::runtime_error("WeakLambda already initialized")),
+            _ => Err(crate::Error::runtime_error(
+                "Cannot set weak lambda on non-WeakLambda procedure",
+            )),
+        }
+    }
+
+    /// Get the actual lambda from a WeakLambda
+    ///
+    /// Returns the upgraded Arc<Lambda> if the WeakLambda is initialized
+    /// and the lambda hasn't been dropped. Used during procedure application.
+    pub fn resolve_weak_lambda(&self) -> Result<Arc<Lambda>, crate::Error> {
+        match self {
+            Procedure::WeakLambda(once_lock) => {
+                let weak = once_lock
+                    .get()
+                    .ok_or_else(|| crate::Error::runtime_error("WeakLambda not yet initialized"))?;
+                weak.upgrade()
+                    .ok_or_else(|| crate::Error::runtime_error("Lambda was dropped"))
+            }
+            Procedure::Lambda(lambda) => Ok(Arc::clone(lambda)),
+            Procedure::Builtin(_) => Err(crate::Error::runtime_error(
+                "Cannot resolve lambda from builtin procedure",
+            )),
         }
     }
 }
@@ -189,6 +250,33 @@ impl PartialEq for Procedure {
             (Procedure::Lambda(lambda1), Procedure::Lambda(lambda2)) => {
                 Arc::ptr_eq(lambda1, lambda2)
             }
+
+            // WeakLambda procedures are equal if they point to the same lambda
+            (Procedure::WeakLambda(once_lock1), Procedure::WeakLambda(once_lock2)) => {
+                match (once_lock1.get(), once_lock2.get()) {
+                    (Some(weak1), Some(weak2)) => {
+                        match (weak1.upgrade(), weak2.upgrade()) {
+                            (Some(lambda1), Some(lambda2)) => Arc::ptr_eq(&lambda1, &lambda2),
+                            _ => false, // One or both lambdas were dropped
+                        }
+                    }
+                    (None, None) => false, // Both uninitialized, not equal
+                    _ => false,            // One initialized, one not
+                }
+            }
+
+            // Lambda and WeakLambda can be equal if they point to the same lambda
+            (Procedure::Lambda(lambda1), Procedure::WeakLambda(once_lock)) => once_lock
+                .get()
+                .and_then(|weak| weak.upgrade())
+                .map(|lambda2| Arc::ptr_eq(lambda1, &lambda2))
+                .unwrap_or(false),
+
+            (Procedure::WeakLambda(once_lock), Procedure::Lambda(lambda2)) => once_lock
+                .get()
+                .and_then(|weak| weak.upgrade())
+                .map(|lambda1| Arc::ptr_eq(&lambda1, lambda2))
+                .unwrap_or(false),
 
             // Different procedure types are never equal
             _ => false,
@@ -214,6 +302,12 @@ impl std::fmt::Display for Procedure {
         match self {
             Procedure::Builtin(builtin) => write!(f, "#<builtin:{}>", builtin.name()),
             Procedure::Lambda(lambda) => write!(f, "{lambda}"),
+            Procedure::WeakLambda(once_lock) => {
+                match once_lock.get().and_then(|weak| weak.upgrade()) {
+                    Some(lambda) => write!(f, "{lambda}"),
+                    None => write!(f, "#<weak-lambda:uninitialized>"),
+                }
+            }
         }
     }
 }

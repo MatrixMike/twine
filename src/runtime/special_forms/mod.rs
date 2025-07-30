@@ -28,6 +28,7 @@ pub enum SpecialForm {
     // Binding and definition forms
     Define,
     Let,
+    Letrec,
 
     // Function creation
     Lambda,
@@ -46,6 +47,7 @@ impl SpecialForm {
             SpecialForm::Or => "or",
             SpecialForm::Define => "define",
             SpecialForm::Let => "let",
+            SpecialForm::Letrec => "letrec",
             SpecialForm::Lambda => "lambda",
             SpecialForm::Async => "async",
         }
@@ -61,6 +63,7 @@ impl SpecialForm {
             SpecialForm::Define => binding::eval_define(args, env),
             SpecialForm::Lambda => lambda::eval_lambda(args, env),
             SpecialForm::Let => binding::eval_let(args, env),
+            SpecialForm::Letrec => binding::eval_letrec(args, env),
             SpecialForm::Async => concurrency::eval_async(args, env),
         }
     }
@@ -74,6 +77,7 @@ impl SpecialForm {
             "or" => Some(SpecialForm::Or),
             "define" => Some(SpecialForm::Define),
             "let" => Some(SpecialForm::Let),
+            "letrec" => Some(SpecialForm::Letrec),
             "lambda" => Some(SpecialForm::Lambda),
             "async" => Some(SpecialForm::Async),
             _ => None,

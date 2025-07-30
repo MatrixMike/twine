@@ -38,6 +38,25 @@ pub fn call_procedure(
 
             call_lambda(lambda, args)
         }
+        Procedure::WeakLambda(once_lock) => {
+            // Resolve the weak lambda to an actual lambda
+            let weak = once_lock
+                .get()
+                .ok_or_else(|| Error::runtime_error("WeakLambda not yet initialized"))?;
+            let lambda = weak
+                .upgrade()
+                .ok_or_else(|| Error::runtime_error("Lambda was dropped"))?;
+
+            // Check arity
+            let expected_arity = lambda.arity();
+            let actual_arity = arg_exprs.len();
+
+            if expected_arity != actual_arity {
+                return Err(Error::arity_error("<lambda>", expected_arity, actual_arity));
+            }
+
+            call_lambda(lambda, args)
+        }
     }
 }
 
@@ -85,6 +104,20 @@ pub fn call_lambda(lambda: Arc<Lambda>, args: Vec<Value>) -> Result<Value> {
                     Procedure::Builtin(builtin) => {
                         // Tail call to builtin - just call it directly
                         return builtin.call(&args);
+                    }
+                    Procedure::WeakLambda(once_lock) => {
+                        // Resolve weak lambda for tail call
+                        let weak = once_lock.get().ok_or_else(|| {
+                            Error::runtime_error("WeakLambda not yet initialized")
+                        })?;
+                        let next_lambda = weak
+                            .upgrade()
+                            .ok_or_else(|| Error::runtime_error("Lambda was dropped"))?;
+
+                        // Tail call to resolved lambda - optimize by continuing loop
+                        current_lambda = next_lambda;
+                        current_args = args;
+                        continue;
                     }
                 }
             }
