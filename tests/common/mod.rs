@@ -5,9 +5,12 @@
 //! - `test_io()`: Helper for subprocess-based I/O output verification
 
 use std::process::Command;
+use std::sync::Once;
 use twine_scheme::Result;
 use twine_scheme::runtime::Environment;
 use twine_scheme::types::Value;
+
+static ENSURE_BINARY_BUILT: Once = Once::new();
 
 /// Helper function for end-to-end evaluation testing.
 ///
@@ -65,15 +68,38 @@ pub fn eval_source(source: &str, env: &mut Environment) -> Result<Value> {
 /// ```
 #[allow(dead_code)]
 pub fn test_io(source: &str, expected_output: &str) {
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "test_io", source])
+    // Ensure the test_io binary is built once before any tests run
+    ENSURE_BINARY_BUILT.call_once(|| {
+        let build_result = Command::new("cargo")
+            .args(&["build", "--bin", "test_io"])
+            .output()
+            .expect("Failed to build test_io binary");
+
+        if !build_result.status.success() {
+            panic!(
+                "Failed to build test_io binary: {}",
+                String::from_utf8_lossy(&build_result.stderr)
+            );
+        }
+    });
+
+    // Run the pre-built binary directly to avoid cargo run race conditions
+    let binary_path = if cfg!(windows) {
+        "./target/debug/test_io.exe"
+    } else {
+        "./target/debug/test_io"
+    };
+
+    let output = Command::new(binary_path)
+        .arg(source)
         .output()
         .expect("Failed to execute test_io binary");
 
     assert!(
         output.status.success(),
-        "test_io binary exited with non-zero status: {:?}",
-        output.status
+        "test_io binary exited with non-zero status: {:?}\nstderr: {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
     );
 
     let actual_output =

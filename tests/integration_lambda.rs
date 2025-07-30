@@ -13,6 +13,7 @@
 mod common;
 
 use common::eval_source;
+use twine_scheme::Error;
 use twine_scheme::runtime::Environment;
 use twine_scheme::types::{Symbol, Value};
 
