@@ -5,9 +5,7 @@
 use crate::Error;
 use crate::error::Result;
 use crate::parser::Expression;
-use crate::runtime::special_forms::lambda::{
-    create_lambda_procedure, parse_parameters, validate_parameters,
-};
+use crate::runtime::special_forms::lambda::{parse_parameters, validate_parameters};
 use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::{Procedure, Symbol, Value};
 use std::sync::Arc;
@@ -47,27 +45,24 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
 }
 
 /// Handle variable binding: (define identifier expression)
-fn eval_define_binding(
-    identifier: &Symbol,
-    value_exprs: &[Arc<Expression>],
-    env: &mut Environment,
-) -> Result<Value> {
-    if value_exprs.len() != 1 {
-        return Err(Error::arity_error("define", 2, value_exprs.len() + 1));
-    }
-
-    let value_expr = Arc::clone(&value_exprs[0]);
-
-    // Check if this is a lambda expression that might need recursive support
-    let is_lambda = matches!(
-        value_expr.as_ref(),
+/// Checks if an expression is a lambda expression
+fn is_lambda_expression(expr: &Expression) -> bool {
+    matches!(
+        expr,
         Expression::List(elements) if !elements.is_empty() && matches!(
             elements[0].as_ref(),
             Expression::Atom(Value::Symbol(sym)) if sym.as_str() == "lambda"
         )
-    );
+    )
+}
 
-    if is_lambda {
+/// Handles recursive binding for lambda expressions using WeakLambda approach
+fn eval_recursive_binding(
+    identifier: &Symbol,
+    value_expr: Arc<Expression>,
+    env: &mut Environment,
+) -> Result<Value> {
+    if is_lambda_expression(&value_expr) {
         // For lambda expressions, use WeakLambda approach for potential recursion
         // 1. Create WeakLambda placeholder
         let weak_lambda = Procedure::weak_lambda();
@@ -95,6 +90,19 @@ fn eval_define_binding(
     }
 
     Ok(Value::Nil)
+}
+
+fn eval_define_binding(
+    identifier: &Symbol,
+    value_exprs: &[Arc<Expression>],
+    env: &mut Environment,
+) -> Result<Value> {
+    if value_exprs.len() != 1 {
+        return Err(Error::arity_error("define", 2, value_exprs.len() + 1));
+    }
+
+    let value_expr = Arc::clone(&value_exprs[0]);
+    eval_recursive_binding(identifier, value_expr, env)
 }
 
 /// Handle procedure definition: (define (name param...) body...)
@@ -130,30 +138,21 @@ fn eval_define_procedure(
         ));
     }
 
-    // Collect all body expressions
-    let body_exprs = args.iter().map(Arc::clone).collect();
+    // Construct a lambda expression equivalent to (lambda (params...) body...)
+    let param_exprs: Vec<Arc<Expression>> = params
+        .iter()
+        .map(|p| Expression::arc_atom(Value::Symbol(p.clone())))
+        .collect();
 
-    // For recursive procedures, use WeakLambda approach:
-    // 1. Create WeakLambda placeholder
-    let weak_lambda = Procedure::weak_lambda();
+    let mut lambda_elements = Vec::with_capacity(2 + args.len());
+    lambda_elements.push(Expression::arc_atom(Value::symbol("lambda")));
+    lambda_elements.push(Expression::arc_list(param_exprs));
+    lambda_elements.extend(args.iter().map(Arc::clone));
 
-    // 2. Create environment with the WeakLambda placeholder for recursive reference
-    let mut recursive_env = env.flatten();
-    recursive_env.define(identifier.clone(), Value::Procedure(weak_lambda.clone()));
+    let lambda_expr = Expression::arc_list(lambda_elements);
 
-    // 3. Create the actual lambda using the environment with WeakLambda
-    let lambda_proc = create_lambda_procedure(params, body_exprs, &recursive_env);
-
-    // 4. Initialize WeakLambda with actual lambda
-    if let Value::Procedure(Procedure::Lambda(actual_lambda)) = &lambda_proc {
-        weak_lambda
-            .set_weak_lambda(actual_lambda)
-            .map_err(|_| Error::runtime_error("Failed to initialize WeakLambda"))?;
-    }
-
-    // 5. Add the final lambda to the original environment
-    env.define(identifier, lambda_proc);
-    Ok(Value::Nil)
+    // Use the shared recursive binding logic
+    eval_recursive_binding(&identifier, lambda_expr, env)
 }
 
 /// Evaluate a let special form
@@ -345,8 +344,7 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
         // Check for duplicate identifiers
         if identifiers.contains(&identifier) {
             return Err(Error::parse_error(&format!(
-                "letrec: duplicate identifier '{}'",
-                identifier
+                "letrec: duplicate identifier '{identifier}'"
             )));
         }
 
@@ -363,13 +361,7 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
     let mut non_lambda_indices = Vec::new();
 
     for (i, value_expr) in value_exprs.iter().enumerate() {
-        let is_lambda = matches!(
-            value_expr.as_ref(),
-            Expression::List(elements) if !elements.is_empty() && matches!(
-                elements[0].as_ref(),
-                Expression::Atom(Value::Symbol(sym)) if sym.as_str() == "lambda"
-            )
-        );
+        let is_lambda = is_lambda_expression(value_expr);
         is_lambda_expr.push(is_lambda);
 
         if is_lambda {
