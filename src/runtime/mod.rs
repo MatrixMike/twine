@@ -42,6 +42,7 @@ pub mod builtins;
 pub mod environment;
 pub mod eval;
 pub mod special_forms;
+pub mod utils;
 
 // Re-export key types for convenience
 pub use environment::Environment;

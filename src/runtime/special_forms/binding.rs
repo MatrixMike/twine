@@ -5,7 +5,11 @@
 use crate::Error;
 use crate::error::Result;
 use crate::parser::Expression;
-use crate::runtime::special_forms::lambda::{parse_parameters, validate_parameters};
+use crate::runtime::special_forms::lambda::create_lambda_procedure;
+use crate::runtime::utils::{
+    eval_sequence, parse_parameters, validate_unique_binding_identifiers,
+    validate_unique_parameters,
+};
 use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::{Procedure, Symbol, Value};
 use std::sync::Arc;
@@ -130,7 +134,7 @@ fn eval_define_procedure(
 
     // Extract and validate parameters
     let params = parse_parameters(&param_elements[1..], "define")?;
-    validate_parameters(&params, "define")?;
+    validate_unique_parameters(&params, "define")?;
 
     // Validate procedure body
     if args.is_empty() {
@@ -139,21 +143,12 @@ fn eval_define_procedure(
         ));
     }
 
-    // Construct a lambda expression equivalent to (lambda (params...) body...)
-    let param_exprs: Vec<Arc<Expression>> = params
-        .iter()
-        .map(|p| Expression::arc_atom(Value::Symbol(p.clone())))
-        .collect();
-
-    let mut lambda_elements = Vec::with_capacity(2 + args.len());
-    lambda_elements.push(Expression::arc_atom(Value::symbol("lambda")));
-    lambda_elements.push(Expression::arc_list(param_exprs));
-    lambda_elements.extend(args.iter().map(Arc::clone));
-
-    let lambda_expr = Expression::arc_list(lambda_elements);
+    // Create lambda procedure directly using shared logic
+    let body_exprs = args.iter().map(Arc::clone).collect();
+    let lambda_value = create_lambda_procedure(params, body_exprs, env);
 
     // Use the shared recursive binding logic
-    eval_recursive_binding(&identifier, lambda_expr, env)
+    eval_recursive_binding(&identifier, Arc::new(Expression::Atom(lambda_value)), env)
 }
 
 /// Evaluate a let special form
@@ -200,7 +195,7 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
     }
 
     // Evaluate body expressions sequentially in new environment using shared helper
-    eval_body(body_exprs, &mut let_env)
+    eval_sequence(body_exprs, &mut let_env)
 }
 
 /// Evaluate a letrec special form
@@ -276,17 +271,12 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
         // Extract value expression
         let value_expr = Arc::clone(&binding_elements[1]);
 
-        // Check for duplicate identifiers
-        if identifiers.contains(&identifier) {
-            return Err(Error::duplicate_identifier_error(
-                "letrec",
-                identifier.as_str(),
-            ));
-        }
-
         identifiers.push(identifier);
         value_exprs.push(value_expr);
     }
+
+    // Check for duplicate identifiers using shared utility
+    validate_unique_binding_identifiers(&identifiers, "letrec")?;
 
     // Create new environment extending the current one
     let mut letrec_env = Environment::new_scope(env);
@@ -343,7 +333,7 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
     }
 
     // Evaluate body expressions sequentially in the final environment
-    eval_body(body_exprs, &mut letrec_env)
+    eval_sequence(body_exprs, &mut letrec_env)
 }
 
 /// Helper function to parse binding list into identifiers and expressions
@@ -403,15 +393,6 @@ fn parse_bindings(
     Ok((identifiers, expressions))
 }
 
-/// Helper function to evaluate body expressions sequentially
-fn eval_body(body_exprs: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
-    let mut result = Value::Nil;
-    for body_expr in body_exprs {
-        result = eval(Arc::clone(body_expr), env)?;
-    }
-    Ok(result)
-}
-
 /// Evaluate a let* special form
 ///
 /// Syntax: (let* ((id1 expr1) (id2 expr2) ...) body1 body2 ...)
@@ -448,7 +429,7 @@ pub fn eval_let_star(args: &[Arc<Expression>], env: &mut Environment) -> Result<
     }
 
     // Evaluate body expressions sequentially in new environment
-    eval_body(body_exprs, &mut letstar_env)
+    eval_sequence(body_exprs, &mut letstar_env)
 }
 
 /// Evaluate a letrec* special form
@@ -486,7 +467,7 @@ pub fn eval_letrec_star(args: &[Arc<Expression>], env: &mut Environment) -> Resu
     }
 
     // Evaluate body expressions sequentially in new environment
-    eval_body(body_exprs, &mut letrecstar_env)
+    eval_sequence(body_exprs, &mut letrecstar_env)
 }
 
 #[cfg(test)]

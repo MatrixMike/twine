@@ -16,6 +16,7 @@
 
 use crate::error::Result;
 use crate::parser::Expression;
+use crate::runtime::utils::eval_sequence;
 use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::Value;
 use std::sync::Arc;
@@ -54,18 +55,7 @@ pub fn eval_if(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value>
 /// - Returns the value of the last expression
 /// - If no expressions are provided, returns Nil
 pub fn eval_begin(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
-    if args.is_empty() {
-        return Ok(Value::Nil);
-    }
-
-    let mut result = Value::Nil;
-
-    // Evaluate all expressions in sequence, keeping only the last result
-    for expr in args {
-        result = eval(Arc::clone(expr), env)?;
-    }
-
-    Ok(result)
+    eval_sequence(args, env)
 }
 
 /// Evaluate an and special form
