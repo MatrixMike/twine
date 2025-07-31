@@ -184,6 +184,87 @@ impl Error {
             position,
         }
     }
+
+    /// Create an error for when an identifier must be a symbol but isn't
+    pub fn identifier_must_be_symbol_error(form_name: &str, actual_type: &str) -> Self {
+        Self::ParseError(format!(
+            "{form_name}: identifier must be a symbol, got {actual_type}"
+        ))
+    }
+
+    /// Create an error for when a binding must be a list but isn't
+    pub fn binding_must_be_list_error(form_name: &str, actual_type: &str) -> Self {
+        Self::ParseError(format!(
+            "{form_name}: binding must be a list, got {actual_type}"
+        ))
+    }
+
+    /// Create an error for when a binding list must be a list but isn't
+    pub fn binding_list_must_be_list_error(form_name: &str, actual_type: &str) -> Self {
+        Self::ParseError(format!(
+            "{form_name}: binding list must be a list, got {actual_type}"
+        ))
+    }
+
+    /// Create an error for when a parameter list must be a list but isn't
+    pub fn parameter_list_must_be_list_error(form_name: &str, actual_type: &str) -> Self {
+        Self::ParseError(format!(
+            "{form_name}: parameter list must be a list, got {actual_type}"
+        ))
+    }
+
+    /// Create an error for when a procedure name must be a symbol but isn't
+    pub fn procedure_name_must_be_symbol_error(form_name: &str, actual_type: &str) -> Self {
+        Self::RuntimeError(format!(
+            "{form_name}: procedure name must be a symbol, got {actual_type}"
+        ))
+    }
+
+    /// Create an error for when first argument must be a list of bindings but isn't
+    pub fn first_argument_must_be_list_of_bindings_error(
+        form_name: &str,
+        actual_type: &str,
+    ) -> Self {
+        Self::RuntimeError(format!(
+            "{form_name}: first argument must be a list of bindings, got {actual_type}"
+        ))
+    }
+
+    /// Create an error for when each binding must be a list but isn't
+    pub fn each_binding_must_be_list_error(form_name: &str) -> Self {
+        Self::RuntimeError(format!("{form_name}: each binding must be a list"))
+    }
+
+    /// Create an error for when a parameter must be a symbol but isn't
+    pub fn parameter_must_be_symbol_error(form_name: &str, actual_type: &str) -> Self {
+        Self::ParseError(format!(
+            "{form_name}: parameter must be a symbol, got {actual_type}"
+        ))
+    }
+
+    /// Create an error for when a duplicate parameter is found
+    pub fn duplicate_parameter_error(form_name: &str, param_name: &str) -> Self {
+        Self::ParseError(format!("{form_name}: duplicate parameter '{param_name}'"))
+    }
+
+    /// Create an error for when a binding has wrong number of elements
+    pub fn binding_wrong_arity_error(form_name: &str, expected: usize, actual: usize) -> Self {
+        Self::ParseError(format!(
+            "{form_name}: binding must have exactly {expected} elements (identifier and expression), got {actual}"
+        ))
+    }
+
+    /// Create an error for when a duplicate identifier is found in bindings
+    pub fn duplicate_identifier_error(form_name: &str, identifier: &str) -> Self {
+        Self::ParseError(format!("{form_name}: duplicate identifier '{identifier}'"))
+    }
+
+    /// Create an error for when each binding must have exactly 2 elements
+    pub fn binding_elements_wrong_arity_error(form_name: &str) -> Self {
+        Self::RuntimeError(format!(
+            "{form_name}: each binding must be a list of exactly 2 elements (identifier expression)"
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -358,6 +439,138 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "cons: expected list for argument 2, got string"
+        );
+    }
+
+    #[test]
+    fn test_identifier_must_be_symbol_error() {
+        let error = Error::identifier_must_be_symbol_error("let", "number");
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: let: identifier must be a symbol, got number"
+        );
+    }
+
+    #[test]
+    fn test_binding_must_be_list_error() {
+        let error = Error::binding_must_be_list_error("letrec", "symbol");
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: letrec: binding must be a list, got symbol"
+        );
+    }
+
+    #[test]
+    fn test_binding_list_must_be_list_error() {
+        let error = Error::binding_list_must_be_list_error("let*", "string");
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: let*: binding list must be a list, got string"
+        );
+    }
+
+    #[test]
+    fn test_parameter_list_must_be_list_error() {
+        let error = Error::parameter_list_must_be_list_error("lambda", "number");
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: lambda: parameter list must be a list, got number"
+        );
+    }
+
+    #[test]
+    fn test_procedure_name_must_be_symbol_error() {
+        let error = Error::procedure_name_must_be_symbol_error("define", "number");
+
+        assert!(matches!(error, Error::RuntimeError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Runtime error: define: procedure name must be a symbol, got number"
+        );
+    }
+
+    #[test]
+    fn test_first_argument_must_be_list_of_bindings_error() {
+        let error = Error::first_argument_must_be_list_of_bindings_error("let", "number");
+
+        assert!(matches!(error, Error::RuntimeError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Runtime error: let: first argument must be a list of bindings, got number"
+        );
+    }
+
+    #[test]
+    fn test_each_binding_must_be_list_error() {
+        let error = Error::each_binding_must_be_list_error("let");
+
+        assert!(matches!(error, Error::RuntimeError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Runtime error: let: each binding must be a list"
+        );
+    }
+
+    #[test]
+    fn test_parameter_must_be_symbol_error() {
+        let error = Error::parameter_must_be_symbol_error("lambda", "number");
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: lambda: parameter must be a symbol, got number"
+        );
+    }
+
+    #[test]
+    fn test_duplicate_parameter_error() {
+        let error = Error::duplicate_parameter_error("lambda", "x");
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: lambda: duplicate parameter 'x'"
+        );
+    }
+
+    #[test]
+    fn test_binding_wrong_arity_error() {
+        let error = Error::binding_wrong_arity_error("letrec", 2, 3);
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: letrec: binding must have exactly 2 elements (identifier and expression), got 3"
+        );
+    }
+
+    #[test]
+    fn test_duplicate_identifier_error() {
+        let error = Error::duplicate_identifier_error("letrec", "x");
+
+        assert!(matches!(error, Error::ParseError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Parse error: letrec: duplicate identifier 'x'"
+        );
+    }
+
+    #[test]
+    fn test_binding_elements_wrong_arity_error() {
+        let error = Error::binding_elements_wrong_arity_error("let");
+
+        assert!(matches!(error, Error::RuntimeError(_)));
+        assert_eq!(
+            error.to_string(),
+            "Runtime error: let: each binding must be a list of exactly 2 elements (identifier expression)"
         );
     }
 }

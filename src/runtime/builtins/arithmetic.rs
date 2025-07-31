@@ -17,17 +17,21 @@ pub fn add(args: &[Value]) -> Result<Value> {
         return Ok(Value::number(0.0));
     }
 
+    // Check all arguments are numbers first
+    for (i, arg) in args.iter().enumerate() {
+        if !arg.is_number() {
+            return Err(Error::type_error(
+                "+",
+                "number",
+                arg.type_name(),
+                Some(i + 1),
+            ));
+        }
+    }
+
     let mut sum = 0.0;
     for arg in args {
-        match arg {
-            Value::Number(n) => sum += n.value(),
-            _ => {
-                return Err(Error::runtime_error(&format!(
-                    "'+' requires numeric arguments, got {}",
-                    arg.type_name()
-                )));
-            }
-        }
+        sum += arg.as_number().unwrap();
     }
     Ok(Value::number(sum))
 }
@@ -78,17 +82,21 @@ pub fn multiply(args: &[Value]) -> Result<Value> {
         return Ok(Value::number(1.0));
     }
 
+    // Check all arguments are numbers first
+    for (i, arg) in args.iter().enumerate() {
+        if !arg.is_number() {
+            return Err(Error::type_error(
+                "*",
+                "number",
+                arg.type_name(),
+                Some(i + 1),
+            ));
+        }
+    }
+
     let mut product = 1.0;
     for arg in args {
-        match arg {
-            Value::Number(n) => product *= n.value(),
-            _ => {
-                return Err(Error::runtime_error(&format!(
-                    "'*' requires numeric arguments, got {}",
-                    arg.type_name()
-                )));
-            }
-        }
+        product *= arg.as_number().unwrap();
     }
     Ok(Value::number(product))
 }

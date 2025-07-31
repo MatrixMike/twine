@@ -120,16 +120,17 @@ fn eval_define_procedure(
     // Extract procedure name
     let identifier = match param_elements[0].as_ref() {
         Expression::Atom(Value::Symbol(name)) => name.clone(),
-        _ => {
-            return Err(Error::runtime_error(
-                "define: procedure name must be a symbol",
+        other => {
+            return Err(Error::procedure_name_must_be_symbol_error(
+                "define",
+                other.type_name(),
             ));
         }
     };
 
     // Extract and validate parameters
-    let params = parse_parameters(&param_elements[1..])?;
-    validate_parameters(&params)?;
+    let params = parse_parameters(&param_elements[1..], "define")?;
+    validate_parameters(&params, "define")?;
 
     // Validate procedure body
     if args.is_empty() {
@@ -230,15 +231,10 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
     // Parse binding list
     let binding_elements = match bindings_expr.as_ref() {
         Expression::List(elements) => elements,
-        Expression::Atom(atom) => {
-            return Err(Error::parse_error(&format!(
-                "letrec: binding list must be a list, got {}",
-                atom.type_name()
-            )));
-        }
-        Expression::Quote(_) => {
-            return Err(Error::parse_error(
-                "letrec: binding list must be a list, got quote",
+        other => {
+            return Err(Error::binding_list_must_be_list_error(
+                "letrec",
+                other.type_name(),
             ));
         }
     };
@@ -250,43 +246,29 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
     for binding_expr in binding_elements {
         let binding_elements = match binding_expr.as_ref() {
             Expression::List(elements) => elements,
-            Expression::Atom(atom) => {
-                return Err(Error::parse_error(&format!(
-                    "letrec: binding must be a list, got {}",
-                    atom.type_name()
-                )));
-            }
-            Expression::Quote(_) => {
-                return Err(Error::parse_error(
-                    "letrec: binding must be a list, got quote",
+            other => {
+                return Err(Error::binding_must_be_list_error(
+                    "letrec",
+                    other.type_name(),
                 ));
             }
         };
 
         if binding_elements.len() != 2 {
-            return Err(Error::parse_error(&format!(
-                "letrec: binding must have exactly 2 elements (identifier and expression), got {}",
-                binding_elements.len()
-            )));
+            return Err(Error::binding_wrong_arity_error(
+                "letrec",
+                2,
+                binding_elements.len(),
+            ));
         }
 
         // Extract identifier
         let identifier = match binding_elements[0].as_ref() {
             Expression::Atom(Value::Symbol(id)) => id.clone(),
-            Expression::Atom(other) => {
-                return Err(Error::parse_error(&format!(
-                    "letrec: identifier must be a symbol, got {}",
-                    other.type_name()
-                )));
-            }
-            Expression::List(_) => {
-                return Err(Error::parse_error(
-                    "letrec: identifier must be a symbol, got list",
-                ));
-            }
-            Expression::Quote(_) => {
-                return Err(Error::parse_error(
-                    "letrec: identifier must be a symbol, got quote",
+            other => {
+                return Err(Error::identifier_must_be_symbol_error(
+                    "letrec",
+                    other.type_name(),
                 ));
             }
         };
@@ -296,9 +278,10 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
 
         // Check for duplicate identifiers
         if identifiers.contains(&identifier) {
-            return Err(Error::parse_error(&format!(
-                "letrec: duplicate identifier '{identifier}'"
-            )));
+            return Err(Error::duplicate_identifier_error(
+                "letrec",
+                identifier.as_str(),
+            ));
         }
 
         identifiers.push(identifier);
@@ -370,10 +353,11 @@ fn parse_bindings(
 ) -> Result<(Vec<Symbol>, Vec<Arc<Expression>>)> {
     let binding_pairs = match bindings_expr {
         Expression::List(pairs) => pairs,
-        _ => {
-            return Err(Error::runtime_error(&format!(
-                "{form_name}: first argument must be a list of bindings"
-            )));
+        other => {
+            return Err(Error::first_argument_must_be_list_of_bindings_error(
+                form_name,
+                other.type_name(),
+            ));
         }
     };
 
@@ -384,18 +368,23 @@ fn parse_bindings(
         match pair.as_ref() {
             Expression::List(elements) => {
                 if elements.len() != 2 {
-                    return Err(Error::runtime_error(&format!(
-                        "{form_name}: each binding must be a list of exactly 2 elements (identifier expression)"
-                    )));
+                    return Err(Error::binding_elements_wrong_arity_error(form_name));
                 }
 
                 // First element must be a symbol (identifier name)
                 let identifier = match elements[0].as_ref() {
                     Expression::Atom(Value::Symbol(sym)) => sym.clone(),
-                    _ => {
-                        return Err(Error::runtime_error(&format!(
-                            "{form_name}: binding identifier must be a symbol"
-                        )));
+                    Expression::Atom(atom) => {
+                        return Err(Error::identifier_must_be_symbol_error(
+                            form_name,
+                            atom.type_name(),
+                        ));
+                    }
+                    Expression::List(_) => {
+                        return Err(Error::identifier_must_be_symbol_error(form_name, "list"));
+                    }
+                    Expression::Quote(_) => {
+                        return Err(Error::identifier_must_be_symbol_error(form_name, "quote"));
                     }
                 };
 
@@ -406,9 +395,7 @@ fn parse_bindings(
                 expressions.push(expression);
             }
             _ => {
-                return Err(Error::runtime_error(&format!(
-                    "{form_name}: each binding must be a list"
-                )));
+                return Err(Error::each_binding_must_be_list_error(form_name));
             }
         }
     }
@@ -973,7 +960,7 @@ mod tests {
             result
                 .unwrap_err()
                 .to_string()
-                .contains("let: binding identifier must be a symbol")
+                .contains("let: identifier must be a symbol, got number")
         );
     }
 

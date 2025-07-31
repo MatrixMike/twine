@@ -46,16 +46,18 @@ pub fn equal(args: &[Value]) -> Result<Value> {
 /// Requires at least two arguments.
 pub fn less_than(args: &[Value]) -> Result<Value> {
     if args.len() < 2 {
-        return Err(Error::runtime_error("'<' requires at least two arguments"));
+        return Err(Error::arity_error("<", 2, args.len()));
     }
 
     // Check all arguments are numbers first
-    for arg in args {
+    for (i, arg) in args.iter().enumerate() {
         if !arg.is_number() {
-            return Err(Error::runtime_error(&format!(
-                "'<' requires numeric arguments, got {}",
-                arg.type_name()
-            )));
+            return Err(Error::type_error(
+                "<",
+                "number",
+                arg.type_name(),
+                Some(i + 1),
+            ));
         }
     }
 
@@ -76,16 +78,18 @@ pub fn less_than(args: &[Value]) -> Result<Value> {
 /// Requires at least two arguments.
 pub fn greater_than(args: &[Value]) -> Result<Value> {
     if args.len() < 2 {
-        return Err(Error::runtime_error("'>' requires at least two arguments"));
+        return Err(Error::arity_error(">", 2, args.len()));
     }
 
     // Check all arguments are numbers first
-    for arg in args {
+    for (i, arg) in args.iter().enumerate() {
         if !arg.is_number() {
-            return Err(Error::runtime_error(&format!(
-                "'>' requires numeric arguments, got {}",
-                arg.type_name()
-            )));
+            return Err(Error::type_error(
+                ">",
+                "number",
+                arg.type_name(),
+                Some(i + 1),
+            ));
         }
     }
 
@@ -106,16 +110,18 @@ pub fn greater_than(args: &[Value]) -> Result<Value> {
 /// Requires at least two arguments.
 pub fn less_than_or_equal(args: &[Value]) -> Result<Value> {
     if args.len() < 2 {
-        return Err(Error::runtime_error("'<=' requires at least two arguments"));
+        return Err(Error::arity_error("<=", 2, args.len()));
     }
 
     // Check all arguments are numbers first
-    for arg in args {
+    for (i, arg) in args.iter().enumerate() {
         if !arg.is_number() {
-            return Err(Error::runtime_error(&format!(
-                "'<=' requires numeric arguments, got {}",
-                arg.type_name()
-            )));
+            return Err(Error::type_error(
+                "<=",
+                "number",
+                arg.type_name(),
+                Some(i + 1),
+            ));
         }
     }
 
@@ -136,16 +142,18 @@ pub fn less_than_or_equal(args: &[Value]) -> Result<Value> {
 /// Requires at least two arguments.
 pub fn greater_than_or_equal(args: &[Value]) -> Result<Value> {
     if args.len() < 2 {
-        return Err(Error::runtime_error("'>=' requires at least two arguments"));
+        return Err(Error::arity_error(">=", 2, args.len()));
     }
 
     // Check all arguments are numbers first
-    for arg in args {
+    for (i, arg) in args.iter().enumerate() {
         if !arg.is_number() {
-            return Err(Error::runtime_error(&format!(
-                "'>=' requires numeric arguments, got {}",
-                arg.type_name()
-            )));
+            return Err(Error::type_error(
+                ">=",
+                "number",
+                arg.type_name(),
+                Some(i + 1),
+            ));
         }
     }
 

@@ -3,6 +3,9 @@
 //! This module implements the `lambda` special form for creating user-defined
 //! procedures with lexical closure support. Lambda expressions create procedures
 //! that capture their defining environment and can be called with arguments.
+//!
+//! The module provides comprehensive parameter validation with context-aware
+//! error messages that correctly identify the source special form (`lambda` vs `define`).
 
 use crate::error::{Error, Result};
 use crate::parser::Expression;
@@ -48,20 +51,15 @@ pub fn eval_lambda(args: &[Arc<Expression>], env: &Environment) -> Result<Value>
                 "lambda: parameters must be enclosed in parentheses",
             ));
         }
-        Expression::Atom(other) => {
-            return Err(Error::parse_error(&format!(
-                "lambda: parameter list must be a list, got {}",
-                other.type_name()
-            )));
-        }
-        Expression::Quote(_) => {
-            return Err(Error::parse_error(
-                "lambda: parameter list must be a list, got quote",
+        other => {
+            return Err(Error::parameter_list_must_be_list_error(
+                "lambda",
+                other.type_name(),
             ));
         }
     };
-    let params = parse_parameters(param_elements)?;
-    validate_parameters(&params)?;
+    let params = parse_parameters(param_elements, "lambda")?;
+    validate_parameters(&params, "lambda")?;
 
     // Collect all body expressions (everything after the parameter list)
     let body_exprs = args[1..].iter().map(Arc::clone).collect();
@@ -91,20 +89,24 @@ pub fn create_lambda_procedure(
     Value::Procedure(lambda_proc)
 }
 
-/// Parse parameters from a slice of expressions
+/// Parse parameter list from expressions
 ///
 /// Takes a slice of parameter expressions and extracts individual parameter symbols.
 /// Validates that all parameters are symbols and returns them as a vector.
 ///
 /// # Arguments
 /// * `param_elements` - Slice of expressions representing the parameters
+/// * `form_name` - Name of the special form (for error messages)
 ///
 /// # Returns
 /// Vector of parameter symbols if valid, Error if malformed
 ///
 /// # Errors
-/// Returns error if any parameter is not a symbol
-pub fn parse_parameters(param_elements: &[Arc<Expression>]) -> Result<Vec<Symbol>> {
+/// Returns error if any parameter is not a symbol, with context-specific error messages
+pub fn parse_parameters(
+    param_elements: &[Arc<Expression>],
+    form_name: &str,
+) -> Result<Vec<Symbol>> {
     let mut params = Vec::with_capacity(param_elements.len());
 
     for element in param_elements {
@@ -113,19 +115,15 @@ pub fn parse_parameters(param_elements: &[Arc<Expression>]) -> Result<Vec<Symbol
                 params.push(symbol.clone());
             }
             Expression::Atom(other) => {
-                return Err(Error::parse_error(&format!(
-                    "lambda: parameter must be a symbol, got {}",
-                    other.type_name()
-                )));
-            }
-            Expression::List(_) => {
-                return Err(Error::parse_error(
-                    "lambda: parameter must be a symbol, not list",
+                return Err(Error::parameter_must_be_symbol_error(
+                    form_name,
+                    other.type_name(),
                 ));
             }
-            Expression::Quote(_) => {
-                return Err(Error::parse_error(
-                    "lambda: parameter must be a symbol, not quoted expression",
+            other => {
+                return Err(Error::parameter_must_be_symbol_error(
+                    form_name,
+                    other.type_name(),
                 ));
             }
         }
@@ -140,19 +138,18 @@ pub fn parse_parameters(param_elements: &[Arc<Expression>]) -> Result<Vec<Symbol
 ///
 /// # Arguments
 /// * `params` - Vector of parameter symbols to validate
+/// * `form_name` - Name of the special form (for error messages)
 ///
 /// # Returns
 /// Ok(()) if all parameters are unique, Error if duplicates found
-pub fn validate_parameters(params: &[Symbol]) -> Result<()> {
+pub fn validate_parameters(params: &[Symbol], form_name: &str) -> Result<()> {
     use std::collections::HashSet;
 
     let mut seen = HashSet::new();
 
     for param in params {
         if !seen.insert(param) {
-            return Err(Error::parse_error(&format!(
-                "lambda: duplicate parameter '{param}'"
-            )));
+            return Err(Error::duplicate_parameter_error(form_name, param.as_str()));
         }
     }
 
@@ -396,12 +393,12 @@ mod tests {
 
         // Empty list
         let params = vec![];
-        let result = parse_parameters(&params).unwrap();
+        let result = parse_parameters(&params, "lambda").unwrap();
         assert_eq!(result.len(), 0);
 
         // Single parameter
         let params = vec![Expression::arc_atom(Value::symbol("x"))];
-        let result = parse_parameters(&params).unwrap();
+        let result = parse_parameters(&params, "lambda").unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], Symbol::new("x"));
 
@@ -410,14 +407,14 @@ mod tests {
             Expression::arc_atom(Value::symbol("x")),
             Expression::arc_atom(Value::symbol("y")),
         ];
-        let result = parse_parameters(&params).unwrap();
+        let result = parse_parameters(&params, "lambda").unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], Symbol::new("x"));
         assert_eq!(result[1], Symbol::new("y"));
 
         // Invalid parameter (number instead of symbol)
         let params = vec![Expression::arc_atom(Value::number(42.0))];
-        let result = parse_parameters(&params);
+        let result = parse_parameters(&params, "lambda");
         assert!(result.is_err());
         assert!(
             result
@@ -431,19 +428,19 @@ mod tests {
     fn test_validate_parameters() {
         // Valid parameters (unique)
         let params = vec![Symbol::new("x"), Symbol::new("y"), Symbol::new("z")];
-        assert!(validate_parameters(&params).is_ok());
+        assert!(validate_parameters(&params, "lambda").is_ok());
 
         // Empty parameters (valid)
         let params = vec![];
-        assert!(validate_parameters(&params).is_ok());
+        assert!(validate_parameters(&params, "lambda").is_ok());
 
         // Single parameter (valid)
         let params = vec![Symbol::new("x")];
-        assert!(validate_parameters(&params).is_ok());
+        assert!(validate_parameters(&params, "lambda").is_ok());
 
         // Duplicate parameters (invalid)
         let params = vec![Symbol::new("x"), Symbol::new("y"), Symbol::new("x")];
-        let result = validate_parameters(&params);
+        let result = validate_parameters(&params, "lambda");
         assert!(result.is_err());
         assert!(
             result
