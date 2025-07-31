@@ -2,6 +2,13 @@
 //!
 //! This module provides common utilities used across multiple runtime components
 //! to reduce code duplication and maintain consistency.
+//!
+//! ## Organization
+//! Functions are organized in logical groups:
+//! 1. **Evaluation utilities** - Expression sequence evaluation
+//! 2. **Expression analysis** - Analyzing expression structure
+//! 3. **Parameter parsing** - Converting expressions to symbols
+//! 4. **Validation utilities** - Duplicate checking and validation
 
 use crate::error::{Error, Result};
 use crate::parser::Expression;
@@ -9,6 +16,10 @@ use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::{Symbol, Value};
 use std::collections::HashSet;
 use std::sync::Arc;
+
+// ============================================================================
+// EVALUATION UTILITIES
+// ============================================================================
 
 /// Evaluate a sequence of expressions and return the value of the last one
 ///
@@ -35,6 +46,75 @@ pub fn eval_sequence(exprs: &[Arc<Expression>], env: &mut Environment) -> Result
     }
     Ok(result)
 }
+
+// ============================================================================
+// EXPRESSION ANALYSIS
+// ============================================================================
+
+/// Check if an expression is a lambda expression
+///
+/// Determines whether the given expression is a lambda by checking if it's a list
+/// that starts with the `lambda` symbol. This is used by binding forms like `letrec`
+/// to identify lambda expressions for special handling.
+///
+/// # Arguments
+/// * `expr` - Expression to check
+///
+/// # Returns
+/// `true` if the expression is a lambda expression, `false` otherwise
+pub fn is_lambda_expression(expr: &Expression) -> bool {
+    matches!(
+        expr,
+        Expression::List(elements) if !elements.is_empty() && matches!(
+            elements[0].as_ref(),
+            Expression::Atom(Value::Symbol(sym)) if sym.as_str() == "lambda"
+        )
+    )
+}
+
+// ============================================================================
+// PARAMETER PARSING
+// ============================================================================
+
+/// Parse parameter list from expressions
+///
+/// Takes a slice of parameter expressions and extracts individual parameter symbols.
+/// Validates that all parameters are symbols and returns them as a vector.
+///
+/// # Arguments
+/// * `param_elements` - Slice of expressions representing the parameters
+/// * `form_name` - Name of the special form (for error messages)
+///
+/// # Returns
+/// Vector of parameter symbols if valid, Error if malformed
+///
+/// # Errors
+/// Returns error if any parameter is not a symbol, with context-specific error messages
+pub fn parse_parameters(
+    param_elements: &[Arc<Expression>],
+    form_name: &str,
+) -> Result<Vec<Symbol>> {
+    let mut params = Vec::with_capacity(param_elements.len());
+
+    for element in param_elements {
+        match element.as_ref() {
+            Expression::Atom(Value::Symbol(symbol)) => {
+                params.push(symbol.clone());
+            }
+            other => {
+                return Err(Error::parameter_must_be_symbol_error(
+                    form_name,
+                    other.type_name(),
+                ));
+            }
+        }
+    }
+    Ok(params)
+}
+
+// ============================================================================
+// VALIDATION UTILITIES
+// ============================================================================
 
 /// Check for duplicate identifiers in a collection of symbols
 ///
@@ -105,42 +185,6 @@ pub fn validate_unique_binding_identifiers(identifiers: &[Symbol], form_name: &s
         form_name,
         crate::Error::duplicate_identifier_error,
     )
-}
-
-/// Parse parameter list from expressions
-///
-/// Takes a slice of parameter expressions and extracts individual parameter symbols.
-/// Validates that all parameters are symbols and returns them as a vector.
-///
-/// # Arguments
-/// * `param_elements` - Slice of expressions representing the parameters
-/// * `form_name` - Name of the special form (for error messages)
-///
-/// # Returns
-/// Vector of parameter symbols if valid, Error if malformed
-///
-/// # Errors
-/// Returns error if any parameter is not a symbol, with context-specific error messages
-pub fn parse_parameters(
-    param_elements: &[Arc<Expression>],
-    form_name: &str,
-) -> Result<Vec<Symbol>> {
-    let mut params = Vec::with_capacity(param_elements.len());
-
-    for element in param_elements {
-        match element.as_ref() {
-            Expression::Atom(Value::Symbol(symbol)) => {
-                params.push(symbol.clone());
-            }
-            other => {
-                return Err(Error::parameter_must_be_symbol_error(
-                    form_name,
-                    other.type_name(),
-                ));
-            }
-        }
-    }
-    Ok(params)
 }
 
 #[cfg(test)]
@@ -251,5 +295,46 @@ mod tests {
                 .to_string()
                 .contains("parameter must be a symbol")
         );
+    }
+
+    #[test]
+    fn test_is_lambda_expression_true() {
+        let lambda_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("lambda")),
+            Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]),
+            Expression::arc_atom(Value::number(42.0)),
+        ]);
+        assert!(is_lambda_expression(&lambda_expr));
+    }
+
+    #[test]
+    fn test_is_lambda_expression_false_not_list() {
+        let atom_expr = Expression::arc_atom(Value::symbol("lambda"));
+        assert!(!is_lambda_expression(&atom_expr));
+    }
+
+    #[test]
+    fn test_is_lambda_expression_false_empty_list() {
+        let empty_list = Expression::arc_list(vec![]);
+        assert!(!is_lambda_expression(&empty_list));
+    }
+
+    #[test]
+    fn test_is_lambda_expression_false_different_symbol() {
+        let if_expr = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("if")),
+            Expression::arc_atom(Value::boolean(true)),
+            Expression::arc_atom(Value::number(1.0)),
+        ]);
+        assert!(!is_lambda_expression(&if_expr));
+    }
+
+    #[test]
+    fn test_is_lambda_expression_false_not_symbol() {
+        let number_first = Expression::arc_list(vec![
+            Expression::arc_atom(Value::number(42.0)),
+            Expression::arc_atom(Value::symbol("x")),
+        ]);
+        assert!(!is_lambda_expression(&number_first));
     }
 }

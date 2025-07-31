@@ -1,18 +1,28 @@
 //! Binding and definition special forms
 //!
 //! This module implements binding special forms like `define` and `let`.
+//!
+//! ## Organization
+//! Functions are organized in logical groups:
+//! 1. **Main special forms** - Public evaluation functions for each form
+//! 2. **Helper functions** - Internal utilities for processing bindings
+//! 3. **Tests** - Comprehensive test coverage
 
 use crate::Error;
 use crate::error::Result;
 use crate::parser::Expression;
 use crate::runtime::special_forms::lambda::create_lambda_procedure;
 use crate::runtime::utils::{
-    eval_sequence, parse_parameters, validate_unique_binding_identifiers,
+    eval_sequence, is_lambda_expression, parse_parameters, validate_unique_binding_identifiers,
     validate_unique_parameters,
 };
 use crate::runtime::{environment::Environment, eval::eval};
 use crate::types::{Procedure, Symbol, Value};
 use std::sync::Arc;
+
+// ============================================================================
+// MAIN SPECIAL FORMS
+// ============================================================================
 
 /// Evaluate a define special form
 ///
@@ -46,109 +56,6 @@ pub fn eval_define(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
             "define: first argument must be a symbol or parameter list",
         )),
     }
-}
-
-/// Handle variable binding: (define identifier expression)
-/// Checks if an expression is a lambda expression
-fn is_lambda_expression(expr: &Expression) -> bool {
-    matches!(
-        expr,
-        Expression::List(elements) if !elements.is_empty() && matches!(
-            elements[0].as_ref(),
-            Expression::Atom(Value::Symbol(sym)) if sym.as_str() == "lambda"
-        )
-    )
-}
-
-/// Handles recursive binding for lambda expressions using WeakLambda approach
-fn eval_recursive_binding(
-    identifier: &Symbol,
-    value_expr: Arc<Expression>,
-    env: &mut Environment,
-) -> Result<Value> {
-    if is_lambda_expression(&value_expr) {
-        // For lambda expressions, use WeakLambda approach for potential recursion
-        // 1. Create WeakLambda placeholder
-        let weak_lambda = Procedure::weak_lambda();
-
-        // 2. Create environment with the WeakLambda placeholder for recursive reference
-        let mut recursive_env = env.flatten();
-        recursive_env.define(identifier.clone(), Value::Procedure(weak_lambda.clone()));
-
-        // 3. Evaluate the lambda in the environment with WeakLambda
-        let lambda_value = eval(value_expr, &mut recursive_env)?;
-
-        // 4. Initialize WeakLambda with actual lambda
-        if let Value::Procedure(Procedure::Lambda(actual_lambda)) = &lambda_value {
-            weak_lambda
-                .set_weak_lambda(actual_lambda)
-                .map_err(|_| Error::runtime_error("Failed to initialize WeakLambda"))?;
-        }
-
-        // 5. Add the final lambda to the environment
-        env.define(identifier.clone(), lambda_value);
-    } else {
-        // For non-lambda expressions, use standard evaluation
-        let value = eval(value_expr, env)?;
-        env.define(identifier.clone(), value);
-    }
-
-    Ok(Value::Nil)
-}
-
-fn eval_define_binding(
-    identifier: &Symbol,
-    value_exprs: &[Arc<Expression>],
-    env: &mut Environment,
-) -> Result<Value> {
-    if value_exprs.len() != 1 {
-        return Err(Error::arity_error("define", 2, value_exprs.len() + 1));
-    }
-
-    let value_expr = Arc::clone(&value_exprs[0]);
-    eval_recursive_binding(identifier, value_expr, env)
-}
-
-/// Handle procedure definition: (define (name param...) body...)
-fn eval_define_procedure(
-    param_elements: &[Arc<Expression>],
-    args: &[Arc<Expression>],
-    env: &mut Environment,
-) -> Result<Value> {
-    if param_elements.is_empty() {
-        return Err(Error::runtime_error(
-            "define: procedure definition requires non-empty parameter list",
-        ));
-    }
-
-    // Extract procedure name
-    let identifier = match param_elements[0].as_ref() {
-        Expression::Atom(Value::Symbol(name)) => name.clone(),
-        other => {
-            return Err(Error::procedure_name_must_be_symbol_error(
-                "define",
-                other.type_name(),
-            ));
-        }
-    };
-
-    // Extract and validate parameters
-    let params = parse_parameters(&param_elements[1..], "define")?;
-    validate_unique_parameters(&params, "define")?;
-
-    // Validate procedure body
-    if args.is_empty() {
-        return Err(Error::runtime_error(
-            "define: procedure definition requires at least one body expression",
-        ));
-    }
-
-    // Create lambda procedure directly using shared logic
-    let body_exprs = args.iter().map(Arc::clone).collect();
-    let lambda_value = create_lambda_procedure(params, body_exprs, env);
-
-    // Use the shared recursive binding logic
-    eval_recursive_binding(&identifier, Arc::new(Expression::Atom(lambda_value)), env)
 }
 
 /// Evaluate a let special form
@@ -336,63 +243,6 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
     eval_sequence(body_exprs, &mut letrec_env)
 }
 
-/// Helper function to parse binding list into identifiers and expressions
-fn parse_bindings(
-    bindings_expr: &Expression,
-    form_name: &str,
-) -> Result<(Vec<Symbol>, Vec<Arc<Expression>>)> {
-    let binding_pairs = match bindings_expr {
-        Expression::List(pairs) => pairs,
-        other => {
-            return Err(Error::first_argument_must_be_list_of_bindings_error(
-                form_name,
-                other.type_name(),
-            ));
-        }
-    };
-
-    let mut identifiers = Vec::with_capacity(binding_pairs.len());
-    let mut expressions = Vec::with_capacity(binding_pairs.len());
-
-    for pair in binding_pairs {
-        match pair.as_ref() {
-            Expression::List(elements) => {
-                if elements.len() != 2 {
-                    return Err(Error::binding_elements_wrong_arity_error(form_name));
-                }
-
-                // First element must be a symbol (identifier name)
-                let identifier = match elements[0].as_ref() {
-                    Expression::Atom(Value::Symbol(sym)) => sym.clone(),
-                    Expression::Atom(atom) => {
-                        return Err(Error::identifier_must_be_symbol_error(
-                            form_name,
-                            atom.type_name(),
-                        ));
-                    }
-                    other => {
-                        return Err(Error::identifier_must_be_symbol_error(
-                            form_name,
-                            other.type_name(),
-                        ));
-                    }
-                };
-
-                // Second element is the expression to evaluate
-                let expression = Arc::clone(&elements[1]);
-
-                identifiers.push(identifier);
-                expressions.push(expression);
-            }
-            _ => {
-                return Err(Error::each_binding_must_be_list_error(form_name));
-            }
-        }
-    }
-
-    Ok((identifiers, expressions))
-}
-
 /// Evaluate a let* special form
 ///
 /// Syntax: (let* ((id1 expr1) (id2 expr2) ...) body1 body2 ...)
@@ -469,6 +319,161 @@ pub fn eval_letrec_star(args: &[Arc<Expression>], env: &mut Environment) -> Resu
     // Evaluate body expressions sequentially in new environment
     eval_sequence(body_exprs, &mut letrecstar_env)
 }
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/// Handles recursive binding for lambda expressions using WeakLambda approach
+fn eval_recursive_binding(
+    identifier: &Symbol,
+    value_expr: Arc<Expression>,
+    env: &mut Environment,
+) -> Result<Value> {
+    if is_lambda_expression(&value_expr) {
+        // For lambda expressions, use WeakLambda approach for potential recursion
+        // 1. Create WeakLambda placeholder
+        let weak_lambda = Procedure::weak_lambda();
+
+        // 2. Create environment with the WeakLambda placeholder for recursive reference
+        let mut recursive_env = env.flatten();
+        recursive_env.define(identifier.clone(), Value::Procedure(weak_lambda.clone()));
+
+        // 3. Evaluate the lambda in the environment with WeakLambda
+        let lambda_value = eval(value_expr, &mut recursive_env)?;
+
+        // 4. Initialize WeakLambda with actual lambda
+        if let Value::Procedure(Procedure::Lambda(actual_lambda)) = &lambda_value {
+            weak_lambda
+                .set_weak_lambda(actual_lambda)
+                .map_err(|_| Error::runtime_error("Failed to initialize WeakLambda"))?;
+        }
+
+        // 5. Add the final lambda to the environment
+        env.define(identifier.clone(), lambda_value);
+    } else {
+        // For non-lambda expressions, use standard evaluation
+        let value = eval(value_expr, env)?;
+        env.define(identifier.clone(), value);
+    }
+
+    Ok(Value::Nil)
+}
+
+fn eval_define_binding(
+    identifier: &Symbol,
+    value_exprs: &[Arc<Expression>],
+    env: &mut Environment,
+) -> Result<Value> {
+    if value_exprs.len() != 1 {
+        return Err(Error::arity_error("define", 2, value_exprs.len() + 1));
+    }
+
+    let value_expr = Arc::clone(&value_exprs[0]);
+    eval_recursive_binding(identifier, value_expr, env)
+}
+
+fn eval_define_procedure(
+    param_elements: &[Arc<Expression>],
+    args: &[Arc<Expression>],
+    env: &mut Environment,
+) -> Result<Value> {
+    if param_elements.is_empty() {
+        return Err(Error::runtime_error(
+            "define: procedure definition requires non-empty parameter list",
+        ));
+    }
+
+    // Extract procedure name
+    let identifier = match param_elements[0].as_ref() {
+        Expression::Atom(Value::Symbol(name)) => name.clone(),
+        other => {
+            return Err(Error::procedure_name_must_be_symbol_error(
+                "define",
+                other.type_name(),
+            ));
+        }
+    };
+
+    // Extract and validate parameters
+    let params = parse_parameters(&param_elements[1..], "define")?;
+    validate_unique_parameters(&params, "define")?;
+
+    // Validate procedure body
+    if args.is_empty() {
+        return Err(Error::runtime_error(
+            "define: procedure definition requires at least one body expression",
+        ));
+    }
+
+    // Create lambda procedure directly using shared logic
+    let body_exprs = args.iter().map(Arc::clone).collect();
+    let lambda_value = create_lambda_procedure(params, body_exprs, env);
+
+    // Use the shared recursive binding logic
+    eval_recursive_binding(&identifier, Arc::new(Expression::Atom(lambda_value)), env)
+}
+
+/// Helper function to parse binding list into identifiers and expressions
+fn parse_bindings(
+    bindings_expr: &Expression,
+    form_name: &str,
+) -> Result<(Vec<Symbol>, Vec<Arc<Expression>>)> {
+    let binding_pairs = match bindings_expr {
+        Expression::List(pairs) => pairs,
+        other => {
+            return Err(Error::first_argument_must_be_list_of_bindings_error(
+                form_name,
+                other.type_name(),
+            ));
+        }
+    };
+
+    let mut identifiers = Vec::with_capacity(binding_pairs.len());
+    let mut expressions = Vec::with_capacity(binding_pairs.len());
+
+    for pair in binding_pairs {
+        match pair.as_ref() {
+            Expression::List(elements) => {
+                if elements.len() != 2 {
+                    return Err(Error::binding_elements_wrong_arity_error(form_name));
+                }
+
+                // First element must be a symbol (identifier name)
+                let identifier = match elements[0].as_ref() {
+                    Expression::Atom(Value::Symbol(sym)) => sym.clone(),
+                    Expression::Atom(atom) => {
+                        return Err(Error::identifier_must_be_symbol_error(
+                            form_name,
+                            atom.type_name(),
+                        ));
+                    }
+                    other => {
+                        return Err(Error::identifier_must_be_symbol_error(
+                            form_name,
+                            other.type_name(),
+                        ));
+                    }
+                };
+
+                // Second element is the expression to evaluate
+                let expression = Arc::clone(&elements[1]);
+
+                identifiers.push(identifier);
+                expressions.push(expression);
+            }
+            _ => {
+                return Err(Error::each_binding_must_be_list_error(form_name));
+            }
+        }
+    }
+
+    Ok((identifiers, expressions))
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
 
 #[cfg(test)]
 mod tests {
