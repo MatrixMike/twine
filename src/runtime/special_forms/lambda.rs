@@ -114,12 +114,6 @@ pub fn parse_parameters(
             Expression::Atom(Value::Symbol(symbol)) => {
                 params.push(symbol.clone());
             }
-            Expression::Atom(other) => {
-                return Err(Error::parameter_must_be_symbol_error(
-                    form_name,
-                    other.type_name(),
-                ));
-            }
             other => {
                 return Err(Error::parameter_must_be_symbol_error(
                     form_name,

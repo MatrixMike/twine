@@ -380,11 +380,11 @@ fn parse_bindings(
                             atom.type_name(),
                         ));
                     }
-                    Expression::List(_) => {
-                        return Err(Error::identifier_must_be_symbol_error(form_name, "list"));
-                    }
-                    Expression::Quote(_) => {
-                        return Err(Error::identifier_must_be_symbol_error(form_name, "quote"));
+                    other => {
+                        return Err(Error::identifier_must_be_symbol_error(
+                            form_name,
+                            other.type_name(),
+                        ));
                     }
                 };
 
