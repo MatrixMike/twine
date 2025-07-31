@@ -9,6 +9,7 @@ keywords = ["scheme", "interpreter", "async", "educational", "smol"]
 categories = ["development-tools", "parser-implementations"]
 readme = "README.md"
 authors = ["dtcristo"]
+default-run = "twine-scheme"
 
 [dependencies]
 smol_str = "0.3"

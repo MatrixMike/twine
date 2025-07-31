@@ -46,15 +46,15 @@ For detailed project information, see:
 - **Function System**: Lambda procedures with lexical closures and tail call optimization
 - **Built-in Procedures**: Arithmetic operations, comparisons, list operations, and I/O (`display`, `newline`)
 - **Special Forms**: `define`, `lambda`, `let`, `if`, and `quote`
+- **Interactive REPL**: Read-eval-print loop with clear prompts and error handling
 - **Error Handling**: Comprehensive syntax error reporting with precise position information
 - **Test Coverage**: 313+ tests covering all implemented features with verified I/O output
 
 ### 🚧 In Progress
-- Interactive REPL implementation
 - File execution capabilities
 
 ### 📋 Planned
-- Interactive REPL and file execution
+- File execution capabilities
 - Fiber scheduler with automatic I/O yielding
 - Two-layer concurrency: low-level fibers and high-level async tasks
 - R7RS-small macro system
@@ -62,6 +62,25 @@ For detailed project information, see:
 - Built-in arithmetic, list operations, and conditionals
 
 ## Quick Start
+
+### Interactive REPL
+
+```bash
+cargo run
+```
+
+```scheme
+twine> (+ 1 2)
+3
+twine> (define square (lambda (x) (* x x)))
+twine> (square 5)
+25
+twine> (display "Hello, World!")
+Hello, World!
+twine> 
+```
+
+### Example Programs
 
 ```scheme
 ;; Basic arithmetic and functions
