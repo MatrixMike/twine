@@ -28,7 +28,9 @@ pub enum SpecialForm {
     // Binding and definition forms
     Define,
     Let,
+    LetStar,
     Letrec,
+    LetrecStar,
 
     // Function creation
     Lambda,
@@ -47,7 +49,9 @@ impl SpecialForm {
             SpecialForm::Or => "or",
             SpecialForm::Define => "define",
             SpecialForm::Let => "let",
+            SpecialForm::LetStar => "let*",
             SpecialForm::Letrec => "letrec",
+            SpecialForm::LetrecStar => "letrec*",
             SpecialForm::Lambda => "lambda",
             SpecialForm::Async => "async",
         }
@@ -63,7 +67,9 @@ impl SpecialForm {
             SpecialForm::Define => binding::eval_define(args, env),
             SpecialForm::Lambda => lambda::eval_lambda(args, env),
             SpecialForm::Let => binding::eval_let(args, env),
+            SpecialForm::LetStar => binding::eval_let_star(args, env),
             SpecialForm::Letrec => binding::eval_letrec(args, env),
+            SpecialForm::LetrecStar => binding::eval_letrec_star(args, env),
             SpecialForm::Async => concurrency::eval_async(args, env),
         }
     }
@@ -77,7 +83,9 @@ impl SpecialForm {
             "or" => Some(SpecialForm::Or),
             "define" => Some(SpecialForm::Define),
             "let" => Some(SpecialForm::Let),
+            "let*" => Some(SpecialForm::LetStar),
             "letrec" => Some(SpecialForm::Letrec),
+            "letrec*" => Some(SpecialForm::LetrecStar),
             "lambda" => Some(SpecialForm::Lambda),
             "async" => Some(SpecialForm::Async),
             _ => None,
@@ -245,6 +253,9 @@ mod tests {
         assert_eq!(SpecialForm::Or.name(), "or");
         assert_eq!(SpecialForm::Define.name(), "define");
         assert_eq!(SpecialForm::Let.name(), "let");
+        assert_eq!(SpecialForm::LetStar.name(), "let*");
+        assert_eq!(SpecialForm::Letrec.name(), "letrec");
+        assert_eq!(SpecialForm::LetrecStar.name(), "letrec*");
         assert_eq!(SpecialForm::Lambda.name(), "lambda");
         assert_eq!(SpecialForm::Async.name(), "async");
     }
@@ -257,6 +268,12 @@ mod tests {
         assert_eq!(SpecialForm::from_name("or"), Some(SpecialForm::Or));
         assert_eq!(SpecialForm::from_name("define"), Some(SpecialForm::Define));
         assert_eq!(SpecialForm::from_name("let"), Some(SpecialForm::Let));
+        assert_eq!(SpecialForm::from_name("let*"), Some(SpecialForm::LetStar));
+        assert_eq!(SpecialForm::from_name("letrec"), Some(SpecialForm::Letrec));
+        assert_eq!(
+            SpecialForm::from_name("letrec*"),
+            Some(SpecialForm::LetrecStar)
+        );
         assert_eq!(SpecialForm::from_name("lambda"), Some(SpecialForm::Lambda));
         assert_eq!(SpecialForm::from_name("async"), Some(SpecialForm::Async));
 
@@ -461,5 +478,70 @@ mod tests {
         // Test that unknown special forms return None
         let result = SpecialForm::from_name("unknown-form");
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_let_star_special_form_direct() {
+        let mut env = Environment::new();
+
+        // Test let* special form: (let* ((x 5) (y x)) y)
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(5.0)),
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_atom(Value::symbol("x")),
+            ]),
+        ]);
+        let body = Expression::arc_atom(Value::symbol("y"));
+        let args = vec![bindings, body];
+
+        let result = SpecialForm::LetStar.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(5.0));
+    }
+
+    #[test]
+    fn test_letrec_star_special_form_direct() {
+        let mut env = Environment::new();
+
+        // Test letrec* special form with factorial
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("fact")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("lambda")),
+                Expression::arc_list(vec![Expression::arc_atom(Value::symbol("n"))]),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("if")),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("=")),
+                        Expression::arc_atom(Value::symbol("n")),
+                        Expression::arc_atom(Value::number(0.0)),
+                    ]),
+                    Expression::arc_atom(Value::number(1.0)),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("*")),
+                        Expression::arc_atom(Value::symbol("n")),
+                        Expression::arc_list(vec![
+                            Expression::arc_atom(Value::symbol("fact")),
+                            Expression::arc_list(vec![
+                                Expression::arc_atom(Value::symbol("-")),
+                                Expression::arc_atom(Value::symbol("n")),
+                                Expression::arc_atom(Value::number(1.0)),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ])]);
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("fact")),
+            Expression::arc_atom(Value::number(3.0)),
+        ]);
+        let args = vec![bindings, body];
+
+        let result = SpecialForm::LetrecStar.call(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(6.0)); // 3! = 6
     }
 }

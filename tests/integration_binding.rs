@@ -1260,3 +1260,159 @@ fn test_integration_recursive_define_compatibility() {
     let result = eval_source("(factorial 4)", &mut env).unwrap();
     assert_eq!(result, Value::number(24.0));
 }
+
+#[test]
+fn test_integration_let_star_basic() {
+    let mut env = Environment::new();
+
+    // Test basic let* functionality: (let* ((x 42)) x)
+    let result = eval_source("(let* ((x 42)) x)", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_let_star_sequential_binding() {
+    let mut env = Environment::new();
+
+    // Test sequential binding: (let* ((x 10) (y x)) y)
+    // y should see the binding of x from the same let* form
+    let result = eval_source("(let* ((x 10) (y x)) y)", &mut env).unwrap();
+    assert_eq!(result, Value::number(10.0));
+}
+
+#[test]
+fn test_integration_let_star_sequential_computation() {
+    let mut env = Environment::new();
+
+    // Test sequential computation: (let* ((x 5) (y (+ x 3)) (z (* y 2))) z)
+    let result = eval_source("(let* ((x 5) (y (+ x 3)) (z (* y 2))) z)", &mut env).unwrap();
+    assert_eq!(result, Value::number(16.0)); // ((5 + 3) * 2) = 16
+}
+
+#[test]
+fn test_integration_let_star_vs_let_difference() {
+    let mut env = Environment::new();
+
+    // Define x in outer scope
+    eval_source("(define x 100)", &mut env).unwrap();
+
+    // Test let* sequential binding
+    let result1 = eval_source("(let* ((x 1) (y x)) y)", &mut env).unwrap();
+    assert_eq!(result1, Value::number(1.0)); // y sees inner x
+
+    // Test let simultaneous binding
+    let result2 = eval_source("(let ((x 1) (y x)) y)", &mut env).unwrap();
+    assert_eq!(result2, Value::number(100.0)); // y sees outer x
+}
+
+#[test]
+fn test_integration_let_star_nested() {
+    let mut env = Environment::new();
+
+    // Test nested let* forms
+    let source = "(let* ((x 3) (y 4))
+                    (let* ((a x) (b (+ y a)))
+                      (+ a b)))";
+    let result = eval_source(source, &mut env).unwrap();
+    assert_eq!(result, Value::number(10.0)); // a=3, b=4+3=7, a+b=10
+}
+
+#[test]
+fn test_integration_let_star_with_procedures() {
+    let mut env = Environment::new();
+
+    // Test let* with procedure definitions and calls
+    let source = "(let* ((double (lambda (x) (* x 2)))
+                          (result (double 21)))
+                    result)";
+    let result = eval_source(source, &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_letrec_star_basic() {
+    let mut env = Environment::new();
+
+    // Test basic letrec* functionality
+    let result = eval_source("(letrec* ((x 42)) x)", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_letrec_star_sequential_recursive() {
+    let mut env = Environment::new();
+
+    // Test letrec* with self-recursive function
+    let source = "(letrec* ((factorial (lambda (n)
+                                       (if (= n 0)
+                                           1
+                                           (* n (factorial (- n 1)))))))
+                   (factorial 5))";
+    let result = eval_source(source, &mut env).unwrap();
+    assert_eq!(result, Value::number(120.0)); // 5! = 120
+}
+
+#[test]
+fn test_integration_letrec_star_sequential_binding() {
+    let mut env = Environment::new();
+
+    // Test letrec* sequential binding where later bindings can use earlier ones
+    let source = "(letrec* ((identity (lambda (x) x))
+                            (apply-identity (lambda (y) (identity y))))
+                   (apply-identity 42))";
+    let result = eval_source(source, &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_letrec_star_vs_letrec_difference() {
+    let mut env = Environment::new();
+
+    // This works in letrec* because bindings are sequential
+    let source1 = "(letrec* ((f (lambda (x) x))
+                             (g (lambda (y) (f y))))
+                    (g 42))";
+    let result1 = eval_source(source1, &mut env).unwrap();
+    assert_eq!(result1, Value::number(42.0));
+
+    // This also works in regular letrec because it handles mutual recursion
+    let source2 = "(letrec ((f (lambda (x) x))
+                            (g (lambda (y) (f y))))
+                   (g 42))";
+    let result2 = eval_source(source2, &mut env).unwrap();
+    assert_eq!(result2, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_letrec_star_complex_sequential() {
+    let mut env = Environment::new();
+
+    // Test complex sequential pattern with multiple dependencies
+    let source = "(letrec* ((sum-to (lambda (n)
+                                    (if (= n 0)
+                                        0
+                                        (+ n (sum-to (- n 1))))))
+                            (sum-result (sum-to 10))
+                            (double-sum (* sum-result 2)))
+                   double-sum)";
+    let result = eval_source(source, &mut env).unwrap();
+    assert_eq!(result, Value::number(110.0)); // sum(1..10) = 55, doubled = 110
+}
+
+#[test]
+fn test_integration_letrec_star_empty_bindings() {
+    let mut env = Environment::new();
+
+    // Test empty bindings
+    let result = eval_source("(letrec* () 42)", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}
+
+#[test]
+fn test_integration_let_star_empty_bindings() {
+    let mut env = Environment::new();
+
+    // Test empty bindings
+    let result = eval_source("(let* () 42)", &mut env).unwrap();
+    assert_eq!(result, Value::number(42.0));
+}

@@ -180,50 +180,8 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
         ));
     }
 
-    // Parse binding list: ((var1 expr1) (var2 expr2) ...)
-    let binding_pairs = match bindings_expr.as_ref() {
-        Expression::List(pairs) => pairs,
-        _ => {
-            return Err(Error::runtime_error(
-                "let: first argument must be a list of bindings",
-            ));
-        }
-    };
-
-    // Parse and validate each binding pair
-    let mut identifiers = Vec::with_capacity(binding_pairs.len());
-    let mut expressions = Vec::with_capacity(binding_pairs.len());
-
-    for pair in binding_pairs {
-        match pair.as_ref() {
-            Expression::List(elements) => {
-                if elements.len() != 2 {
-                    return Err(Error::runtime_error(
-                        "let: each binding must be a list of exactly 2 elements (identifier expression)",
-                    ));
-                }
-
-                // First element must be a symbol (identifier name)
-                let identifier = match elements[0].as_ref() {
-                    Expression::Atom(Value::Symbol(sym)) => sym.clone(),
-                    _ => {
-                        return Err(Error::runtime_error(
-                            "let: binding identifier must be a symbol",
-                        ));
-                    }
-                };
-
-                // Second element is the expression to evaluate
-                let expression = Arc::clone(&elements[1]);
-
-                identifiers.push(identifier);
-                expressions.push(expression);
-            }
-            _ => {
-                return Err(Error::runtime_error("let: each binding must be a list"));
-            }
-        }
-    }
+    // Parse binding list using shared helper
+    let (identifiers, expressions) = parse_bindings(bindings_expr.as_ref(), "let")?;
 
     // Evaluate all expressions in the current environment BEFORE creating bindings
     let mut values = Vec::with_capacity(expressions.len());
@@ -240,13 +198,8 @@ pub fn eval_let(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
         let_env.define(identifier, value);
     }
 
-    // Evaluate body expressions sequentially in new environment
-    let mut result = Value::Nil;
-    for body_expr in body_exprs {
-        result = eval(Arc::clone(body_expr), &mut let_env)?;
-    }
-
-    Ok(result)
+    // Evaluate body expressions sequentially in new environment using shared helper
+    eval_body(body_exprs, &mut let_env)
 }
 
 /// Evaluate a letrec special form
@@ -407,12 +360,146 @@ pub fn eval_letrec(args: &[Arc<Expression>], env: &mut Environment) -> Result<Va
     }
 
     // Evaluate body expressions sequentially in the final environment
-    let mut result = Value::Nil;
-    for body_expr in body_exprs {
-        result = eval(Arc::clone(body_expr), &mut letrec_env)?;
+    eval_body(body_exprs, &mut letrec_env)
+}
+
+/// Helper function to parse binding list into identifiers and expressions
+fn parse_bindings(
+    bindings_expr: &Expression,
+    form_name: &str,
+) -> Result<(Vec<Symbol>, Vec<Arc<Expression>>)> {
+    let binding_pairs = match bindings_expr {
+        Expression::List(pairs) => pairs,
+        _ => {
+            return Err(Error::runtime_error(&format!(
+                "{form_name}: first argument must be a list of bindings"
+            )));
+        }
+    };
+
+    let mut identifiers = Vec::with_capacity(binding_pairs.len());
+    let mut expressions = Vec::with_capacity(binding_pairs.len());
+
+    for pair in binding_pairs {
+        match pair.as_ref() {
+            Expression::List(elements) => {
+                if elements.len() != 2 {
+                    return Err(Error::runtime_error(&format!(
+                        "{form_name}: each binding must be a list of exactly 2 elements (identifier expression)"
+                    )));
+                }
+
+                // First element must be a symbol (identifier name)
+                let identifier = match elements[0].as_ref() {
+                    Expression::Atom(Value::Symbol(sym)) => sym.clone(),
+                    _ => {
+                        return Err(Error::runtime_error(&format!(
+                            "{form_name}: binding identifier must be a symbol"
+                        )));
+                    }
+                };
+
+                // Second element is the expression to evaluate
+                let expression = Arc::clone(&elements[1]);
+
+                identifiers.push(identifier);
+                expressions.push(expression);
+            }
+            _ => {
+                return Err(Error::runtime_error(&format!(
+                    "{form_name}: each binding must be a list"
+                )));
+            }
+        }
     }
 
+    Ok((identifiers, expressions))
+}
+
+/// Helper function to evaluate body expressions sequentially
+fn eval_body(body_exprs: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
+    let mut result = Value::Nil;
+    for body_expr in body_exprs {
+        result = eval(Arc::clone(body_expr), env)?;
+    }
     Ok(result)
+}
+
+/// Evaluate a let* special form
+///
+/// Syntax: (let* ((id1 expr1) (id2 expr2) ...) body1 body2 ...)
+///
+/// Semantics:
+/// 1. Create a new environment with current environment as parent
+/// 2. Bind identifiers sequentially: each binding can see previous bindings
+/// 3. Evaluate body expressions sequentially in the final environment
+pub fn eval_let_star(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
+    if args.is_empty() {
+        return Err(Error::arity_error("let*", 1, 0));
+    }
+
+    // First argument must be the binding list
+    let bindings_expr = Arc::clone(&args[0]);
+    let body_exprs = &args[1..];
+
+    if body_exprs.is_empty() {
+        return Err(Error::runtime_error(
+            "let*: requires at least one body expression",
+        ));
+    }
+
+    // Parse binding list
+    let (identifiers, expressions) = parse_bindings(bindings_expr.as_ref(), "let*")?;
+
+    // Create new environment with current environment as parent
+    let mut letstar_env = Environment::new_scope(env);
+
+    // Bind identifiers sequentially - each can see previous bindings
+    for (identifier, expression) in identifiers.into_iter().zip(expressions.into_iter()) {
+        let value = eval(expression, &mut letstar_env)?;
+        letstar_env.define(identifier, value);
+    }
+
+    // Evaluate body expressions sequentially in new environment
+    eval_body(body_exprs, &mut letstar_env)
+}
+
+/// Evaluate a letrec* special form
+///
+/// Syntax: (letrec* ((id1 expr1) (id2 expr2) ...) body1 body2 ...)
+///
+/// Semantics:
+/// 1. Create a new environment with current environment as parent
+/// 2. Bind identifiers sequentially with recursive capability
+/// 3. Each binding can refer to earlier bindings and can be recursive
+/// 4. Evaluate body expressions sequentially in the final environment
+pub fn eval_letrec_star(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
+    if args.is_empty() {
+        return Err(Error::arity_error("letrec*", 1, 0));
+    }
+
+    // First argument must be the binding list
+    let bindings_expr = Arc::clone(&args[0]);
+    let body_exprs = &args[1..];
+
+    if body_exprs.is_empty() {
+        return Err(Error::arity_error("letrec*", 2, args.len()));
+    }
+
+    // Parse binding list
+    let (identifiers, expressions) = parse_bindings(bindings_expr.as_ref(), "letrec*")?;
+
+    // Create new environment with current environment as parent
+    let mut letrecstar_env = Environment::new_scope(env);
+
+    // Bind identifiers sequentially with recursive capability
+    for (identifier, expression) in identifiers.into_iter().zip(expressions.into_iter()) {
+        // Use recursive binding helper for each binding
+        eval_recursive_binding(&identifier, expression, &mut letrecstar_env)?;
+    }
+
+    // Evaluate body expressions sequentially in new environment
+    eval_body(body_exprs, &mut letrecstar_env)
 }
 
 #[cfg(test)]
@@ -1137,5 +1224,265 @@ mod tests {
         ]);
         let body = Expression::arc_atom(Value::symbol("x"));
         assert!(eval_letrec(&[bindings, body], &mut env).is_err());
+    }
+
+    #[test]
+    fn test_eval_let_star_basic() {
+        let mut env = Environment::new();
+
+        // Test basic let*: (let* ((x 42)) x)
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
+        ])]);
+        let body = Expression::arc_atom(Value::symbol("x"));
+
+        let args = vec![bindings, body];
+        let result = eval_let_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_let_star_sequential_binding() {
+        let mut env = Environment::new();
+
+        // Test sequential binding: (let* ((x 10) (y x)) y)
+        // y should bind to the inner x (10), not any outer x
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(10.0)),
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_atom(Value::symbol("x")), // Should see the x bound above
+            ]),
+        ]);
+        let body = Expression::arc_atom(Value::symbol("y"));
+
+        let args = vec![bindings, body];
+        let result = eval_let_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(10.0));
+    }
+
+    #[test]
+    fn test_eval_let_star_sequential_computation() {
+        let mut env = Environment::new();
+
+        // Test sequential computation: (let* ((x 5) (y (+ x 3))) y)
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("x")),
+                Expression::arc_atom(Value::number(5.0)),
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("y")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("+")),
+                    Expression::arc_atom(Value::symbol("x")),
+                    Expression::arc_atom(Value::number(3.0)),
+                ]),
+            ]),
+        ]);
+        let body = Expression::arc_atom(Value::symbol("y"));
+
+        let args = vec![bindings, body];
+        let result = eval_let_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(8.0));
+    }
+
+    #[test]
+    fn test_eval_let_star_empty_bindings() {
+        let mut env = Environment::new();
+
+        // Test empty bindings: (let* () 42)
+        let bindings = Expression::arc_list(vec![]);
+        let body = Expression::arc_atom(Value::number(42.0));
+
+        let args = vec![bindings, body];
+        let result = eval_let_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_let_star_multiple_body_expressions() {
+        let mut env = Environment::new();
+
+        // Test multiple body expressions: (let* ((x 5)) 1 2 x)
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(5.0)),
+        ])]);
+
+        let body1 = Expression::arc_atom(Value::number(1.0));
+        let body2 = Expression::arc_atom(Value::number(2.0));
+        let body3 = Expression::arc_atom(Value::symbol("x"));
+
+        let args = vec![bindings, body1, body2, body3];
+        let result = eval_let_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(5.0)); // Should return last expression
+    }
+
+    #[test]
+    fn test_eval_let_star_errors() {
+        let mut env = Environment::new();
+
+        // Test no arguments
+        let result = eval_let_star(&[], &mut env);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("let*: expected 1 argument, got 0")
+        );
+
+        // Test no body expressions
+        let bindings = Expression::arc_list(vec![]);
+        let args = vec![bindings];
+        let result = eval_let_star(&args, &mut env);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("let*: requires at least one body expression")
+        );
+    }
+
+    #[test]
+    fn test_eval_letrec_star_basic() {
+        let mut env = Environment::new();
+
+        // Test basic letrec*: (letrec* ((x 42)) x)
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("x")),
+            Expression::arc_atom(Value::number(42.0)),
+        ])]);
+        let body = Expression::arc_atom(Value::symbol("x"));
+
+        let args = vec![bindings, body];
+        let result = eval_letrec_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_letrec_star_sequential_recursive() {
+        let mut env = Environment::new();
+
+        // Test sequential recursive: (letrec* ((factorial (lambda (n) (if (= n 0) 1 (* n (factorial (- n 1))))))) (factorial 5))
+        // This demonstrates self-recursion which should work in letrec*
+        let bindings = Expression::arc_list(vec![Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("factorial")),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("lambda")),
+                Expression::arc_list(vec![Expression::arc_atom(Value::symbol("n"))]),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("if")),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("=")),
+                        Expression::arc_atom(Value::symbol("n")),
+                        Expression::arc_atom(Value::number(0.0)),
+                    ]),
+                    Expression::arc_atom(Value::number(1.0)),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("*")),
+                        Expression::arc_atom(Value::symbol("n")),
+                        Expression::arc_list(vec![
+                            Expression::arc_atom(Value::symbol("factorial")),
+                            Expression::arc_list(vec![
+                                Expression::arc_atom(Value::symbol("-")),
+                                Expression::arc_atom(Value::symbol("n")),
+                                Expression::arc_atom(Value::number(1.0)),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ])]);
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("factorial")),
+            Expression::arc_atom(Value::number(5.0)),
+        ]);
+
+        let args = vec![bindings, body];
+        let result = eval_letrec_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(120.0)); // 5! = 120
+    }
+
+    #[test]
+    fn test_eval_letrec_star_sequential_binding() {
+        let mut env = Environment::new();
+
+        // Test sequential binding with recursion: (letrec* ((f (lambda (x) x)) (g (lambda (y) (f y)))) (g 42))
+        let bindings = Expression::arc_list(vec![
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("f")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("lambda")),
+                    Expression::arc_list(vec![Expression::arc_atom(Value::symbol("x"))]),
+                    Expression::arc_atom(Value::symbol("x")),
+                ]),
+            ]),
+            Expression::arc_list(vec![
+                Expression::arc_atom(Value::symbol("g")),
+                Expression::arc_list(vec![
+                    Expression::arc_atom(Value::symbol("lambda")),
+                    Expression::arc_list(vec![Expression::arc_atom(Value::symbol("y"))]),
+                    Expression::arc_list(vec![
+                        Expression::arc_atom(Value::symbol("f")),
+                        Expression::arc_atom(Value::symbol("y")),
+                    ]),
+                ]),
+            ]),
+        ]);
+        let body = Expression::arc_list(vec![
+            Expression::arc_atom(Value::symbol("g")),
+            Expression::arc_atom(Value::number(42.0)),
+        ]);
+
+        let args = vec![bindings, body];
+        let result = eval_letrec_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_letrec_star_empty_bindings() {
+        let mut env = Environment::new();
+
+        // Test empty bindings: (letrec* () 42)
+        let bindings = Expression::arc_list(vec![]);
+        let body = Expression::arc_atom(Value::number(42.0));
+
+        let args = vec![bindings, body];
+        let result = eval_letrec_star(&args, &mut env).unwrap();
+        assert_eq!(result, Value::number(42.0));
+    }
+
+    #[test]
+    fn test_eval_letrec_star_errors() {
+        let mut env = Environment::new();
+
+        // Test no arguments
+        let result = eval_letrec_star(&[], &mut env);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("letrec*: expected 1 argument, got 0")
+        );
+
+        // Test no body expressions
+        let bindings = Expression::arc_list(vec![]);
+        let args = vec![bindings];
+        let result = eval_letrec_star(&args, &mut env);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("letrec*: expected 2 arguments, got 1")
+        );
     }
 }

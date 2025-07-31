@@ -654,8 +654,15 @@ test_integration_lambda_application_comprehensive ✅
 - Comprehensive test coverage including unit tests and integration tests
 - Prevents stack overflow for deeply recursive functions while maintaining correctness
 
-#### T3.1.5: Create function system tests
+#### T3.1.5: Create function system tests ✅
 **Acceptance**: 25+ tests covering lambda creation, application, recursion, and tail calls
+**Completed**: 45 comprehensive tests in `tests/integration_lambda.rs` covering:
+- Lambda creation (29 existing tests)
+- Lambda application (comprehensive coverage)
+- Recursion (factorial, fibonacci, countdown, list operations, mutual recursion)
+- Tail call optimization (basic, conditional, with let, recursive, procedure syntax)
+- Higher-order functions (map, compose, curry)
+- Complete function system integration tests
 
 ### 3.2 Advanced Built-in Procedures
 
@@ -1142,13 +1149,13 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 3 (Advanced Language Features)
-**Overall Progress**: 40% (32/81 tasks completed)
+**Overall Progress**: 41% (33/81 tasks completed)  
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
-- **Phase 3**: ☐ 25% (5/20 tasks) - Advanced Features (Section 3.2 in progress)
+- **Phase 3**: ☐ 30% (6/20 tasks) - Advanced Features (Section 3.1 COMPLETE, Section 3.2 in progress)
 - **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
@@ -1188,11 +1195,11 @@ cargo fmt --check            # Formatting verification
 - ✅ T3.1.2: Implement `lambda` special form
 - ✅ T3.1.3: Implement function application
 - ✅ T3.1.4: Implement tail call optimization
-- ✅ T3.2.1: Implement type checking procedures
+- ✅ T3.1.5: Create function system tests (45 comprehensive tests)
 - ✅ T3.2.3: Implement I/O procedures (synchronous)
 
 ### Immediate Next Steps  
-1. **T3.1.5**: Create function system tests (🔥 Priority - Complete Phase 3.1 Function System)
+1. **T3.2.1**: Implement type checking procedures (🔥 Priority - Continue Phase 3.2)
 2. **T3.2.2**: Implement advanced list operations
 3. **T3.2.4**: Create built-in procedure tests
 
