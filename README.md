@@ -48,18 +48,19 @@ For detailed project information, see:
 - **Special Forms**: `define`, `lambda`, `let`, `if`, and `quote`
 - **Interactive REPL**: Read-eval-print loop with clear prompts and error handling
 - **Error Handling**: Comprehensive syntax error reporting with precise position information
-- **Test Coverage**: 313+ tests covering all implemented features with verified I/O output
+- **Fiber Infrastructure**: `Fiber` struct with state management, continuation tracking, and parent-child relationships
+- **Test Coverage**: 399+ tests covering all implemented features with verified I/O output
 
 ### 🚧 In Progress
+- Fiber scheduler implementation
 - File execution capabilities
 
 ### 📋 Planned
-- File execution capabilities
-- Fiber scheduler with automatic I/O yielding
+- Complete fiber scheduler with automatic I/O yielding
 - Two-layer concurrency: low-level fibers and high-level async tasks
+- Asynchronous I/O integration
 - R7RS-small macro system
-- Lexical scoping with closures
-- Built-in arithmetic, list operations, and conditionals
+- Built-in fiber and task management procedures
 
 ## Quick Start
 
@@ -128,8 +129,8 @@ Twine uses a fiber scheduler built on `smol`, allowing multiple fibers to execut
 - `lexer/` - Input tokenization with position tracking and error reporting
 - `parser/` - S-expression parsing and AST construction
 - `types/` - Immutable Scheme data types
-- `interpreter/` - Core evaluation engine and environment management
-- `runtime/` - Fiber scheduler, task system, and async I/O
+- `runtime/` - Core evaluation engine and environment management
+- `scheduler/` - Fiber infrastructure with state management and concurrency primitives
 - `repl/` - Interactive interface
 
 ## License

@@ -8,6 +8,7 @@ pub mod lexer;
 pub mod parser;
 pub mod repl;
 pub mod runtime;
+pub mod scheduler;
 pub mod types;
 
 // Re-export error types for convenience

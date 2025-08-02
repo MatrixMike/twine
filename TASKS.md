@@ -783,7 +783,7 @@ runtime/
 
 ### 4.1 Fiber Scheduler Infrastructure
 
-#### T4.1.1: Implement `Fiber` struct
+#### T4.1.1: Implement `Fiber` struct ✅
 **Prerequisites**: File execution complete
 **Dependencies**: Add `smol`, `futures-lite`, `async-channel` to Cargo.toml
 **Deliverables**:
@@ -791,6 +791,15 @@ runtime/
 - Fiber with id, state, continuation, parent fields
 - `FiberState` enum (Ready, Running, Suspended, Completed)
 - `SuspendReason` enum (IoOperation, WaitingForTask, Yielded)
+
+**Tests Added**:
+```rust
+fn test_fiber_creation
+fn test_fiber_state_transitions
+fn test_fiber_children_management
+fn test_suspend_reason_creation
+fn test_fiber_with_parent
+```
 
 #### T4.1.2: Implement `FiberScheduler` struct
 **Dependencies**: Add `polling`, `async-task` to Cargo.toml
@@ -1152,14 +1161,14 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 3 (Advanced Language Features)
-**Overall Progress**: 42% (34/81 tasks completed)
+**Overall Progress**: 43% (35/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
 - **Phase 3**: ☐ 35% (7/20 tasks) - Advanced Features (Section 3.1 COMPLETE, Section 3.2 in progress, T3.3.1 COMPLETE)
-- **Phase 4**: ☐ 0% (0/16 tasks) - Concurrency
+- **Phase 4**: ☐ 6% (1/16 tasks) - Concurrency (T4.1.1 COMPLETE)
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
 ### Recently Completed
@@ -1201,11 +1210,12 @@ cargo fmt --check            # Formatting verification
 - ✅ T3.1.5: Create function system tests (45 comprehensive tests)
 - ✅ T3.2.3: Implement I/O procedures (synchronous)
 - ✅ T3.3.1: Implement basic REPL loop
+- ✅ T4.1.1: Implement `Fiber` struct (5 comprehensive tests)
 
 ### Immediate Next Steps  
-1. **T3.3.2**: Add REPL error handling (🔥 Priority - Continue Phase 3.3)
-2. **T3.2.1**: Implement type checking procedures (Continue Phase 3.2)
-3. **T3.2.2**: Implement advanced list operations
+1. **T4.1.2**: Implement `FiberScheduler` struct (🔥 Priority - Continue Phase 4.1)
+2. **T3.3.2**: Add REPL error handling (Continue Phase 3.3)
+3. **T3.2.1**: Implement type checking procedures (Continue Phase 3.2)
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.

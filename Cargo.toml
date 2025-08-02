@@ -12,4 +12,5 @@ authors = ["dtcristo"]
 default-run = "twine-scheme"
 
 [dependencies]
+smol = "2"
 smol_str = "0.3"
