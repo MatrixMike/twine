@@ -69,12 +69,19 @@ For detailed project information, see:
 cargo run
 ```
 
+The REPL supports multi-line input with automatic bracket matching. Expressions are evaluated when all brackets are properly balanced:
+
 ```scheme
 twine> (+ 1 2)
 3
-twine> (define square (lambda (x) (* x x)))
-twine> (square 5)
-25
+twine> (define factorial
+  (lambda (n)
+    (if (= n 0)
+        1
+        (* n (factorial (- n 1))))))
+()
+twine> (factorial 5)
+120
 twine> (display "Hello, World!")
 Hello, World!
 twine> 

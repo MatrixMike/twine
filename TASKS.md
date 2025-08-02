@@ -743,7 +743,9 @@ runtime/
 
 #### T3.3.3: Add REPL enhancements
 **Deliverables**:
-- Multi-line input support
+- ✅ Multi-line input support (tokenizer-based bracket matching)
+- ✅ REPL module structure (moved from main.rs to dedicated module)
+- ✅ Clean multi-line input (removed continuation prompts entirely)
 - Basic command history
 - Help and exit commands
 
