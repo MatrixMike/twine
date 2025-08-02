@@ -801,12 +801,22 @@ fn test_suspend_reason_creation
 fn test_fiber_with_parent
 ```
 
-#### T4.1.2: Implement `FiberScheduler` struct
+#### T4.1.2: Implement `FiberScheduler` struct ✅
 **Dependencies**: Add `polling`, `async-task` to Cargo.toml
 **Deliverables**:
 - Scheduler with ready queue, fiber map, runtime, thread pool
 - Main fiber management
 - ⚠️ Data structure only, no scheduling logic yet
+
+**Tests Added**:
+```rust
+fn test_fiber_scheduler_creation
+fn test_fiber_scheduler_with_threads
+fn test_fiber_scheduler_default
+fn test_next_fiber_id_generation
+fn test_fiber_existence_checking
+fn test_fiber_scheduler_debug_formatting
+```
 
 #### T4.1.3: Implement fiber lifecycle management
 **Deliverables**:
@@ -1161,14 +1171,14 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 3 (Advanced Language Features)
-**Overall Progress**: 43% (35/81 tasks completed)
+**Overall Progress**: 44% (36/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
 - **Phase 3**: ☐ 35% (7/20 tasks) - Advanced Features (Section 3.1 COMPLETE, Section 3.2 in progress, T3.3.1 COMPLETE)
-- **Phase 4**: ☐ 6% (1/16 tasks) - Concurrency (T4.1.1 COMPLETE)
+- **Phase 4**: ☐ 13% (2/16 tasks) - Concurrency (T4.1.1, T4.1.2 COMPLETE)
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
 ### Recently Completed
@@ -1211,9 +1221,10 @@ cargo fmt --check            # Formatting verification
 - ✅ T3.2.3: Implement I/O procedures (synchronous)
 - ✅ T3.3.1: Implement basic REPL loop
 - ✅ T4.1.1: Implement `Fiber` struct (5 comprehensive tests)
+- ✅ T4.1.2: Implement `FiberScheduler` struct (6 comprehensive tests)
 
 ### Immediate Next Steps  
-1. **T4.1.2**: Implement `FiberScheduler` struct (🔥 Priority - Continue Phase 4.1)
+1. **T4.1.3**: Implement fiber lifecycle management (🔥 Priority - Continue Phase 4.1)
 2. **T3.3.2**: Add REPL error handling (Continue Phase 3.3)
 3. **T3.2.1**: Implement type checking procedures (Continue Phase 3.2)
 

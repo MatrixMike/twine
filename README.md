@@ -49,14 +49,15 @@ For detailed project information, see:
 - **Interactive REPL**: Read-eval-print loop with clear prompts and error handling
 - **Error Handling**: Comprehensive syntax error reporting with precise position information
 - **Fiber Infrastructure**: `Fiber` struct with state management, continuation tracking, and parent-child relationships
-- **Test Coverage**: 399+ tests covering all implemented features with verified I/O output
+- **Fiber Scheduler**: `FiberScheduler` struct with ready queue, fiber management, and thread pool infrastructure
+- **Test Coverage**: 405+ tests covering all implemented features with verified I/O output
 
 ### 🚧 In Progress
-- Fiber scheduler implementation
+- Fiber scheduler lifecycle management (spawn, suspend, resume)
 - File execution capabilities
 
 ### 📋 Planned
-- Complete fiber scheduler with automatic I/O yielding
+- Complete fiber scheduler main loop with automatic I/O yielding
 - Two-layer concurrency: low-level fibers and high-level async tasks
 - Asynchronous I/O integration
 - R7RS-small macro system
