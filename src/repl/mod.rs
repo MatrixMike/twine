@@ -162,8 +162,15 @@ fn eval_source(source: &str, env: &mut Environment) -> Result<Value, Error> {
     }
 
     let mut parser = Parser::new(source.to_string())?;
-    let expr = parser.parse_expression()?.expr;
-    eval(expr, env)
+    let mut last_value = Value::nil();
+
+    // Parse and evaluate all expressions in the input
+    while !parser.is_at_end() {
+        let expr = parser.parse_expression()?.expr;
+        last_value = eval(expr, env)?;
+    }
+
+    Ok(last_value)
 }
 
 #[cfg(test)]
@@ -231,5 +238,13 @@ mod tests {
         assert!(!is_expression_complete("").unwrap());
         assert!(!is_expression_complete("   ").unwrap());
         assert!(!is_expression_complete("\n\n  \t  \n").unwrap());
+    }
+
+    #[test]
+    fn test_multiple_expressions_single_line() {
+        assert!(is_expression_complete("(+ 1 2)(* 3 4)").unwrap());
+        assert!(is_expression_complete("(display \"hello\")(newline)").unwrap());
+        assert!(is_expression_complete("(define x 10)(define y 20)(+ x y)").unwrap());
+        assert!(is_expression_complete("42 #t \"string\"").unwrap());
     }
 }

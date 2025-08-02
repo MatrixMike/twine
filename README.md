@@ -84,6 +84,11 @@ twine> (factorial 5)
 120
 twine> (display "Hello, World!")
 Hello, World!
+twine> (display "foobar")(newline)
+foobar
+()
+twine> (define x 10)(define y 20)(+ x y)
+30
 twine> 
 ```
 

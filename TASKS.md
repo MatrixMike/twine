@@ -746,6 +746,7 @@ runtime/
 - ✅ Multi-line input support (tokenizer-based bracket matching)
 - ✅ REPL module structure (moved from main.rs to dedicated module)
 - ✅ Clean multi-line input (removed continuation prompts entirely)
+- ✅ Multiple expression support (evaluates all expressions in single input)
 - Basic command history
 - Help and exit commands
 
