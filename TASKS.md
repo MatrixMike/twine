@@ -818,17 +818,41 @@ fn test_fiber_existence_checking
 fn test_fiber_scheduler_debug_formatting
 ```
 
-#### T4.1.3: Implement fiber lifecycle management
+#### T4.1.3: Implement fiber lifecycle management ✅
 **Deliverables**:
-- `spawn_fiber()`, `yield_current()`, `resume_fiber()` methods
+- `spawn_fiber()`, `yield_fiber()`, `resume_fiber()` methods
 - Fiber state transitions
 - Resource cleanup
 
-#### T4.1.4: Implement scheduler main loop
+**Tests Added**:
+```rust
+fn test_spawn_fiber
+fn test_spawn_fiber_with_parent
+fn test_yield_fiber
+fn test_resume_fiber
+fn test_complete_fiber
+fn test_cleanup_fiber
+fn test_next_ready_fiber
+fn test_set_current_fiber
+fn test_fiber_lifecycle_error_handling
+```
+
+#### T4.1.4: Implement scheduler main loop ✅
 **Deliverables**:
 - `run_scheduler()` method with event loop
 - Fiber dispatch and execution
 - Cooperative multitasking
+
+**Tests Added**:
+```rust
+fn test_scheduler_initialization
+fn test_scheduler_shutdown
+fn test_cleanup_completed_fibers
+fn test_scheduler_with_default_thread_count
+fn test_execute_single_fiber
+fn test_check_suspended_fibers
+fn test_scheduler_run_basic
+```
 
 #### T4.1.5: Create fiber scheduler tests
 **Acceptance**: 20+ tests covering fiber creation, scheduling, and multitasking
@@ -1171,14 +1195,14 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 3 (Advanced Language Features)
-**Overall Progress**: 44% (36/81 tasks completed)
+**Overall Progress**: 47% (38/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
 - **Phase 3**: ☐ 35% (7/20 tasks) - Advanced Features (Section 3.1 COMPLETE, Section 3.2 in progress, T3.3.1 COMPLETE)
-- **Phase 4**: ☐ 13% (2/16 tasks) - Concurrency (T4.1.1, T4.1.2 COMPLETE)
+- **Phase 4**: ☐ 25% (4/16 tasks) - Concurrency (T4.1.1, T4.1.2, T4.1.3, T4.1.4 COMPLETE)
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
 ### Recently Completed
@@ -1222,9 +1246,11 @@ cargo fmt --check            # Formatting verification
 - ✅ T3.3.1: Implement basic REPL loop
 - ✅ T4.1.1: Implement `Fiber` struct (5 comprehensive tests)
 - ✅ T4.1.2: Implement `FiberScheduler` struct (6 comprehensive tests)
+- ✅ T4.1.3: Implement fiber lifecycle management (9 comprehensive tests)
+- ✅ T4.1.4: Implement scheduler main loop (7 comprehensive tests)
 
 ### Immediate Next Steps  
-1. **T4.1.3**: Implement fiber lifecycle management (🔥 Priority - Continue Phase 4.1)
+1. **T4.1.5**: Create fiber scheduler tests (🔥 Priority - Complete Phase 4.1)
 2. **T3.3.2**: Add REPL error handling (Continue Phase 3.3)
 3. **T3.2.1**: Implement type checking procedures (Continue Phase 3.2)
 

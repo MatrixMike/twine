@@ -27,11 +27,11 @@ use std::sync::Arc;
 /// Evaluate a define special form
 ///
 /// Syntax:
-/// - Binding definition: (define <identifier> <expression>)
-/// - Procedure definition: (define (<identifier> <param>...) <body>...)
+/// - Binding definition: (define `identifier` `expression`)
+/// - Procedure definition: (define (`identifier` `param`...) `body`...)
 ///
 /// For binding definition:
-/// - Evaluates <expression> and binds the result to <identifier> in the current environment
+/// - Evaluates `expression` and binds the result to `identifier` in the current environment
 /// - Returns Nil
 ///
 /// For procedure definition (syntactic sugar):

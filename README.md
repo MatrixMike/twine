@@ -50,16 +50,17 @@ For detailed project information, see:
 - **Error Handling**: Comprehensive syntax error reporting with precise position information
 - **Fiber Infrastructure**: `Fiber` struct with state management, continuation tracking, and parent-child relationships
 - **Fiber Scheduler**: `FiberScheduler` struct with ready queue, fiber management, and thread pool infrastructure
-- **Test Coverage**: 405+ tests covering all implemented features with verified I/O output
+- **Fiber Lifecycle Management**: Complete spawn, yield, resume, and cleanup operations with state transitions
+- **Scheduler Main Loop**: Event-driven scheduler with thread pool execution and cooperative multitasking
+- **Test Coverage**: 423+ tests covering all implemented features with verified I/O output
 
 ### 🚧 In Progress
-- Fiber scheduler lifecycle management (spawn, suspend, resume)
+- Comprehensive fiber scheduler testing (T4.1.5)
 - File execution capabilities
 
 ### 📋 Planned
-- Complete fiber scheduler main loop with automatic I/O yielding
 - Two-layer concurrency: low-level fibers and high-level async tasks
-- Asynchronous I/O integration
+- Asynchronous I/O integration with automatic fiber yielding
 - R7RS-small macro system
 - Built-in fiber and task management procedures
 

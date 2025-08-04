@@ -59,7 +59,7 @@ impl Lambda {
     /// * `env` - Captured environment from procedure definition
     ///
     /// # Returns
-    /// A new Arc<Lambda> for efficient sharing
+    /// A new `Arc<Lambda>` for efficient sharing
     pub fn new(
         params: Vec<Symbol>,
         body: Vec<Arc<Expression>>,
@@ -218,7 +218,7 @@ impl Procedure {
 
     /// Get the actual lambda from a WeakLambda
     ///
-    /// Returns the upgraded Arc<Lambda> if the WeakLambda is initialized
+    /// Returns the upgraded `Arc<Lambda>` if the WeakLambda is initialized
     /// and the lambda hasn't been dropped. Used during procedure application.
     pub fn resolve_weak_lambda(&self) -> Result<Arc<Lambda>, crate::Error> {
         match self {

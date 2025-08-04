@@ -224,6 +224,12 @@ This document (`AGENT.md`) serves as **living memory** for all agent behavioral 
 - **Place imports at module top**: All `use` statements must be at the top of the file, never within functions
 - **Exception for test modules**: `use` statements within test functions are acceptable for test-specific imports
 - **Organize imports logically**: Group standard library, external crates, and local crate imports separately
+- **Prefer `use` over full qualification**: Always bring items into scope with `use` statements rather than fully qualifying them in code
+  - **DO**: `use std::collections::HashMap;` then `HashMap::new()`
+  - **DON'T**: `std::collections::HashMap::new()` throughout the code
+  - **Benefits**: Cleaner code, easier refactoring, better readability
+  - **Exception**: Disambiguation when names conflict (e.g., `std::fmt::Result` vs `io::Result`)
+  - **Exception**: Ambiguous class names that need module context (e.g., use `thread::Builder` instead of just `Builder`)
 
 ### Performance Guidelines
 - **Use Vec::with_capacity**: Always use `Vec::with_capacity(size)` instead of `Vec::new()` when the final size is known upfront
@@ -341,12 +347,14 @@ pub struct ArcString(Arc<String>);
 ### Rust Diagnostics Management
 - **Fix All Diagnostics**: Always fix compiler errors, warnings, and clippy lints when encountered
 - **Run Clippy**: Execute `cargo clippy` after making any Rust code changes
-- **Regular Monitoring**: Proactively check for clippy lints during development sessions, not just when prompted
+- **Fix Documentation Warnings**: Always fix `cargo doc` warnings including unclosed HTML tags, invalid Rust code blocks
+- **Regular Monitoring**: Proactively check for clippy lints and doc warnings during development sessions, not just when prompted
 - **Zero Tolerance**: No warnings or lints should remain in committed code
 - **Immediate Resolution**: Address diagnostics as soon as they appear
 - **Use Diagnostics Tool**: Run diagnostics checks regularly during development
 - **Auto-fix When Possible**: Use `cargo clippy --fix --allow-dirty` for automatic fixes
-- **Common Issues**: Pay attention to unused imports, dead code, inefficient patterns, and style violations
+- **Documentation Quality**: Use backticks for Scheme syntax (`` `identifier` ``), mark non-Rust code blocks as `text`, escape angle brackets in type names
+- **Common Issues**: Pay attention to unused imports, dead code, inefficient patterns, style violations, and malformed documentation
 
 ### Code Formatting Requirements
 - **Always Format**: Run `cargo fmt` after making any changes to Rust source code
@@ -360,13 +368,14 @@ pub struct ArcString(Arc<String>);
 
 ### After Every Code Change
 1. ✅ **Run Clippy**: Execute `cargo clippy` and fix all lints and warnings
-2. ✅ **Fix Diagnostics**: Run diagnostics and resolve all errors, warnings, lints
-3. ✅ **Format Code**: Run `cargo fmt` to maintain consistent style
-4. ✅ **Run Tests**: Ensure all existing tests pass
-5. ✅ **Update Documentation**: Reflect changes in relevant docs
+2. ✅ **Fix Documentation**: Run `cargo doc` and fix all documentation warnings
+3. ✅ **Fix Diagnostics**: Run diagnostics and resolve all errors, warnings, lints
+4. ✅ **Format Code**: Run `cargo fmt` to maintain consistent style
+5. ✅ **Run Tests**: Ensure all existing tests pass
+6. ✅ **Update Documentation**: Reflect changes in relevant docs
 
 ### Before Marking Tasks Complete
-1. ✅ **Clean Diagnostics**: Zero compiler warnings or clippy lints
+1. ✅ **Clean Diagnostics**: Zero compiler warnings, clippy lints, or doc warnings
 2. ✅ **Formatted Code**: All Rust files properly formatted
 3. ✅ **Acceptance Criteria**: All specified criteria met
 4. ✅ **Test Coverage**: New functionality tested appropriately

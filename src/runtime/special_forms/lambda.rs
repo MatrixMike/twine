@@ -31,7 +31,7 @@ use std::sync::Arc;
 /// A new `Value::Procedure` containing the lambda with captured environment
 ///
 /// # Examples
-/// ```
+/// ```text
 /// // (lambda (x) (* x x))
 /// // (lambda (x y) (+ x y))
 /// // (lambda () 42)

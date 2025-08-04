@@ -23,10 +23,10 @@ use std::sync::Arc;
 
 /// Evaluate an if special form
 ///
-/// Syntax: (if <test> <consequent> <alternative>)
-/// - Evaluates <test>
-/// - If the result is truthy (anything except #f), evaluates and returns <consequent>
-/// - If the result is falsy (#f), evaluates and returns <alternative>
+/// Syntax: (if `test` `consequent` `alternative`)
+/// - Evaluates `test`
+/// - If the result is truthy (anything except #f), evaluates and returns `consequent`
+/// - If the result is falsy (#f), evaluates and returns `alternative`
 pub fn eval_if(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value> {
     // if requires exactly 3 arguments: test, consequent, alternative
     if args.len() != 3 {
@@ -50,7 +50,7 @@ pub fn eval_if(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value>
 
 /// Evaluate a begin special form
 ///
-/// Syntax: (begin <expr1> <expr2> ... <exprN>)
+/// Syntax: (begin `expr1` `expr2` ... `exprN`)
 /// - Evaluates all expressions in sequence
 /// - Returns the value of the last expression
 /// - If no expressions are provided, returns Nil
@@ -60,7 +60,7 @@ pub fn eval_begin(args: &[Arc<Expression>], env: &mut Environment) -> Result<Val
 
 /// Evaluate an and special form
 ///
-/// Syntax: (and <expr1> <expr2> ... <exprN>)
+/// Syntax: (and `expr1` `expr2` ... `exprN`)
 /// - Evaluates expressions left to right
 /// - If any expression evaluates to #f, returns #f immediately (short-circuit)
 /// - If all expressions are truthy, returns the value of the last expression
@@ -86,7 +86,7 @@ pub fn eval_and(args: &[Arc<Expression>], env: &mut Environment) -> Result<Value
 
 /// Evaluate an or special form
 ///
-/// Syntax: (or <expr1> <expr2> ... <exprN>)
+/// Syntax: (or `expr1` `expr2` ... `exprN`)
 /// - Evaluates expressions left to right
 /// - If any expression evaluates to a truthy value, returns that value immediately (short-circuit)
 /// - If all expressions are falsy (#f), returns #f
