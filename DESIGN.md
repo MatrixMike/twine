@@ -22,11 +22,12 @@ User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thre
 | **Macro System** | Code Transformation | R7RS-small patterns, hygienic expansion |
 
 ### Concurrency Model
-- **All code runs in fibers** managed by central scheduler
-- **Two-layer system**: Low-level fibers + High-level tasks
-- **Automatic I/O yielding** - appears synchronous to Scheme
-- **Thread pool execution** - true parallelism without GIL
-- **Immutable data sharing** - thread-safe by design
+- Twine uses a fiber-based concurrency model.
+- All async execution and scheduling is managed directly by fibers.
+- **All code runs in fibers** managed by a central scheduler.
+- **Automatic I/O yielding**: I/O operations suspend and resume fibers transparently.
+- **Thread pool execution**: Fibers run in parallel across CPU cores, with no global interpreter lock.
+- **Immutable data sharing**: All data structures are immutable and thread-safe.
 
 ---
 
@@ -294,21 +295,14 @@ impl Environment {
 
 ## Concurrency Model
 
-### Two-Layer Concurrency System
+### Fiber-Based Concurrency System
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    High-Level: Task System                      │
+│                   Fiber Scheduler System                        │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │ async builtin → spawn-fiber → creates hierarchical tasks   │ │
-│  │ task-wait → synchronization with parent-child cleanup      │ │
-│  │ Task Tree: Main → [TaskA, TaskB → [TaskB1, TaskB2]]        │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-├─────────────────────────────────────────────────────────────────┤
-│                   Low-Level: Fiber Scheduler                    │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │ spawn-fiber → independent execution units                   │ │
-│  │ fiber-wait → manual synchronization                        │ │
+│  │ spawn-fiber → creates independent fibers                   │ │
+│  │ fiber-wait → synchronizes on fiber completion              │ │
 │  │ I/O Yielding → automatic suspension/resumption             │ │
 │  │ Ready Queue: [F1, F3] | Suspended: [F2→IO] | Running: F4   │ │
 │  └─────────────────────────────────────────────────────────────┘ │
@@ -329,7 +323,8 @@ pub struct Fiber {
     id: FiberId,
     state: FiberState,
     continuation: Pin<Box<dyn Future<Output = Result<Value, Error>> + Send>>,
-    associated_task: Option<TaskId>, // Only for task-spawned fibers
+    parent: Option<FiberId>,
+    children: HashSet<FiberId>,
 }
 
 pub enum FiberState {
@@ -341,7 +336,6 @@ pub enum FiberState {
 
 pub enum SuspendReason {
     IoOperation(IoFuture),          // Waiting for I/O
-    WaitingForTask(TaskId),         // Waiting for task completion
     WaitingForFiber(FiberId),       // Waiting for fiber completion
     Yielded,                        // Explicit yield
 }
@@ -355,29 +349,7 @@ pub struct FiberScheduler {
 }
 ```
 
-### Task System Architecture
 
-```rust
-pub struct Task {
-    id: TaskId,
-    fiber_id: FiberId,               // Associated fiber
-    parent: Option<TaskId>,          // Hierarchical parent
-    children: HashSet<TaskId>,       // Child tasks
-    state: TaskState,
-    result: Option<Result<Value, Error>>,
-}
-
-pub struct TaskHandle {
-    id: TaskId,
-    scheduler_ref: Weak<RefCell<TaskScheduler>>,
-}
-
-impl TaskHandle {
-    pub fn wait(&self) -> Result<Value, Error>  // Suspend until completion
-    pub fn is_finished(&self) -> bool           // Check completion status
-    pub fn cancel(&self) -> Result<(), Error>   // Cancel with children
-}
-```
 
 ### Execution Flow Examples
 
@@ -389,33 +361,30 @@ worker
 300
 ```
 
-#### Hierarchical Task Execution
-```scheme
-> (define task1 (async (lambda () (+ 10 20))))
-task1
-> (define task2 (async (lambda ()
-    (let ((subtask (async (lambda () (* 3 4)))))
-      (+ (task-wait subtask) 100)))))
-task2
-> (task-wait task1)
-30
-> (task-wait task2)
-112
-```
+#### Fiber Synchronization, Async Special Form, and I/O Yielding
 
-#### Automatic I/O Yielding
 ```scheme
-> (define slow-task (async (lambda ()
-    (display "Starting...\n")    ; Automatically yields fiber
-    (display "Finished!\n")      ; Resumes after I/O
+;; Using the async special form to spawn fibers
+> (define f1 (async (+ 1 2)))
+f1
+> (fiber-wait f1)
+3
+
+> (define f2 (async (display "Starting...\n") (display "Finished!\n") 42))
+Starting...
+Finished!
+f2
+> (fiber-wait f2)
+42
+
+;; Direct fiber spawning also supported
+> (define slow-fiber (spawn-fiber (lambda ()
+    (display "Starting...\n")
+    (display "Finished!\n")
     42)))
 Starting...
-slow-task
-> (define quick-task (async (lambda () (+ 1 2 3))))
-quick-task
-> (task-wait quick-task)
-6
-> (task-wait slow-task)
+slow-fiber
+> (fiber-wait slow-fiber)
 Finished!
 42
 ```
@@ -424,7 +393,8 @@ Finished!
 - **Transparent I/O**: All I/O operations automatically yield without syntax
 - **True Parallelism**: Multiple fibers execute simultaneously across CPU cores
 - **No GIL**: Immutable data enables lock-free parallel execution
-- **Hierarchical Tasks**: Parent-child relationships for resource management
+- **Parent/Child Fibers**: Fibers can spawn child fibers for structured concurrency
+- **Async Special Form**: `(async <expr>...)` spawns a new fiber for expressions, returning a fiber handle immediately
 - **Independent Fibers**: Low-level control for advanced use cases
 
 ---

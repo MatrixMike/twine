@@ -35,22 +35,6 @@ impl FiberId {
     }
 }
 
-/// Unique identifier for a task (higher-level abstraction over fibers)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TaskId(u64);
-
-impl TaskId {
-    /// Create a new task ID
-    pub fn new(id: u64) -> Self {
-        Self(id)
-    }
-
-    /// Get the inner ID value
-    pub fn as_u64(self) -> u64 {
-        self.0
-    }
-}
-
 /// State of a fiber in the scheduler
 #[derive(Debug, Clone)]
 pub enum FiberState {
@@ -69,8 +53,6 @@ pub enum FiberState {
 pub enum SuspendReason {
     /// Waiting for an I/O operation to complete
     IoOperation(String), // Simplified for now - will hold actual I/O future later
-    /// Waiting for a task to complete
-    WaitingForTask(TaskId),
     /// Waiting for another fiber to complete
     WaitingForFiber(FiberId),
     /// Explicitly yielded by the fiber
@@ -87,8 +69,7 @@ pub struct Fiber {
     pub continuation: Pin<Box<dyn Future<Output = Result<Value>> + Send>>,
     /// Parent fiber that spawned this one (if any)
     pub parent: Option<FiberId>,
-    /// Associated task if this fiber was created by a task
-    pub associated_task: Option<TaskId>,
+
     /// Child fibers spawned by this fiber
     pub children: HashSet<FiberId>,
 }
@@ -105,7 +86,6 @@ impl Fiber {
             state: FiberState::Ready,
             continuation,
             parent,
-            associated_task: None,
             children: HashSet::new(),
         }
     }
@@ -167,7 +147,6 @@ impl Debug for Fiber {
             .field("id", &self.id)
             .field("state", &self.state)
             .field("parent", &self.parent)
-            .field("associated_task", &self.associated_task)
             .field("children", &self.children)
             .finish()
     }
@@ -652,13 +631,11 @@ mod tests {
     #[test]
     fn test_suspend_reason_creation() {
         let io_reason = SuspendReason::IoOperation("reading file".to_string());
-        let task_reason = SuspendReason::WaitingForTask(TaskId::new(42));
         let fiber_reason = SuspendReason::WaitingForFiber(FiberId::new(10));
         let yield_reason = SuspendReason::Yielded;
 
         // Just test that they can be created and debug printed
         println!("{:?}", io_reason);
-        println!("{:?}", task_reason);
         println!("{:?}", fiber_reason);
         println!("{:?}", yield_reason);
     }
@@ -737,16 +714,6 @@ mod tests {
 
         let id2 = FiberId::new(100);
         assert_eq!(id2.as_u64(), 100);
-        assert_ne!(id, id2);
-    }
-
-    #[test]
-    fn test_task_id_api() {
-        let id = TaskId::new(99);
-        assert_eq!(id.as_u64(), 99);
-
-        let id2 = TaskId::new(200);
-        assert_eq!(id2.as_u64(), 200);
         assert_ne!(id, id2);
     }
 

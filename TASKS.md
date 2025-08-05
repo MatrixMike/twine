@@ -857,29 +857,21 @@ fn test_scheduler_run_basic
 #### T4.1.5: Create fiber scheduler tests
 **Acceptance**: 20+ tests covering fiber creation, scheduling, and multitasking
 
-### 4.2 Async Task System
+### 4.2 Async Fiber System
 
-#### T4.2.1: Implement `Task` and `TaskHandle` structs
+#### T4.2.1: Implement async fiber operations
 **Prerequisites**: Fiber scheduler complete
 **Deliverables**:
-- Task with handle, fiber_id, parent/child relationships
-- TaskHandle with control methods
-- Task hierarchy management
+- Methods for spawning, waiting, yielding, and synchronizing fibers
+- Parent/child fiber relationships for structured concurrency
 
-#### T4.2.2: Implement task operations
+#### T4.2.2: Integrate async operations with fiber scheduler
 **Deliverables**:
-- `wait()`, `is_finished()`, `cancel()` methods
-- Task completion and result propagation
-- Hierarchical task cancellation
+- Fiber lifecycle, suspension, and completion
+- Coordination and prioritization of fibers
 
-#### T4.2.3: Integrate tasks with fiber scheduler
-**Deliverables**:
-- Task lifecycle to fiber execution connection
-- Task-fiber coordination
-- Task scheduling and prioritization
-
-#### T4.2.4: Create task system tests
-**Acceptance**: 18+ tests covering task creation, hierarchy, and cancellation
+#### T4.2.3: Create async fiber tests
+**Acceptance**: 18+ tests covering fiber creation, hierarchy, cancellation, and completion
 
 ### 4.3 Asynchronous I/O Integration
 
@@ -905,7 +897,7 @@ fn test_scheduler_run_basic
 #### T4.3.4: Create async I/O tests
 **Acceptance**: 15+ tests covering async I/O and fiber yielding
 
-### 4.4 Built-in Fiber and Task Procedures
+### 4.4 Built-in Fiber Procedures
 
 #### T4.4.1: Implement fiber management procedures
 **Prerequisites**: Async I/O complete
@@ -945,26 +937,20 @@ runtime/
 - **Signature**: `(async <expr>...)` - takes zero or more expressions
 - **Behavior**: Wraps expressions in implicit thunk and spawns in new fiber
 - **Environment**: Captures lexical environment at call site
-- **Return value**: Returns a `TaskHandle` immediately (non-blocking)
+- **Return value**: Returns a fiber handle immediately (non-blocking)
 - **Examples**:
   - `(async (+ 1 2))` - single expression
   - `(async (display "hi") (* 3 4))` - multiple expressions like begin
-  - `(async)` - empty body, returns task with nil value
+  - `(async)` - empty body, returns fiber with nil value
 
-#### T4.4.2: Implement task management procedures
-**Deliverables**:
-- `spawn-task`, `task-wait`, `task-cancel`, `task-result`
-- Task creation and control
-- Task hierarchy management
-
-#### T4.4.3: Implement coordination procedures
+#### T4.4.2: Implement coordination procedures
 **Deliverables**:
 - `parallel`, `sequential`, `race`, `timeout`
 - High-level concurrency patterns
 - Resource cleanup
 
-#### T4.4.4: Create concurrency procedure tests
-**Acceptance**: 25+ tests covering all fiber and task procedures
+#### T4.4.3: Create concurrency procedure tests
+**Acceptance**: 25+ tests covering all fiber procedures
 
 ---
 

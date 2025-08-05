@@ -15,6 +15,7 @@ Twine is a [Scheme](https://en.wikipedia.org/wiki/Scheme_(programming_language))
 - **Asynchronous I/O**: All I/O operations are async with fiber yielding
 - **Strict Immutability**: All data structures are immutable after creation
 - **Minimalism**: Essential language features only
+- **Async Special Form**: `(async <expr> ...)` spawns new fibers for concurrent execution
 
 ## Educational Goals
 
@@ -51,6 +52,7 @@ For detailed project information, see:
 - **Fiber Infrastructure**: `Fiber` struct with state management, continuation tracking, and parent-child relationships
 - **Fiber Scheduler**: `FiberScheduler` struct with ready queue, fiber management, and thread pool infrastructure
 - **Fiber Lifecycle Management**: Complete spawn, yield, resume, and cleanup operations with state transitions
+- **Async Special Form**: `(async <expr> ...)` for spawning concurrent fibers directly from Scheme code
 - **Scheduler Main Loop**: Event-driven scheduler with thread pool execution and cooperative multitasking
 - **Test Coverage**: 423+ tests covering all implemented features with verified I/O output
 
@@ -59,10 +61,9 @@ For detailed project information, see:
 - File execution capabilities
 
 ### 📋 Planned
-- Two-layer concurrency: low-level fibers and high-level async tasks
 - Asynchronous I/O integration with automatic fiber yielding
 - R7RS-small macro system
-- Built-in fiber and task management procedures
+- Built-in fiber management procedures
 
 ## Quick Start
 
