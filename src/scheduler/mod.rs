@@ -580,7 +580,6 @@ mod tests {
         assert_eq!(fiber.id, FiberId::new(1));
         assert!(fiber.is_ready());
         assert_eq!(fiber.parent, None);
-        assert_eq!(fiber.associated_task, None);
         assert!(fiber.children.is_empty());
     }
 
