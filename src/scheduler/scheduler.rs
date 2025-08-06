@@ -434,3 +434,336 @@ impl Drop for FiberScheduler {
         let _ = self.shutdown();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Value;
+    use std::future;
+
+    fn create_test_scheduler() -> FiberScheduler {
+        FiberScheduler::new_for_test()
+    }
+
+    #[test]
+    fn test_fiber_scheduler_creation() {
+        let scheduler = create_test_scheduler();
+        assert_eq!(scheduler.fiber_count(), 0);
+        assert_eq!(scheduler.ready_count(), 0);
+        assert!(!scheduler.has_ready_fibers());
+        assert!(scheduler.is_running());
+    }
+
+    #[test]
+    fn test_fiber_scheduler_with_threads() {
+        let scheduler = FiberScheduler::with_threads(4);
+        assert_eq!(scheduler.thread_count(), 4);
+    }
+
+    #[test]
+    fn test_fiber_scheduler_default() {
+        let scheduler = FiberScheduler::default();
+        assert!(scheduler.thread_count() > 0);
+    }
+
+    #[test]
+    fn test_next_fiber_id_generation() {
+        let mut scheduler = create_test_scheduler();
+        let future1 = Box::pin(future::ready(Ok(Value::Number(1.into()))));
+        let future2 = Box::pin(future::ready(Ok(Value::Number(2.into()))));
+
+        let id1 = scheduler.spawn_fiber(future1, None);
+        let id2 = scheduler.spawn_fiber(future2, None);
+
+        assert_ne!(id1, id2);
+        assert_eq!(scheduler.fiber_count(), 2);
+    }
+
+    #[test]
+    fn test_fiber_existence_checking() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        assert!(scheduler.has_fiber(fiber_id));
+        assert!(!scheduler.has_fiber(FiberId::new(999)));
+    }
+
+    #[test]
+    fn test_fiber_scheduler_debug_formatting() {
+        let scheduler = create_test_scheduler();
+        let debug_output = format!("{:?}", scheduler);
+        assert!(debug_output.contains("FiberScheduler"));
+        assert!(debug_output.contains("ready_count"));
+        assert!(debug_output.contains("fiber_count"));
+    }
+
+    #[test]
+    fn test_spawn_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        assert!(scheduler.has_fiber(fiber_id));
+        assert_eq!(scheduler.fiber_count(), 1);
+        assert_eq!(scheduler.ready_count(), 1);
+        assert!(scheduler.has_ready_fibers());
+    }
+
+    #[test]
+    fn test_spawn_fiber_with_parent() {
+        let mut scheduler = create_test_scheduler();
+        let parent_future = Box::pin(future::ready(Ok(Value::Number(1.into()))));
+        let child_future = Box::pin(future::ready(Ok(Value::Number(2.into()))));
+
+        let parent_id = scheduler.spawn_fiber(parent_future, None);
+        let child_id = scheduler.spawn_fiber(child_future, Some(parent_id));
+
+        assert!(scheduler.has_fiber(parent_id));
+        assert!(scheduler.has_fiber(child_id));
+
+        let parent_fiber = scheduler.get_fiber(parent_id).unwrap();
+        assert!(parent_fiber.children.contains(&child_id));
+
+        let child_fiber = scheduler.get_fiber(child_id).unwrap();
+        assert_eq!(child_fiber.parent, Some(parent_id));
+    }
+
+    #[test]
+    fn test_yield_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        scheduler.set_current_fiber(Some(fiber_id)).unwrap();
+        assert_eq!(scheduler.current_fiber(), Some(fiber_id));
+
+        scheduler
+            .yield_fiber(fiber_id, SuspendReason::Yielded)
+            .unwrap();
+
+        let fiber = scheduler.get_fiber(fiber_id).unwrap();
+        assert!(fiber.is_suspended());
+        assert_eq!(scheduler.current_fiber(), None);
+    }
+
+    #[test]
+    fn test_resume_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        // First yield the fiber
+        scheduler
+            .yield_fiber(fiber_id, SuspendReason::Yielded)
+            .unwrap();
+        assert_eq!(scheduler.ready_count(), 0);
+
+        // Then resume it
+        scheduler.resume_fiber(fiber_id).unwrap();
+        assert_eq!(scheduler.ready_count(), 1);
+
+        let fiber = scheduler.get_fiber(fiber_id).unwrap();
+        assert!(fiber.is_ready());
+    }
+
+    #[test]
+    fn test_complete_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        scheduler.set_current_fiber(Some(fiber_id)).unwrap();
+        scheduler
+            .complete_fiber(fiber_id, Ok(Value::Number(42.into())))
+            .unwrap();
+
+        let fiber = scheduler.get_fiber(fiber_id).unwrap();
+        assert!(fiber.is_completed());
+        assert_eq!(scheduler.current_fiber(), None);
+    }
+
+    #[test]
+    fn test_cleanup_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let parent_future = Box::pin(future::ready(Ok(Value::Number(1.into()))));
+        let child_future = Box::pin(future::ready(Ok(Value::Number(2.into()))));
+
+        let parent_id = scheduler.spawn_fiber(parent_future, None);
+        let child_id = scheduler.spawn_fiber(child_future, Some(parent_id));
+
+        assert_eq!(scheduler.fiber_count(), 2);
+
+        scheduler.cleanup_fiber(parent_id).unwrap();
+        assert_eq!(scheduler.fiber_count(), 1);
+        assert!(!scheduler.has_fiber(parent_id));
+
+        // Child should still exist but be orphaned
+        let child_fiber = scheduler.get_fiber(child_id).unwrap();
+        assert_eq!(child_fiber.parent, None);
+    }
+
+    #[test]
+    fn test_next_ready_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let future1 = Box::pin(future::ready(Ok(Value::Number(1.into()))));
+        let future2 = Box::pin(future::ready(Ok(Value::Number(2.into()))));
+
+        let id1 = scheduler.spawn_fiber(future1, None);
+        let id2 = scheduler.spawn_fiber(future2, None);
+
+        assert_eq!(scheduler.ready_count(), 2);
+
+        let next_id = scheduler.next_ready_fiber();
+        assert_eq!(next_id, Some(id1));
+        assert_eq!(scheduler.ready_count(), 1);
+
+        let next_id = scheduler.next_ready_fiber();
+        assert_eq!(next_id, Some(id2));
+        assert_eq!(scheduler.ready_count(), 0);
+
+        let next_id = scheduler.next_ready_fiber();
+        assert_eq!(next_id, None);
+    }
+
+    #[test]
+    fn test_set_current_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        scheduler.set_current_fiber(Some(fiber_id)).unwrap();
+        assert_eq!(scheduler.current_fiber(), Some(fiber_id));
+
+        let fiber = scheduler.get_fiber(fiber_id).unwrap();
+        assert!(fiber.is_running());
+
+        scheduler.set_current_fiber(None).unwrap();
+        assert_eq!(scheduler.current_fiber(), None);
+    }
+
+    #[test]
+    fn test_fiber_lifecycle_error_handling() {
+        let mut scheduler = create_test_scheduler();
+        let nonexistent_id = FiberId::new(999);
+
+        // Test operations on nonexistent fiber
+        assert!(
+            scheduler
+                .yield_fiber(nonexistent_id, SuspendReason::Yielded)
+                .is_err()
+        );
+        assert!(scheduler.resume_fiber(nonexistent_id).is_err());
+        assert!(
+            scheduler
+                .complete_fiber(nonexistent_id, Ok(Value::nil()))
+                .is_err()
+        );
+        assert!(scheduler.cleanup_fiber(nonexistent_id).is_err());
+        assert!(scheduler.set_current_fiber(Some(nonexistent_id)).is_err());
+
+        // Test invalid state transitions
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        // Try to resume a fiber that's not suspended
+        assert!(scheduler.resume_fiber(fiber_id).is_err());
+    }
+
+    #[test]
+    fn test_scheduler_initialization() {
+        let scheduler = create_test_scheduler();
+        assert_eq!(scheduler.thread_count(), 0); // Test scheduler has no threads
+        assert!(scheduler.is_running());
+        assert_eq!(scheduler.fiber_count(), 0);
+    }
+
+    #[test]
+    fn test_scheduler_shutdown() {
+        let mut scheduler = create_test_scheduler();
+        assert!(scheduler.is_running());
+
+        scheduler.shutdown().unwrap();
+        assert!(!scheduler.is_running());
+        assert_eq!(scheduler.fiber_count(), 0);
+    }
+
+    #[test]
+    fn test_cleanup_completed_fibers() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(future::ready(Ok(Value::Number(42.into()))));
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        // Complete the fiber
+        scheduler
+            .complete_fiber(fiber_id, Ok(Value::Number(42.into())))
+            .unwrap();
+        assert_eq!(scheduler.fiber_count(), 1);
+
+        // Clean up completed fibers
+        scheduler.cleanup_completed_fibers();
+        assert_eq!(scheduler.fiber_count(), 0);
+    }
+
+    #[test]
+    fn test_scheduler_with_default_thread_count() {
+        let scheduler = FiberScheduler::default();
+        assert!(scheduler.thread_count() > 0);
+    }
+
+    #[test]
+    fn test_execute_single_fiber() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(async { Ok(Value::Number(42.into())) });
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        assert_eq!(scheduler.fiber_count(), 1);
+        assert!(scheduler.has_ready_fibers());
+
+        // Complete the fiber manually for testing
+        scheduler
+            .complete_fiber(fiber_id, Ok(Value::Number(42.into())))
+            .unwrap();
+
+        let fiber = scheduler.get_fiber(fiber_id).unwrap();
+        assert!(fiber.is_completed());
+    }
+
+    #[test]
+    fn test_check_suspended_fibers() {
+        let mut scheduler = create_test_scheduler();
+        let future = Box::pin(async { Ok(Value::Number(42.into())) });
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        // Suspend the fiber
+        scheduler
+            .yield_fiber(fiber_id, SuspendReason::Yielded)
+            .unwrap();
+
+        // Resume it manually to test the logic
+        scheduler.resume_fiber(fiber_id).unwrap();
+
+        let fiber = scheduler.get_fiber(fiber_id).unwrap();
+        assert!(fiber.is_ready());
+    }
+
+    #[test]
+    fn test_scheduler_run_basic() {
+        let mut scheduler = create_test_scheduler();
+
+        // Spawn a simple fiber
+        let future = Box::pin(async { Ok(Value::Number(42.into())) });
+        let fiber_id = scheduler.spawn_fiber(future, None);
+
+        assert_eq!(scheduler.fiber_count(), 1);
+        assert!(scheduler.has_ready_fibers());
+
+        // Manually complete and cleanup to test the process
+        scheduler
+            .complete_fiber(fiber_id, Ok(Value::Number(42.into())))
+            .unwrap();
+        scheduler.cleanup_completed_fibers();
+
+        assert_eq!(scheduler.fiber_count(), 0);
+    }
+}
