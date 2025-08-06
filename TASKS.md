@@ -854,23 +854,23 @@ fn test_check_suspended_fibers
 fn test_scheduler_run_basic
 ```
 
-#### T4.1.5: Create fiber scheduler tests
+#### T4.1.5: Create fiber scheduler tests ✅
 **Acceptance**: 20+ tests covering fiber creation, scheduling, and multitasking
 
 ### 4.2 Async Fiber System
 
-#### T4.2.1: Implement async fiber operations
+#### T4.2.1: Implement async fiber operations ✅
 **Prerequisites**: Fiber scheduler complete
 **Deliverables**:
 - Methods for spawning, waiting, yielding, and synchronizing fibers
 - Parent/child fiber relationships for structured concurrency
 
-#### T4.2.2: Integrate async operations with fiber scheduler
+#### T4.2.2: Integrate async operations with fiber scheduler ✅
 **Deliverables**:
 - Fiber lifecycle, suspension, and completion
 - Coordination and prioritization of fibers
 
-#### T4.2.3: Create async fiber tests
+#### T4.2.3: Create async fiber tests ✅
 **Acceptance**: 18+ tests covering fiber creation, hierarchy, cancellation, and completion
 
 ### 4.3 Asynchronous I/O Integration
@@ -1181,14 +1181,14 @@ cargo fmt --check            # Formatting verification
 
 ### Overall Status
 **Current Phase**: Phase 3 (Advanced Language Features)
-**Overall Progress**: 47% (38/81 tasks completed)
+**Overall Progress**: 52% (42/81 tasks completed)
 **Estimated Completion**: 12-16 weeks
 
 ### Phase Progress
 - **Phase 1**: ✅ 100% (14/14 tasks) - Foundation COMPLETE
 - **Phase 2**: ✅ 100% (20/20 tasks) - Basic Interpreter COMPLETE
 - **Phase 3**: ☐ 35% (7/20 tasks) - Advanced Features (Section 3.1 COMPLETE, Section 3.2 in progress, T3.3.1 COMPLETE)
-- **Phase 4**: ☐ 25% (4/16 tasks) - Concurrency (T4.1.1, T4.1.2, T4.1.3, T4.1.4 COMPLETE)
+- **Phase 4**: ☐ 50% (8/16 tasks) - Concurrency (Section 4.1 COMPLETE, Section 4.2 COMPLETE)
 - **Phase 5**: ☐ 0% (0/12 tasks) - Polish & Macros
 
 ### Recently Completed
@@ -1234,11 +1234,16 @@ cargo fmt --check            # Formatting verification
 - ✅ T4.1.2: Implement `FiberScheduler` struct (6 comprehensive tests)
 - ✅ T4.1.3: Implement fiber lifecycle management (9 comprehensive tests)
 - ✅ T4.1.4: Implement scheduler main loop (7 comprehensive tests)
+- ✅ T4.1.5: Create fiber scheduler tests (47 comprehensive tests)
+- ✅ T4.2.1: Implement async fiber operations (24 comprehensive tests)
+- ✅ T4.2.2: Integrate async operations with fiber scheduler (modular architecture)
+- ✅ T4.2.3: Create async fiber tests (24 tests covering all aspects)
+- 📁 **Module Restructuring**: Separated scheduler into logical submodules (types.rs, scheduler.rs, async_ops.rs)
 
 ### Immediate Next Steps  
-1. **T4.1.5**: Create fiber scheduler tests (🔥 Priority - Complete Phase 4.1)
-2. **T3.3.2**: Add REPL error handling (Continue Phase 3.3)
-3. **T3.2.1**: Implement type checking procedures (Continue Phase 3.2)
+1. **T4.3.1**: Implement async I/O infrastructure (🔥 Priority - Continue Phase 4.3)
+2. **T3.2.1**: Implement type checking procedures (Continue Phase 3.2)
+3. **T3.3.2**: Add REPL error handling (Continue Phase 3.3)
 
 ### Blocked Tasks
 None currently - clear path forward through Phase 1.
