@@ -127,13 +127,13 @@ twine>
 
 ## Architecture
 
-Twine uses a fiber scheduler built on `smol`, allowing multiple fibers to execute concurrently across CPU cores. The codebase is organized into modules that reflect interpreter concepts:
+Twine uses a fiber-based execution system built on `smol`, allowing multiple fibers to execute concurrently across CPU cores. The codebase is organized into modules that reflect interpreter concepts:
 
 - `lexer/` - Input tokenization with position tracking and error reporting
 - `parser/` - S-expression parsing and AST construction
 - `types/` - Immutable Scheme data types
 - `runtime/` - Core evaluation engine and environment management
-- `scheduler/` - Fiber infrastructure with state management and concurrency primitives
+- `fiber/` - Fiber-based concurrency infrastructure with executor and scheduler components
 - `repl/` - Interactive interface
 
 ## License

@@ -151,35 +151,35 @@ fn test_integration_io_error_handling() {
 
     // Test display with invalid arity
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "test_io", "(display)"])
+        .args(["run", "--bin", "test_io", "(display)"])
         .output()
         .expect("Failed to execute test binary");
     assert!(!output.status.success()); // Should fail
 
     // Test display with too many arguments
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "test_io", "(display \"a\" \"b\")"])
+        .args(["run", "--bin", "test_io", "(display \"a\" \"b\")"])
         .output()
         .expect("Failed to execute test binary");
     assert!(!output.status.success()); // Should fail
 
     // Test newline with arguments
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "test_io", "(newline \"invalid\")"])
+        .args(["run", "--bin", "test_io", "(newline \"invalid\")"])
         .output()
         .expect("Failed to execute test binary");
     assert!(!output.status.success()); // Should fail
 
     // Test I/O with undefined identifier
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "test_io", "(display undefined-var)"])
+        .args(["run", "--bin", "test_io", "(display undefined-var)"])
         .output()
         .expect("Failed to execute test binary");
     assert!(!output.status.success()); // Should fail
 
     // Test I/O with evaluation error
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "test_io", "(display (+ 1 \"not-number\"))"])
+        .args(["run", "--bin", "test_io", "(display (+ 1 \"not-number\"))"])
         .output()
         .expect("Failed to execute test binary");
     assert!(!output.status.success()); // Should fail

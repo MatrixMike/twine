@@ -668,7 +668,7 @@ fn test_integration_lambda_application_parameter_shadowing() {
           (let ((x 999))
             (lambda (y) (+ x y))))
     "#;
-    eval_source(&format!("(define make-nested {})", nested_lambda), &mut env).unwrap();
+    eval_source(&format!("(define make-nested {nested_lambda})"), &mut env).unwrap();
     let result = eval_source("((make-nested 1) 2)", &mut env).unwrap();
     assert_eq!(result, Value::number(1001.0)); // 999 + 2, using let-bound x
 }
@@ -732,7 +732,7 @@ fn test_integration_lambda_application_comprehensive() {
     "#;
 
     eval_source(
-        &format!("(define process-data {})", complex_lambda),
+        &format!("(define process-data {complex_lambda})"),
         &mut env,
     )
     .unwrap();

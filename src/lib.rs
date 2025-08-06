@@ -4,11 +4,11 @@
 //! subset of R7RS-small Scheme with fiber-based concurrency and strict immutability.
 
 pub mod error;
+pub mod fiber;
 pub mod lexer;
 pub mod parser;
 pub mod repl;
 pub mod runtime;
-pub mod scheduler;
 pub mod types;
 
 // Re-export error types for convenience

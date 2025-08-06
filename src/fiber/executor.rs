@@ -1,10 +1,10 @@
-//! Async fiber operations and coordination primitives
+//! Fiber executor for async task management and coordination
 //!
-//! This module provides high-level async operations for fiber management:
-//! - Spawning fibers and async tasks
-//! - Waiting for fiber completion
-//! - Coordination and synchronization primitives
-//! - Task handles and completion tracking
+//! This module provides the high-level fiber execution environment:
+//! - Spawning and managing fiber tasks
+//! - Coordinating fiber completion and results
+//! - Async synchronization primitives
+//! - Task lifecycle management and handles
 
 use super::types::{FiberId, SuspendReason};
 use crate::Result;
@@ -22,12 +22,12 @@ use super::scheduler::FiberScheduler;
 
 /// Handle for an async task that can be awaited
 #[derive(Debug, Clone)]
-pub struct TaskHandle {
+pub struct FiberTask {
     fiber_id: FiberId,
     receiver: Receiver<Result<Value>>,
 }
 
-impl TaskHandle {
+impl FiberTask {
     /// Create a new task handle
     pub fn new(fiber_id: FiberId, receiver: Receiver<Result<Value>>) -> Self {
         Self { fiber_id, receiver }
@@ -86,15 +86,15 @@ impl Future for FiberWait {
     }
 }
 
-/// Async operations for fiber management
+/// High-level fiber execution environment for task coordination
 #[derive(Debug)]
-pub struct AsyncFiberOps {
+pub struct FiberExecutor {
     scheduler: Arc<Mutex<FiberScheduler>>,
     completion_senders: Arc<Mutex<HashMap<FiberId, Sender<Result<Value>>>>>,
 }
 
-impl AsyncFiberOps {
-    /// Create new async fiber operations with the given scheduler
+impl FiberExecutor {
+    /// Create new fiber executor with the given scheduler
     pub fn new(scheduler: Arc<Mutex<FiberScheduler>>) -> Self {
         Self {
             scheduler,
@@ -113,7 +113,7 @@ impl AsyncFiberOps {
     }
 
     /// Spawn a new async task (fiber) and return a handle for waiting
-    pub fn spawn_task<F>(&self, future: F, parent: Option<FiberId>) -> TaskHandle
+    pub fn spawn_task<F>(&self, future: F, parent: Option<FiberId>) -> FiberTask
     where
         F: Future<Output = Result<Value>> + Send + 'static,
     {
@@ -130,7 +130,7 @@ impl AsyncFiberOps {
             senders.insert(fiber_id, sender);
         }
 
-        TaskHandle::new(fiber_id, receiver)
+        FiberTask::new(fiber_id, receiver)
     }
 
     /// Wait for a fiber to complete
@@ -188,7 +188,7 @@ impl AsyncFiberOps {
     }
 }
 
-impl Clone for AsyncFiberOps {
+impl Clone for FiberExecutor {
     fn clone(&self) -> Self {
         Self {
             scheduler: Arc::clone(&self.scheduler),
@@ -197,14 +197,14 @@ impl Clone for AsyncFiberOps {
     }
 }
 
-impl AsyncFiberOps {
+impl FiberExecutor {
     /// Spawn multiple fibers and wait for all to complete
     pub async fn spawn_all<F, I>(&self, futures: I, parent: Option<FiberId>) -> Result<Vec<Value>>
     where
         F: Future<Output = Result<Value>> + Send + 'static,
         I: IntoIterator<Item = F>,
     {
-        let handles: Vec<TaskHandle> = futures
+        let handles: Vec<FiberTask> = futures
             .into_iter()
             .map(|future| self.spawn_task(future, parent))
             .collect();
@@ -222,7 +222,7 @@ impl AsyncFiberOps {
         F: Future<Output = Result<Value>> + Send + 'static,
         I: IntoIterator<Item = F>,
     {
-        let handles: Vec<TaskHandle> = futures
+        let handles: Vec<FiberTask> = futures
             .into_iter()
             .map(|future| self.spawn_task(future, parent))
             .collect();
@@ -251,59 +251,59 @@ impl AsyncFiberOps {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduler::scheduler::FiberScheduler;
+    use crate::fiber::scheduler::FiberScheduler;
     use crate::types::Value;
     use std::sync::{Arc, Mutex};
 
-    fn create_test_async_ops() -> AsyncFiberOps {
+    fn create_test_executor() -> FiberExecutor {
         let scheduler = Arc::new(Mutex::new(FiberScheduler::new_for_test()));
-        AsyncFiberOps::new(scheduler)
+        FiberExecutor::new(scheduler)
     }
 
     #[test]
-    fn test_async_fiber_ops_creation() {
-        let async_ops = create_test_async_ops();
-        assert_eq!(async_ops.fiber_count(), 0);
-        assert!(!async_ops.has_ready_fibers());
+    fn test_fiber_executor_creation() {
+        let executor = create_test_executor();
+        assert_eq!(executor.fiber_count(), 0);
+        assert!(!executor.has_ready_fibers());
     }
 
     #[test]
     fn test_spawn_simple_fiber() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future = async { Ok(Value::number(42.0)) };
-            let fiber_id = async_ops.spawn_fiber(future, None);
+            let fiber_id = executor.spawn_fiber(future, None);
 
-            assert!(async_ops.has_fiber(fiber_id));
-            assert_eq!(async_ops.fiber_count(), 1);
+            assert!(executor.has_fiber(fiber_id));
+            assert_eq!(executor.fiber_count(), 1);
         });
     }
 
     #[test]
     fn test_spawn_task_with_handle() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future = async { Ok(Value::number(42.0)) };
-            let handle = async_ops.spawn_task(future, None);
+            let handle = executor.spawn_task(future, None);
 
-            assert!(async_ops.has_fiber(handle.id()));
-            assert_eq!(async_ops.fiber_count(), 1);
+            assert!(executor.has_fiber(handle.id()));
+            assert_eq!(executor.fiber_count(), 1);
         });
     }
 
     #[test]
     fn test_task_completion() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future = async { Ok(Value::number(42.0)) };
-            let handle = async_ops.spawn_task(future, None);
+            let handle = executor.spawn_task(future, None);
             let fiber_id = handle.id();
 
             // Manually complete the fiber to test completion notification
-            async_ops
+            executor
                 .complete_fiber(fiber_id, Ok(Value::number(42.0)))
                 .unwrap();
 
@@ -315,83 +315,83 @@ mod tests {
     #[test]
     fn test_fiber_wait_future() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future = async { Ok(Value::string("hello")) };
-            let fiber_id = async_ops.spawn_fiber(future, None);
+            let fiber_id = executor.spawn_fiber(future, None);
 
             // Manually complete the fiber
-            async_ops
+            executor
                 .complete_fiber(fiber_id, Ok(Value::string("hello")))
                 .unwrap();
 
-            let result = async_ops.wait_for_fiber(fiber_id).await.unwrap();
-            assert_eq!(result.as_boolean().unwrap(), true); // FiberWait returns true for completed fibers
+            let result = executor.wait_for_fiber(fiber_id).await.unwrap();
+            assert!(result.as_boolean().unwrap()); // FiberWait returns true for completed fibers
         });
     }
 
     #[test]
     fn test_fiber_yield_and_resume() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future = async { Ok(Value::boolean(true)) };
-            let fiber_id = async_ops.spawn_fiber(future, None);
+            let fiber_id = executor.spawn_fiber(future, None);
 
             // Yield the fiber
-            async_ops
+            executor
                 .yield_fiber(fiber_id, SuspendReason::Yielded)
                 .unwrap();
 
             // Resume the fiber
-            async_ops.resume_fiber(fiber_id).unwrap();
+            executor.resume_fiber(fiber_id).unwrap();
 
-            assert!(async_ops.has_fiber(fiber_id));
+            assert!(executor.has_fiber(fiber_id));
         });
     }
 
     #[test]
     fn test_parent_child_fiber_relationship() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             // Create parent fiber
             let parent_future = async { Ok(Value::string("parent")) };
-            let parent_id = async_ops.spawn_fiber(parent_future, None);
+            let parent_id = executor.spawn_fiber(parent_future, None);
 
             // Create child fiber with parent
             let child_future = async { Ok(Value::string("child")) };
-            let child_id = async_ops.spawn_fiber(child_future, Some(parent_id));
+            let child_id = executor.spawn_fiber(child_future, Some(parent_id));
 
-            assert!(async_ops.has_fiber(parent_id));
-            assert!(async_ops.has_fiber(child_id));
-            assert_eq!(async_ops.fiber_count(), 2);
+            assert!(executor.has_fiber(parent_id));
+            assert!(executor.has_fiber(child_id));
+            assert_eq!(executor.fiber_count(), 2);
         });
     }
 
     #[test]
     fn test_multiple_tasks_with_handles() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future1 = async { Ok(Value::number(1.0)) };
             let future2 = async { Ok(Value::number(2.0)) };
             let future3 = async { Ok(Value::number(3.0)) };
 
-            let handle1 = async_ops.spawn_task(future1, None);
-            let handle2 = async_ops.spawn_task(future2, None);
-            let handle3 = async_ops.spawn_task(future3, None);
+            let handle1 = executor.spawn_task(future1, None);
+            let handle2 = executor.spawn_task(future2, None);
+            let handle3 = executor.spawn_task(future3, None);
 
-            assert_eq!(async_ops.fiber_count(), 3);
+            assert_eq!(executor.fiber_count(), 3);
 
             // Complete all fibers
-            async_ops
+            executor
                 .complete_fiber(handle1.id(), Ok(Value::number(1.0)))
                 .unwrap();
-            async_ops
+            executor
                 .complete_fiber(handle2.id(), Ok(Value::number(2.0)))
                 .unwrap();
-            async_ops
+            executor
                 .complete_fiber(handle3.id(), Ok(Value::number(3.0)))
                 .unwrap();
 
@@ -408,24 +408,24 @@ mod tests {
     #[test]
     fn test_spawn_race_fibers() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future1 = async { Ok(Value::number(10.0)) };
             let future2 = async { Ok(Value::number(20.0)) };
             let future3 = async { Ok(Value::number(30.0)) };
 
-            let handle1 = async_ops.spawn_task(future1, None);
-            let handle2 = async_ops.spawn_task(future2, None);
-            let handle3 = async_ops.spawn_task(future3, None);
+            let handle1 = executor.spawn_task(future1, None);
+            let handle2 = executor.spawn_task(future2, None);
+            let handle3 = executor.spawn_task(future3, None);
 
             // Complete all fibers
-            async_ops
+            executor
                 .complete_fiber(handle1.id(), Ok(Value::number(10.0)))
                 .unwrap();
-            async_ops
+            executor
                 .complete_fiber(handle2.id(), Ok(Value::number(20.0)))
                 .unwrap();
-            async_ops
+            executor
                 .complete_fiber(handle3.id(), Ok(Value::number(30.0)))
                 .unwrap();
 
@@ -442,11 +442,11 @@ mod tests {
     #[test]
     fn test_spawn_all_fibers() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             // Test with empty futures to verify basic functionality
             let futures: Vec<std::future::Ready<crate::Result<Value>>> = Vec::new();
-            let result = async_ops.spawn_all(futures, None).await;
+            let result = executor.spawn_all(futures, None).await;
             assert!(result.is_ok());
             let results = result.unwrap();
             assert_eq!(results.len(), 0);
@@ -456,13 +456,13 @@ mod tests {
     #[test]
     fn test_spawn_race_single_future() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future = async { Ok(Value::string("winner")) };
-            let handle = async_ops.spawn_task(future, None);
+            let handle = executor.spawn_task(future, None);
 
             // Complete the fiber manually
-            async_ops
+            executor
                 .complete_fiber(handle.id(), Ok(Value::string("winner")))
                 .unwrap();
 
@@ -475,14 +475,14 @@ mod tests {
     #[test]
     fn test_fiber_cancellation() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let future = async { Ok(Value::string("cancelled")) };
-            let handle = async_ops.spawn_task(future, None);
+            let handle = executor.spawn_task(future, None);
             let fiber_id = handle.id();
 
             // Complete fiber with an error to simulate cancellation
-            async_ops
+            executor
                 .complete_fiber(
                     fiber_id,
                     Err(crate::error::Error::runtime_error("Cancelled")),
@@ -497,64 +497,67 @@ mod tests {
     #[test]
     fn test_yield_now_operation() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
-            let result = async_ops.yield_now().await;
+            let result = executor.yield_now().await;
             assert!(result.is_ok());
-            assert_eq!(result.unwrap().as_boolean().unwrap(), true);
+            assert!(result.unwrap().as_boolean().unwrap());
         });
     }
 
     #[test]
-    fn test_async_fiber_ops_clone() {
-        let async_ops = create_test_async_ops();
-        let cloned_ops = async_ops.clone();
+    fn test_fiber_executor_clone() {
+        let executor = create_test_executor();
+        let cloned_executor = executor.clone();
 
-        assert_eq!(async_ops.fiber_count(), cloned_ops.fiber_count());
-        assert_eq!(async_ops.has_ready_fibers(), cloned_ops.has_ready_fibers());
+        assert_eq!(executor.fiber_count(), cloned_executor.fiber_count());
+        assert_eq!(
+            executor.has_ready_fibers(),
+            cloned_executor.has_ready_fibers()
+        );
     }
 
     #[test]
     fn test_fiber_hierarchy_cleanup() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             // Create parent
             let parent_future = async { Ok(Value::string("parent")) };
-            let parent_id = async_ops.spawn_fiber(parent_future, None);
+            let parent_id = executor.spawn_fiber(parent_future, None);
 
             // Create multiple children
             let child1_future = async { Ok(Value::string("child1")) };
             let child2_future = async { Ok(Value::string("child2")) };
 
-            let child1_id = async_ops.spawn_fiber(child1_future, Some(parent_id));
-            let child2_id = async_ops.spawn_fiber(child2_future, Some(parent_id));
+            let child1_id = executor.spawn_fiber(child1_future, Some(parent_id));
+            let child2_id = executor.spawn_fiber(child2_future, Some(parent_id));
 
-            assert_eq!(async_ops.fiber_count(), 3);
+            assert_eq!(executor.fiber_count(), 3);
 
             // Complete parent (should handle children properly)
-            async_ops
+            executor
                 .complete_fiber(parent_id, Ok(Value::string("parent")))
                 .unwrap();
-            async_ops
+            executor
                 .complete_fiber(child1_id, Ok(Value::string("child1")))
                 .unwrap();
-            async_ops
+            executor
                 .complete_fiber(child2_id, Ok(Value::string("child2")))
                 .unwrap();
 
             // All fibers should still exist until cleanup
-            assert_eq!(async_ops.fiber_count(), 3);
+            assert_eq!(executor.fiber_count(), 3);
         });
     }
 
     #[test]
     fn test_fiber_wait_nonexistent() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let fake_id = FiberId::new(999);
-            let result = async_ops.wait_for_fiber(fake_id).await;
+            let result = executor.wait_for_fiber(fake_id).await;
 
             assert!(result.is_err());
         });
@@ -562,32 +565,32 @@ mod tests {
 
     #[test]
     fn test_task_handle_id() {
-        let async_ops = create_test_async_ops();
+        let executor = create_test_executor();
 
         let future = async { Ok(Value::number(42.0)) };
-        let handle = async_ops.spawn_task(future, None);
+        let handle = executor.spawn_task(future, None);
 
         let fiber_id = handle.id();
-        assert!(async_ops.has_fiber(fiber_id));
+        assert!(executor.has_fiber(fiber_id));
     }
 
     #[test]
     fn test_concurrent_fiber_operations() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             // Spawn multiple fibers concurrently
             let mut handles = Vec::new();
             for i in 0..5 {
                 let future = async move { Ok(Value::number(i as f64)) };
-                handles.push(async_ops.spawn_task(future, None));
+                handles.push(executor.spawn_task(future, None));
             }
 
-            assert_eq!(async_ops.fiber_count(), 5);
+            assert_eq!(executor.fiber_count(), 5);
 
             // Complete all fibers
             for (i, handle) in handles.iter().enumerate() {
-                async_ops
+                executor
                     .complete_fiber(handle.id(), Ok(Value::number(i as f64)))
                     .unwrap();
             }
@@ -603,10 +606,10 @@ mod tests {
     #[test]
     fn test_empty_spawn_race() {
         smol::block_on(async {
-            let async_ops = create_test_async_ops();
+            let executor = create_test_executor();
 
             let empty_futures: Vec<std::future::Ready<crate::Result<Value>>> = vec![];
-            let result = async_ops.spawn_race(empty_futures, None).await;
+            let result = executor.spawn_race(empty_futures, None).await;
 
             assert!(result.is_err());
         });

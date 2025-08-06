@@ -49,7 +49,9 @@ impl FiberScheduler {
 
     /// Create a new fiber scheduler with specific thread count
     pub fn with_threads(thread_count: usize) -> Self {
-        let scheduler = Self {
+        
+        // Don't initialize thread pool by default to avoid hanging in tests
+        Self {
             ready_queue: VecDeque::new(),
             fibers: HashMap::new(),
             runtime: Arc::new(Executor::new()),
@@ -58,9 +60,7 @@ impl FiberScheduler {
             next_fiber_id: 1,
             shutdown: Arc::new(AtomicBool::new(false)),
             thread_count,
-        };
-        // Don't initialize thread pool by default to avoid hanging in tests
-        scheduler
+        }
     }
 
     /// Create a test scheduler without thread pool
@@ -88,7 +88,7 @@ impl FiberScheduler {
                 let shutdown_flag = Arc::clone(&shutdown);
 
                 let handle = thread::Builder::new()
-                    .name(format!("fiber-worker-{}", i))
+                    .name(format!("fiber-worker-{i}"))
                     .spawn(move || {
                         block_on(async {
                             while !shutdown_flag.load(Ordering::Relaxed) {
@@ -340,14 +340,14 @@ impl FiberScheduler {
                         SuspendReason::IoOperation(_io_reason) => {
                             // For now, just resume after a brief delay
                             // In a real implementation, we'd check if the I/O is complete
-                            println!("{:?}", _io_reason);
+                            println!("{_io_reason:?}");
                             true
                         }
                         SuspendReason::WaitingForFiber(target_id) => {
                             // Check if the target fiber has completed
                             self.fibers
                                 .get(target_id)
-                                .map_or(true, |target| target.is_completed())
+                                .is_none_or(|target| target.is_completed())
                         }
                         SuspendReason::Yielded => {
                             // Yielded fibers can be resumed immediately
@@ -388,7 +388,7 @@ impl FiberScheduler {
         // Wait for all threads to finish
         for handle in self.thread_pool.drain(..) {
             if let Err(e) = handle.join() {
-                eprintln!("Error joining thread: {:?}", e);
+                eprintln!("Error joining thread: {e:?}");
             }
         }
 
@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn test_fiber_scheduler_debug_formatting() {
         let scheduler = create_test_scheduler();
-        let debug_output = format!("{:?}", scheduler);
+        let debug_output = format!("{scheduler:?}");
         assert!(debug_output.contains("FiberScheduler"));
         assert!(debug_output.contains("ready_count"));
         assert!(debug_output.contains("fiber_count"));

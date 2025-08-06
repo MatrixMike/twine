@@ -1,18 +1,18 @@
-//! Fiber scheduler infrastructure for lightweight concurrency
+//! Fiber-based concurrency infrastructure for lightweight parallelism
 //!
 //! This module provides the core building blocks for fiber-based concurrency:
 //! - Individual fibers with state tracking and lifecycle management
 //! - Suspension reasons for different blocking conditions
-//! - Main scheduler for fiber execution and coordination
-//! - Async operations and coordination primitives
+//! - Fiber scheduler for execution coordination
+//! - Fiber executor for async operations and task management
 //! - Foundation for the complete concurrent execution system
 
 // Re-export core types and structures
-pub use async_ops::{AsyncFiberOps, FiberWait, TaskHandle};
+pub use executor::{FiberExecutor, FiberTask, FiberWait};
 pub use scheduler::FiberScheduler;
 pub use types::{Fiber, FiberId, FiberState, SuspendReason};
 
 // Module declarations
-mod async_ops;
+mod executor;
 mod scheduler;
 mod types;

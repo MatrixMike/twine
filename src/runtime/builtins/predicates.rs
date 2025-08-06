@@ -483,15 +483,13 @@ mod tests {
     #[test]
     fn test_type_checking_comprehensive() {
         // Test that each predicate returns false for all other types
-        let test_values = vec![
-            Value::number(42.0),
+        let test_values = [Value::number(42.0),
             Value::string("test"),
             Value::boolean(true),
             Value::symbol("test"),
             Value::list(vec![Value::number(1.0)]),
             Value::Nil,
-            Value::procedure(Procedure::builtin(Builtin::Add)),
-        ];
+            Value::procedure(Procedure::builtin(Builtin::Add))];
 
         for (i, value) in test_values.iter().enumerate() {
             // Each predicate should return true only for its own type

@@ -4,7 +4,7 @@
 
 ### System Architecture Overview
 ```
-User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thread Pool
+User Interface (REPL/File) → Parser → Evaluator → Fiber Executor → Thread Pool
                           ↓
               Immutable Data Types ← Environment Manager ← Built-ins
 ```
@@ -16,14 +16,14 @@ User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thre
 | **Parser** | AST Construction | S-expressions, quote syntax, error reporting |
 | **Evaluator** | Expression Evaluation | Special forms, procedure application, tail-call optimization |
 | **Environment** | Identifier Binding | Lexical scoping, closures, immutable chains |
-| **Fiber Scheduler** | Concurrency Management | Automatic I/O yielding, thread pool execution, fiber completion |
+| **Fiber Executor** | Concurrency Management | Automatic I/O yielding, thread pool execution, fiber completion |
 | **Value System** | Data Types | Complete immutability, reference counting |
 | **Macro System** | Code Transformation | R7RS-small patterns, hygienic expansion |
 
 ### Concurrency Model
 - Twine uses a fiber-based concurrency model.
-- All async execution and scheduling is managed directly by fibers.
-- **All code runs in fibers** managed by a central scheduler.
+- All async execution and task management is coordinated by the fiber executor.
+- **All code runs in fibers** managed by a central executor and scheduler.
 - **Automatic I/O yielding**: I/O operations suspend and resume fibers transparently.
 - **Thread pool execution**: Fibers run in parallel across CPU cores, with no global interpreter lock.
 - **Immutable data sharing**: All data structures are immutable and thread-safe.
@@ -315,7 +315,7 @@ impl Environment {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Fiber Scheduler Architecture
+### Fiber Execution Architecture
 
 ```rust
 pub struct Fiber {

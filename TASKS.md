@@ -787,7 +787,7 @@ runtime/
 **Prerequisites**: File execution complete
 **Dependencies**: Add `smol`, `futures-lite`, `async-channel` to Cargo.toml
 **Deliverables**:
-- Create `src/scheduler/` module
+- Create `src/fiber/` module
 - Fiber with id, state, continuation, parent fields
 - `FiberState` enum (Ready, Running, Suspended, Completed)
 - `SuspendReason` enum (IoOperation, WaitingForFiber, Yielded)
@@ -1238,7 +1238,7 @@ cargo fmt --check            # Formatting verification
 - ✅ T4.2.1: Implement async fiber operations (24 comprehensive tests)
 - ✅ T4.2.2: Integrate async operations with fiber scheduler (modular architecture)
 - ✅ T4.2.3: Create async fiber tests (24 tests covering all aspects)
-- 📁 **Module Restructuring**: Separated scheduler into logical submodules (types.rs, scheduler.rs, async_ops.rs)
+- 📁 **Module Restructuring**: Separated fiber module into logical submodules (types.rs, scheduler.rs, executor.rs)
 
 ### Immediate Next Steps  
 1. **T4.3.1**: Implement async I/O infrastructure (🔥 Priority - Continue Phase 4.3)

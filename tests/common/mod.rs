@@ -71,7 +71,7 @@ pub fn test_io(source: &str, expected_output: &str) {
     // Ensure the test_io binary is built once before any tests run
     ENSURE_BINARY_BUILT.call_once(|| {
         let build_result = Command::new("cargo")
-            .args(&["build", "--bin", "test_io"])
+            .args(["build", "--bin", "test_io"])
             .output()
             .expect("Failed to build test_io binary");
 
@@ -107,7 +107,6 @@ pub fn test_io(source: &str, expected_output: &str) {
 
     assert_eq!(
         actual_output, expected_output,
-        "Output mismatch for source: {}\nExpected: {:?}\nActual: {:?}",
-        source, expected_output, actual_output
+        "Output mismatch for source: {source}\nExpected: {expected_output:?}\nActual: {actual_output:?}"
     );
 }

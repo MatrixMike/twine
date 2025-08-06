@@ -414,7 +414,7 @@ fn test_integration_and_or_return_values() {
 
     // Test and returns #f when any is false
     let result = eval_source(r#"(and 1 #f 3)"#, &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     // Test or returns first truthy value
     let result = eval_source(r#"(or #f #f "found" 42)"#, &mut env).unwrap();
@@ -422,14 +422,14 @@ fn test_integration_and_or_return_values() {
 
     // Test or returns #f when all false
     let result = eval_source(r#"(or #f #f #f)"#, &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 
     // Test empty and/or
     let result = eval_source(r#"(and)"#, &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), true);
+    assert!(result.as_boolean().unwrap());
 
     let result = eval_source(r#"(or)"#, &mut env).unwrap();
-    assert_eq!(result.as_boolean().unwrap(), false);
+    assert!(!result.as_boolean().unwrap());
 }
 
 #[test]

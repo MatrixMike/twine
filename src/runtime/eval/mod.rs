@@ -255,8 +255,8 @@ mod tests {
                 assert!(message.contains("is not a procedure"));
                 assert!(message.contains("42"));
             }
-            Err(e) => panic!("Expected RuntimeError, got: {:?}", e),
-            Ok(val) => panic!("Expected error, got value: {:?}", val),
+            Err(e) => panic!("Expected RuntimeError, got: {e:?}"),
+            Ok(val) => panic!("Expected error, got value: {val:?}"),
         }
     }
 
@@ -480,8 +480,8 @@ mod tests {
                 assert_eq!(expected, 3);
                 assert_eq!(actual, 1);
             }
-            Err(e) => panic!("Expected ArityError, got: {:?}", e),
-            Ok(val) => panic!("Expected error, got value: {:?}", val),
+            Err(e) => panic!("Expected ArityError, got: {e:?}"),
+            Ok(val) => panic!("Expected error, got value: {val:?}"),
         }
 
         match eval_source("(if #t 1 2 3)") {
@@ -494,8 +494,8 @@ mod tests {
                 assert_eq!(expected, 3);
                 assert_eq!(actual, 4);
             }
-            Err(e) => panic!("Expected ArityError, got: {:?}", e),
-            Ok(val) => panic!("Expected error, got value: {:?}", val),
+            Err(e) => panic!("Expected ArityError, got: {e:?}"),
+            Ok(val) => panic!("Expected error, got value: {val:?}"),
         }
     }
 
@@ -561,15 +561,13 @@ mod tests {
         ";
 
         // First define a recursive factorial that we can call
-        let _factorial_def = format!(
-            "(if #t
+        let _factorial_def = "(if #t
                (factorial 1000 1)
                0)
             where factorial = (lambda (n acc)
               (if (= n 0)
                   acc
-                  (factorial (- n 1) (* acc n))))"
-        );
+                  (factorial (- n 1) (* acc n))))".to_string();
 
         // For now, test a simpler tail call scenario
         let simple_tail_call = "
