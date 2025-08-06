@@ -16,8 +16,7 @@ User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thre
 | **Parser** | AST Construction | S-expressions, quote syntax, error reporting |
 | **Evaluator** | Expression Evaluation | Special forms, procedure application, tail-call optimization |
 | **Environment** | Identifier Binding | Lexical scoping, closures, immutable chains |
-| **Fiber Scheduler** | Concurrency Management | Automatic I/O yielding, thread pool execution |
-| **Task System** | High-level Async | Hierarchical parent-child relationships |
+| **Fiber Scheduler** | Concurrency Management | Automatic I/O yielding, thread pool execution, fiber completion |
 | **Value System** | Data Types | Complete immutability, reference counting |
 | **Macro System** | Code Transformation | R7RS-small patterns, hygienic expansion |
 
@@ -72,10 +71,10 @@ User Interface (REPL/File) → Parser → Evaluator → Fiber Scheduler → Thre
 │  └───────────┘  └──────────────┘  └─────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
 │                    Execution Engine                             │
-│  ┌─────────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
-│  │ Fiber Scheduler │  │ Task System  │  │ Environment Manager │  │
-│  │ Low-level Mgmt  │  │ High-level   │  │ Identifier Binding  │  │
-│  └─────────────────┘  └──────────────┘  └─────────────────────┘  │
+│  ┌─────────────────┐                     ┌─────────────────────┐  │
+│  │ Fiber Scheduler │                     │ Environment Manager │  │
+│  │ Concurrency Mgmt│                     │ Identifier Binding  │  │
+│  └─────────────────┘                     └─────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────┤
 │                    Runtime Foundation                           │
 │  ┌──────────────────┐  ┌─────────────────────────────────────────┐ │
@@ -111,7 +110,7 @@ twine/src/
 │   └── ...                  # Scheme value types and procedures
 │
 ├── scheduler/               # Concurrency and Execution
-│   └── ...                  # Fiber scheduler, tasks, async I/O
+│   └── ...                  # Fiber scheduler, async I/O
 │
 ├── repl/                    # Interactive Interface
 │   └── ...                  # REPL implementation and line editing
@@ -224,8 +223,7 @@ pub enum Value {
     Procedure(Procedure),     // Functions (builtin/lambda)
 
     // Concurrency types
-    TaskHandle(TaskId),       // High-level task reference
-    FiberHandle(FiberId),     // Low-level fiber reference
+    FiberHandle(FiberId),     // Fiber reference for completion waiting
 
     // Special
     Nil,                      // Empty list/null value
@@ -302,6 +300,7 @@ impl Environment {
 │                   Fiber Scheduler System                        │
 │  ┌─────────────────────────────────────────────────────────────┐ │
 │  │ spawn-fiber → creates independent fibers                   │ │
+│  │ async → convenient syntax for fiber spawning               │ │
 │  │ fiber-wait → synchronizes on fiber completion              │ │
 │  │ I/O Yielding → automatic suspension/resumption             │ │
 │  │ Ready Queue: [F1, F3] | Suspended: [F2→IO] | Running: F4   │ │
@@ -395,7 +394,7 @@ Finished!
 - **No GIL**: Immutable data enables lock-free parallel execution
 - **Parent/Child Fibers**: Fibers can spawn child fibers for structured concurrency
 - **Async Special Form**: `(async <expr>...)` spawns a new fiber for expressions, returning a fiber handle immediately
-- **Independent Fibers**: Low-level control for advanced use cases
+- **Unified Model**: Single fiber abstraction handles all concurrency needs
 
 ---
 
@@ -678,8 +677,8 @@ pub struct Macro {
 ```scheme
 ;; async is a special form that takes a sequence of expressions (like begin)
 ;; Usage examples:
-(define task1 (async (+ 1 2 3)))                       ; Single expression
-(define task2 (async 
+(define fiber1 (async (+ 1 2 3)))                      ; Single expression
+(define fiber2 (async 
   (display "Working...")
   (* 6 7)))                                            ; Multiple expressions
 
@@ -692,11 +691,11 @@ pub struct Macro {
 1. **Takes zero or more expressions** - expressions are not pre-evaluated
 2. **Creates implicit thunk** - wraps expressions in a closure automatically
 3. **Captures environment** - lexical environment is captured at async call site
-4. **Returns immediately** - returns a `TaskHandle` without blocking
+4. **Returns immediately** - returns a `FiberHandle` without blocking
 5. **Spawns fiber** - expressions will be evaluated in a separate fiber
 
 **Special Form Signature**: `(async <expr>...)`
-- **Zero expressions**: `(async)` - returns completed task with nil value
+- **Zero expressions**: `(async)` - returns completed fiber with nil value
 - **Single expression**: `(async (+ 1 2))` - evaluates expression in fiber
 - **Multiple expressions**: `(async (display "hi") (* 3 4))` - sequential evaluation like begin
 - **No restrictions**: Any valid Scheme expressions allowed
@@ -735,7 +734,6 @@ pub enum Error {
     // System errors
     IoError(String),
     FiberError(String),
-    TaskError(String),
     MacroError(String),
     SystemError(String),
 }

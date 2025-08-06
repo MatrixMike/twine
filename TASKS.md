@@ -118,7 +118,7 @@ cargo bench              # Benchmarks must run (when applicable)
 **Deliverables**: ✅ **ALL COMPLETE**
 - ✅ Create `src/types.rs` module
 - ✅ Implement `Value` enum with: `Number`, `Boolean`, `String`, `Symbol`, `Nil`
-- ✅ **DID NOT add** `List`, `Procedure`, `TaskHandle` variants yet
+- ✅ **DID NOT add** `List`, `Procedure`, `FiberHandle` variants yet
 - ✅ Implement `Clone`, `Debug`, `PartialEq` traits
 - ✅ Add basic constructor methods
 
@@ -790,7 +790,7 @@ runtime/
 - Create `src/scheduler/` module
 - Fiber with id, state, continuation, parent fields
 - `FiberState` enum (Ready, Running, Suspended, Completed)
-- `SuspendReason` enum (IoOperation, WaitingForTask, Yielded)
+- `SuspendReason` enum (IoOperation, WaitingForFiber, Yielded)
 
 **Tests Added**:
 ```rust
@@ -902,7 +902,7 @@ fn test_scheduler_run_basic
 #### T4.4.1: Implement fiber management procedures
 **Prerequisites**: Async I/O complete
 **Deliverables**:
-- `spawn-fiber`, `yield`, `current-fiber`, `fiber-status`
+- `spawn-fiber`, `fiber-wait`, `current-fiber`, `fiber-status`
 - Fiber control and introspection
 - Error handling for fiber operations
 
@@ -945,8 +945,8 @@ runtime/
 
 #### T4.4.2: Implement coordination procedures
 **Deliverables**:
-- `parallel`, `sequential`, `race`, `timeout`
-- High-level concurrency patterns
+- `fiber-all`, `fiber-race`, `fiber-timeout`
+- High-level fiber coordination patterns
 - Resource cleanup
 
 #### T4.4.3: Create concurrency procedure tests

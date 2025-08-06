@@ -42,7 +42,7 @@ Implements functional subset of R7RS-small with:
 - Immutable data structures only (core constraint)
 - Fiber scheduler for concurrent execution
 - Asynchronous I/O with automatic yielding
-- Two-layer system: low-level fibers + high-level async tasks
+- Unified fiber system with completion values
 
 ---
 
@@ -51,11 +51,9 @@ Implements functional subset of R7RS-small with:
 ### 1. Fiber Scheduler and Async Task System
 - **Execution Model**: All code runs within fibers managed by central scheduler
 - **I/O Integration**: Automatic fiber yielding during I/O operations
-- **Two-Layer System**:
-  - **Low-level**: `spawn-fiber` for independent fibers
-  - **High-level**: `async` macro for hierarchical parent-child tasks
+- **Unified System**: `spawn-fiber` and `async` both create fibers that yield values
 - **Parallelism**: Multi-threaded execution across CPU cores without GIL
-- **Synchronization**: `task-wait` and `fiber-wait` for coordination
+- **Synchronization**: `fiber-wait` for completion and value retrieval
 
 ### 2. Asynchronous I/O
 - **Transparent to Scheme**: I/O appears synchronous, no async/await syntax
@@ -134,7 +132,7 @@ Implements functional subset of R7RS-small with:
 |----|-------------|--------------|
 | **FR-13** | **Lexical Scoping** | Environment chains, closures, strict immutability enforcement |
 | **FR-14** | **Fiber Scheduler Integration** | All code in fibers, automatic I/O yielding, transparent to Scheme |
-| **FR-15** | **Async Task System** | Hierarchical tasks via `async` macro, independent fibers via `spawn-fiber` |
+| **FR-15** | **Fiber Completion System** | Fibers complete with values, `async` special form for convenient syntax |
 | **FR-16** | **Macro System** | R7RS-small `define-syntax` and `syntax-rules`, hygienic expansion |
 | **FR-17** | **Minimal Language Subset** | Essential features only, simple implementation priority |
 
@@ -236,20 +234,20 @@ Hello, World!
 
 ### Concurrency Features
 
-#### AC-8: Async Task System
+#### AC-8: Fiber Completion System
 ```scheme
 > (define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))
 fib
-> (define task1 (async (fib 35)))
-task1
-> (define task2 (async (fib 36)))
-task2
-> (task-wait task1)
+> (define fiber1 (async (fib 35)))
+fiber1
+> (define fiber2 (async (fib 36)))
+fiber2
+> (fiber-wait fiber1)
 9227465
-> (task-wait task2)
+> (fiber-wait fiber2)
 14930352
 ```
-*Note: Tasks execute in parallel with hierarchical relationships*
+*Note: Fibers execute in parallel and complete with values*
 
 #### AC-9: Minimal Syntax Example
 ```scheme
@@ -259,26 +257,26 @@ factorial
 120
 ```
 
-#### AC-10: Task Coordination
+#### AC-10: Fiber Coordination
 ```scheme
-> (define slow-task (lambda ()
-    (display "Starting slow task\n")
-    (display "Slow task complete\n")
+> (define slow-work (lambda ()
+    (display "Starting slow work\n")
+    (display "Slow work complete\n")
     42))
-slow-task
-> (define task1 (async (slow-task)))
-Starting slow task
-task1
-> (define task2 (async (+ 10 20)))
-task2
-> (task-wait task2)
+slow-work
+> (define fiber1 (async (slow-work)))
+Starting slow work
+fiber1
+> (define fiber2 (async (+ 10 20)))
+fiber2
+> (fiber-wait fiber2)
 30
-> (task-wait task1)
-Slow task complete
+> (fiber-wait fiber1)
+Slow work complete
 42
 ```
 
-#### AC-11: Low-Level Fiber Management
+#### AC-11: Direct Fiber Management
 ```scheme
 > (define worker-fiber (spawn-fiber (lambda ()
     (display "Independent worker running\n")
@@ -380,10 +378,9 @@ Hello World
 | **Tail-call optimization** | Recursive calls in tail position reuse stack frames |
 | **Lexical scoping** | Identifiers refer to bindings in enclosing lexical scope |
 | **Closure** | Procedure capturing identifiers from defining environment |
-| **Fiber** | Lightweight computation unit managed by scheduler |
+| **Fiber** | Lightweight computation unit that completes with a value |
 | **Fiber Scheduler** | Central component managing fiber execution and I/O yielding |
-| **Async Task** | High-level abstraction with hierarchical parent-child relationships |
-| **Task Handle** | Reference for task synchronization with task-wait |
+| **Fiber Handle** | Reference for fiber synchronization with fiber-wait |
 | **Fiber Yielding** | Automatic suspension for I/O allowing other fibers to run |
 | **Thread Pool** | Worker threads executing fibers without creation overhead |
 | **GIL-free** | Architecture allowing true parallel execution |

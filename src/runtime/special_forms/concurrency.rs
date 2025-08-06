@@ -1,7 +1,7 @@
 //! Concurrency special forms for the Twine Scheme runtime
 //!
 //! This module implements special forms related to fiber-based concurrency
-//! and asynchronous task management.
+//! and asynchronous fiber management.
 
 use crate::error::{Error, Result};
 use crate::parser::Expression;
@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// Evaluate the `async` special form
 ///
 /// The `async` special form takes zero or more expressions and spawns them
-/// for execution in a new fiber, returning a TaskHandle immediately.
+/// for execution in a new fiber, returning a FiberHandle immediately.
 ///
 /// Syntax: `(async <expr>...)`
 ///
@@ -21,10 +21,10 @@ use std::sync::Arc;
 /// * `env` - The environment for evaluation context
 ///
 /// # Returns
-/// * `Result<Value>` - A TaskHandle for the spawned fiber
+/// * `Result<Value>` - A FiberHandle for the spawned fiber
 ///
 /// # Examples
-/// * `(async)` - Empty body, returns task with nil value
+/// * `(async)` - Empty body, returns fiber with nil value
 /// * `(async (+ 1 2))` - Single expression
 /// * `(async (display "Working...") (* 6 7))` - Multiple expressions
 ///
@@ -48,7 +48,7 @@ pub fn eval_async(_args: &[Arc<Expression>], _env: &mut Environment) -> Result<V
     // 1. Capture the current environment for lexical scoping
     // 2. Create a closure containing the expression sequence
     // 3. Spawn a new fiber with the fiber scheduler
-    // 4. Return a TaskHandle immediately (non-blocking)
+    // 4. Return a FiberHandle immediately (non-blocking)
     // 5. The spawned fiber will evaluate expressions sequentially like begin
 
     Err(Error::runtime_error(
@@ -111,7 +111,7 @@ mod tests {
         // async should accept any number of arguments (including zero)
         // This is different from built-in procedures that might have arity restrictions
 
-        // Zero arguments should be valid (returns task with nil)
+        // Zero arguments should be valid (returns fiber with nil)
         let args = vec![];
         let result = eval_async(&args, &mut env);
         // Should fail with "not implemented" rather than arity error
@@ -137,10 +137,10 @@ mod tests {
 
     // TODO: Add proper integration tests once fiber scheduler is implemented
     // These tests will verify:
-    // - TaskHandle is returned immediately
+    // - FiberHandle is returned immediately
     // - Expressions are evaluated in spawned fiber
     // - Lexical environment is properly captured
     // - Multiple expressions behave like begin
     // - Error handling in spawned fibers
-    // - Integration with task-wait and other task operations
+    // - Integration with fiber-wait and other fiber operations
 }
